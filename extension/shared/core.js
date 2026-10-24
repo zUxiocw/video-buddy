@@ -847,6 +847,12 @@
     var at = Number(raw.at);
     var message = { role: role, content: content };
     if (meta) message.meta = meta;
+    // Local scripted lines (budget notice, nudge) stay in the archive so the
+    // transcript reads correctly, but keep their marker so a restored session
+    // does not feed them back to the model as real conversation.
+    if (role === 'assistant' && typeof raw.scripted === 'string' && raw.scripted) {
+      message.scripted = cleanText(raw.scripted, 32);
+    }
     // Which face led this line. Unknown ids are dropped rather than stored, so
     // a renamed emotion cannot leave a dead reference in saved history.
     if (role === 'assistant' && typeof raw.emotion === 'string' && EMOTION_IDS.indexOf(raw.emotion) >= 0) {

@@ -442,6 +442,15 @@ describe('chat history', () => {
       .not.toHaveProperty('emotion');
   });
 
+  it('keeps the scripted marker on restored local lines', () => {
+    // Nudge/budget lines stay visible after a restore, but must not be fed
+    // back to the model as if the user or the model had said them.
+    expect(Buddy.normalizeMessage({ role: 'assistant', content: '理我一下喵', scripted: 'nudge' }))
+      .toMatchObject({ scripted: 'nudge' });
+    expect(Buddy.normalizeMessage({ role: 'user', content: '在吗', scripted: 'nudge' }))
+      .not.toHaveProperty('scripted');
+  });
+
   it('drops sessions with no dialogue', () => {
     expect(Buddy.normalizeSession({ id: 's1', messages: [] })).toBeNull();
     expect(Buddy.normalizeSession({ id: 's1', messages: [{ role: 'sys', content: 'x' }] })).toBeNull();

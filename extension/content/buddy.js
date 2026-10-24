@@ -591,7 +591,7 @@
         if (Emotions) ui.setEmotion('annoyed', { force: true, holdMs: 0, source: 'nudge' });
         // A real utterance in the transcript, but not `seed`: unlike the opener
         // it is something that happened in the conversation.
-        ui.appendNotice(line, 'annoyed');
+        ui.appendNotice(line, 'annoyed', 'nudge');
         ui.showReaction(line);
       },
       onStop: function () {
@@ -992,7 +992,7 @@
     var line = Buddy.pickBudgetLine(settings.limitMinutes);
     // Announce says what the rule is; it is not annoyance at the user, so it
     // keeps the resting face rather than borrowing the shutdown's 生气.
-    ui.appendNotice(line, EMOTION_DEFAULT);
+    ui.appendNotice(line, EMOTION_DEFAULT, 'budget');
     ui.showReaction(line);
   }
 
@@ -1801,6 +1801,15 @@
     /* -------- messages -------- */
 
     /**
+     * How many nudge lines stay in the transcript.
+     *
+     * Small on purpose: at one line per five seconds this is the last ~1.5
+     * minutes of nagging, which is enough to see that it happened. Keeping
+     * hundreds would bury the conversation and bloat every save.
+     */
+    var MAX_SCRIPTED_MESSAGES = 20;
+
+    /**
      * Add a message to the log. The state array is the single source of truth:
      * the DOM is only a projection of it, so a page re-render or a remount can
      * never lose a line. Returns the message object, whose `node` may be null
@@ -1819,6 +1828,11 @@
         // Greeting placeholders are UI, not conversation: keep them out of
         // history so an untouched session never shows up in the list.
         seed: !!options.seed,
+        // Local chatter that the model neither said nor needs to see. Streamed
+        // into the same array as real turns on purpose — it has to be visible
+        // in the transcript and has to survive a panel remount — but it is
+        // excluded from the request history and from the message cap below.
+        scripted: options.scripted || '',
         node: null,
       };
       state.messages.push(message);
@@ -1833,9 +1847,33 @@
       return message;
     }
 
+    /**
+     * Keep the transcript bounded, but count the two kinds of line separately.
+     *
+     * The nudge speaks every five seconds until answered, so a user who leaves
+     * the tab alone for twenty minutes produces ~240 lines. Under one shared
+     * cap they would push real conversation out of the 300-message window long
+     * before that gets full — the user comes back to find their actual chat
+     * gone and forty "理我一下" in its place. So scripted chatter is held to its
+     * own much smaller budget, OLDEST FIRST, and the conversation cap never
+     * counts it. Real turns are therefore never evicted by nagging.
+     */
     function trimMessages() {
-      while (state.messages.length > Buddy.MAX_SESSION_MESSAGES) {
-        var dropped = state.messages.shift();
+      var scripted = 0;
+      for (var i = state.messages.length - 1; i >= 0; i -= 1) {
+        if (!state.messages[i].scripted) continue;
+        scripted += 1;
+        if (scripted <= MAX_SCRIPTED_MESSAGES) continue;
+        var stale = state.messages[i];
+        state.messages.splice(i, 1);
+        if (stale.node && stale.node.isConnected) stale.node.remove();
+      }
+      var real = state.messages.filter(function (message) { return !message.scripted; }).length;
+      for (var j = 0; j < state.messages.length && real > Buddy.MAX_SESSION_MESSAGES; j += 1) {
+        if (state.messages[j].scripted) continue;
+        var dropped = state.messages.splice(j, 1)[0];
+        j -= 1;
+        real -= 1;
         if (dropped.node && dropped.node.isConnected) dropped.node.remove();
       }
     }
@@ -1959,15 +1997,21 @@
     }
 
     /**
-     * A line that is not tied to a video: right now only the watch-time
-     * shutdown. It is a real utterance, so unlike the opener it is *not*
-     * `seed` — if the tab survives long enough to archive, the record shows
-     * why it closed.
+     * A line that is not tied to a video: the watch-time shutdown, the budget
+     * reminder and the silence nudge. It is a real utterance, so unlike the
+     * opener it is *not* `seed` — if the tab survives long enough to archive,
+     * the record shows why it closed.
+     *
+     * `scripted` marks lines this extension wrote itself. They stay in the
+     * transcript and in the archive, but `startStream()` leaves them out of the
+     * history sent to the model: feeding it forty "理我一下会少块肉吗喵" would
+     * teach it to answer in nags, and would spend the 12-turn window on them
+     * instead of on the conversation.
      */
-    function appendNotice(text, emotionId) {
+    function appendNotice(text, emotionId, scripted) {
       var line = Buddy.cleanText(text, 200);
       if (!line) return;
-      pushMessage('assistant', line, { emotion: emotionId || '' });
+      pushMessage('assistant', line, { emotion: emotionId || '', scripted: scripted || '' });
     }
 
     /**
@@ -2010,6 +2054,9 @@
             // Persisted so a restored conversation keeps each line's face
             // instead of re-deriving it from text that may not match.
             emotion: message.emotion || '',
+            // Local scripted lines must stay out of the model history after a
+            // restore, so the marker travels with the saved message.
+            scripted: message.scripted || '',
             at: message.at || 0,
           };
         }),
@@ -2060,6 +2107,7 @@
           content: message.content,
           meta: message.meta || '',
           emotion: message.emotion || '',
+          scripted: message.scripted || '',
           at: message.at || 0,
           node: null,
         };
@@ -2203,6 +2251,11 @@
     function startStream(text) {
       var history = state.messages
         .slice(0, -1)
+        // Our own scripted lines are not part of the conversation the model is
+        // continuing. Video reactions DO belong here (that is the whole point
+        // of the anchor), which is why this filters on `scripted` and not on
+        // "assistant but not streamed".
+        .filter(function (message) { return !message.scripted; })
         .filter(function (message) { return message.role === 'user' || message.role === 'assistant'; })
         .map(function (message) { return { role: message.role, content: message.content }; });
 
