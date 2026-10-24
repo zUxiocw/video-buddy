@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>安装说明 · 上头了喵喵</title>
+  <meta name="description" content="上头了喵喵的 Chrome / Edge 安装说明：先启动本机 Fastify 服务，再加载扩展并填写服务地址与 APP_TOKEN。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#how">怎么用</a>
+        <a href="index.html#emotions">9 种情绪</a>
+        <a href="demo.html">在线试玩</a>
+        <a href="install.html" aria-current="page">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="setup.html">连接本地服务</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap install-page">
+    <div class="install-hero">
+      <div>
+        <span class="install-badge">公开版 · 扩展 + 本地服务</span>
+        <h1 style="margin-top:14px">装进浏览器，<br>先接上服务。</h1>
+        <p>公开版不是单个扩展：Chrome MV3 负责页面和交互，Fastify 负责模型、prompt、语音过滤和 SSE。先启动服务，再把扩展加载进来。</p>
+        <div class="hero-actions">
+          <a class="btn btn-lav" href="setup.html">查看连接步骤</a>
+          <a class="btn btn-ghost" href="demo.html">先试玩</a>
+        </div>
+        <p class="micro" style="margin-top:12px">Node.js 22+ · Fastify · APP_TOKEN · 不是一键安装的纯扩展。</p>
+      </div>
+
+      <div class="download-card">
+        <h2>安装前，先确认三件事</h2>
+        <p>不需要我们的账号，但需要你在本机跑服务。模型 Key 放在服务端，扩展里只填服务地址和令牌。</p>
+        <div class="download-meta">
+          <span>Chrome / Edge 116+</span>
+          <span>Node.js 22+</span>
+          <span>本地 Fastify</span>
+          <span>APP_TOKEN</span>
+        </div>
+        <div class="setup-install-steps">
+          <div><b>01</b><span>Node.js 22+，在 <code>server/</code> 安装依赖并启动服务。</span></div>
+          <div><b>02</b><span><code>.env.local</code> 里填模型 Key 和 APP_TOKEN。</span></div>
+          <div><b>03</b><span>下载扩展 zip，解压后用 Chrome 加载。</span></div>
+        </div>
+        <div class="control-actions" style="margin-top:18px">
+          <a class="btn btn-primary btn-sm" href="setup.html">先启动服务</a>
+          <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
+        </div>
+      </div>
+    </div>
+
+    <section aria-labelledby="install-steps-title">
+      <span class="kicker">安装步骤</span>
+      <h2 class="section-title" id="install-steps-title" style="margin-top:8px">四步，装进抖音网页。</h2>
+
+      <div class="install-steps">
+        <article class="install-step">
+          <span class="n">01</span>
+          <div>
+            <h3>启动本地 Fastify 服务</h3>
+            <p>在 <code>server/</code> 运行 <code>npm.cmd install</code>，把 <code>.env.local.example</code> 复制成 <code>.env.local</code>，填模型 Key 和 APP_TOKEN，再运行 <code>npm.cmd run dev</code>。看到 <code>127.0.0.1:8787</code> 就成功了。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">02</span>
+          <div>
+            <h3>下载并解压扩展</h3>
+            <p>拿到扩展 zip 后解压到一个固定目录。不要放在下载临时目录里，Chrome 会在下次启动时找不到它。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">03</span>
+          <div>
+            <h3>加载已解压的扩展</h3>
+            <p>地址栏输入 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），开启「开发者模式」，点「加载已解压的扩展程序」，选择解压后的文件夹。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">04</span>
+          <div>
+            <h3>填服务地址和 APP_TOKEN</h3>
+            <p>打开抖音网页，点悬浮球设置，填 <code>http://127.0.0.1:8787</code> 和 <code>.env.local</code> 里的 APP_TOKEN。点「测试连接」，看到服务状态正常再开始刷。</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="install-grid">
+      <div class="browser-mock" aria-label="Chrome 扩展管理页示意">
+        <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">chrome://extensions</span></div>
+        <div class="browser-body">
+          <div class="ext-row">
+            <span class="ext-icon"><img src="assets/icon128.png" alt=""></span>
+            <div><b>上头了喵喵</b><small>刷抖音停留 10 秒后，主动跟你搭话</small></div>
+            <span class="ext-toggle" aria-hidden="true"></span>
+          </div>
+          <div class="ext-row">
+            <span class="ext-icon" style="background:#efe6d8"></span>
+            <div><b>其他扩展</b><small>不会影响本插件</small></div>
+            <span class="ext-toggle" style="background:#d8d0c4" aria-hidden="true"></span>
+          </div>
+          <p class="micro" style="margin:6px 0 0">示意图。扩展加载后，这里会出现「上头了喵喵」。</p>
+        </div>
+      </div>
+
+      <div class="download-card">
+        <span class="install-badge">为什么还要本地服务？</span>
+        <h2 style="margin-top:12px">不是没做一键版，是这版就是这个栈。</h2>
+        <p>现有插件把模型 Key、prompt、语音过滤、SSE 都放在 Fastify 里；扩展只做页面。公开版如果改成浏览器直连模型，就要重写整条请求和配置链，和现有成果冲突。</p>
+        <div class="form-note">
+          <b>取舍</b>
+          <span>这版优先保住已经验证过的插件行为：9 情绪、聊天、键盘隔离、历史记录、限时。代价是公开用户要跑一个本地服务。后续是否做“纯扩展 + 自带 API”是另一项架构决策，不在本次 UI 里偷偷改。</span>
+        </div>
+        <div class="control-actions" style="margin-top:16px">
+          <a class="btn btn-primary btn-sm" href="setup.html">走一遍配置</a>
+          <a class="btn btn-ghost btn-sm" href="demo.html">试玩 Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="install-faq">
+      <span class="kicker">安装问题</span>
+      <h2 class="section-title" style="margin-top:8px">常见卡点。</h2>
+      <div class="faq" style="margin-top:18px">
+        <details>
+          <summary>为什么 Chrome 提示“无法加载扩展”？</summary>
+          <div class="answer">通常是没有选择解压后的文件夹，或者文件夹里缺少 <code>manifest.json</code>。重新解压，确认选择的目录里能直接看到 <code>manifest.json</code>，再加载一次。</div>
+        </details>
+        <details>
+          <summary>装完后抖音页面没有悬浮球？</summary>
+          <div class="answer">先在扩展管理页确认「上头了喵喵」是开启状态，然后刷新抖音页面。还要确认本地服务已经启动、设置里的服务地址和 APP_TOKEN 正确；没有令牌时插件不会主动开口。</div>
+        </details>
+        <details>
+          <summary>测试连接一直失败？</summary>
+          <div class="answer">先在浏览器打开 <code>http://127.0.0.1:8787/health</code>，确认服务在运行。再检查设置里的服务地址和 <code>server/.env.local</code> 的 APP_TOKEN 是否一致。模型 Key 只在服务端使用，不需要填进扩展。</div>
+        </details>
+        <details>
+          <summary>能不能只装扩展，不跑服务？</summary>
+          <div class="answer">当前版本不行。这是现有 Fastify 架构的限制，也是这次 UI 调整的重点：不再把页面写成“浏览器直连模型”的样子，避免用户装完发现对不上。</div>
+        </details>
+        <details>
+          <summary>会不会影响抖音账号？</summary>
+          <div class="answer">插件只读当前视频的公开信息和页面文案，不点赞、不评论、不关注、不刷数据。它不绕过登录、不自动操作账号。仍建议遵守抖音的用户协议。</div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div><a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a><p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p></div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">连接服务</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
+      <div><h3>说明</h3><p>当前公开版需要本机 Fastify 服务；正式包会配合 <code>server/</code> 发布。不是抖音官方产品。</p></div>
+    </div>
+    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

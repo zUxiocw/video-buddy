@@ -131,7 +131,7 @@
       '<div class="dialog-pad">' +
         '<span class="kicker">安装说明</span>' +
         '<h2>安装包正在打包</h2>' +
-        '<p>这是公开版的 UI 预览。正式扩展包会在“自带 API Key”接入完成后开放下载；现在可以先试玩交互 Demo，或先把模型配置走一遍。</p>' +
+        '<p>这是公开版的 UI 预览。当前插件使用 Chrome MV3 + 本机 Fastify 服务；正式扩展包会配合 <code>server/</code> 一起发布。现在可以先试玩，或先走一遍本地服务配置。</p>' +
         '<div class="dialog-actions">' +
           '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
           '<a class="btn btn-primary" href="demo.html">去试玩</a>' +
@@ -377,15 +377,17 @@
     var steps = $$('.step-panel');
     var tabs = $$('.step-rail button');
     var current = 1;
-    var providerButtons = $$('.provider');
-    var baseInput = $('#baseUrl');
-    var modelInput = $('#model');
-    var keyInput = $('#apiKey');
+    var serverInput = $('#serverUrl');
+    var tokenInput = $('#appToken');
+    var deviceInput = $('#deviceId');
     var persona = $('#persona');
+    var replyLength = $('#replyLength');
     var auto = $('#setupAuto');
-    var previewLine = $('#previewLine');
-    var previewModel = $('#previewModel');
+    var vision = $('#setupVision');
+    var previewServer = $('#previewServer');
+    var previewToken = $('#previewToken');
     var previewPersona = $('#previewPersona');
+    var previewLine = $('#previewLine');
     var status = $('#connectionStatus');
 
     function showStep(step) {
@@ -400,34 +402,14 @@
         if (active) tab.setAttribute('aria-current', 'step');
         else tab.removeAttribute('aria-current');
       });
-      var heading = $('.setup-card h1, .setup-card h2');
-      if (heading && current === 1) heading.focus({ preventScroll: true });
-    }
-
-    function selectedProvider() {
-      var active = providerButtons.find(function (button) { return button.getAttribute('aria-pressed') === 'true'; });
-      return active ? active.dataset.provider : 'deepseek';
-    }
-
-    function applyProvider(id) {
-      providerButtons.forEach(function (button) {
-        button.setAttribute('aria-pressed', button.dataset.provider === id ? 'true' : 'false');
-      });
-      if (id === 'deepseek') {
-        baseInput.value = 'https://api.deepseek.com';
-        modelInput.value = 'deepseek-chat';
-      } else if (id === 'openai') {
-        baseInput.value = 'https://api.openai.com/v1';
-        modelInput.value = 'gpt-4o-mini';
-      } else {
-        baseInput.value = 'http://127.0.0.1:11434/v1';
-        modelInput.value = 'qwen2.5:7b';
-      }
-      updateSummary();
     }
 
     function updateSummary() {
-      if (previewModel) previewModel.textContent = modelInput.value || '未选择';
+      if (previewServer) previewServer.textContent = serverInput.value.trim() || 'http://127.0.0.1:8787';
+      if (previewToken) {
+        var token = tokenInput.value.trim();
+        previewToken.textContent = token ? '已填写（' + token.length + ' 位）' : '未填写';
+      }
       if (previewPersona) previewPersona.textContent = persona.value;
       var lines = {
         '直白朋友': '这猫又在拆家，你还看得挺起劲喵？',
@@ -436,10 +418,6 @@
       };
       if (previewLine) previewLine.textContent = lines[persona.value] || lines['直白朋友'];
     }
-
-    providerButtons.forEach(function (button) {
-      button.addEventListener('click', function () { applyProvider(button.dataset.provider); });
-    });
 
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () { showStep(Number(tab.dataset.stepTarget)); });
@@ -452,42 +430,60 @@
       button.addEventListener('click', function () { showStep(current - 1); });
     });
 
+    var copy = $('[data-copy-command]');
+    if (copy) {
+      copy.addEventListener('click', function () {
+        var block = $('#serverCommands');
+        var text = block ? block.innerText : '';
+        if (!text) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            toast('启动命令已复制');
+          }).catch(function () {
+            toast('复制失败，请手动选择命令');
+          });
+        } else {
+          toast('复制失败，请手动选择命令');
+        }
+      });
+    }
+
     var showKey = $('#toggleKey');
-    if (showKey && keyInput) {
+    if (showKey && tokenInput) {
       showKey.addEventListener('click', function () {
-        var visible = keyInput.type === 'text';
-        keyInput.type = visible ? 'password' : 'text';
+        var visible = tokenInput.type === 'text';
+        tokenInput.type = visible ? 'password' : 'text';
         showKey.textContent = visible ? '显示' : '隐藏';
-        showKey.setAttribute('aria-label', visible ? '显示 API Key' : '隐藏 API Key');
+        showKey.setAttribute('aria-label', visible ? '显示访问令牌' : '隐藏访问令牌');
       });
     }
 
     var test = $('#testConnection');
     if (test) {
       test.addEventListener('click', function () {
-        if (!keyInput.value.trim()) {
+        if (!tokenInput.value.trim()) {
           status.className = 'connection-status err';
-          status.textContent = '先填 API Key，再测试连接。';
-          keyInput.focus();
+          status.textContent = '先填访问令牌（APP_TOKEN），再测试连接。';
+          tokenInput.focus();
           return;
         }
-        var url = baseInput.value.trim();
+        var url = serverInput.value.trim();
         if (!/^https?:\/\//i.test(url)) {
           status.className = 'connection-status err';
-          status.textContent = 'Base URL 需要以 http:// 或 https:// 开头。';
-          baseInput.focus();
+          status.textContent = '服务地址需要以 http:// 或 https:// 开头。';
+          serverInput.focus();
           return;
         }
         test.disabled = true;
         test.textContent = '测试中…';
         status.className = 'connection-status';
-        status.textContent = '正在检查地址和密钥格式…';
+        status.textContent = '正在检查地址和访问令牌格式…';
         setTimeout(function () {
           test.disabled = false;
           test.textContent = '测试连接';
           status.className = 'connection-status ok';
-          status.textContent = '格式通过。演示页不会真的发送密钥；正式扩展会由 background service worker 发起请求。';
-          toast('配置格式通过');
+          status.textContent = '格式通过。演示页不会请求 /health；正式扩展会在后台验证服务。';
+          toast('本地服务配置格式通过');
         }, 900);
       });
     }
@@ -496,19 +492,23 @@
     if (save) {
       save.addEventListener('click', function () {
         safeStore('smDemoConfig', {
-          provider: selectedProvider(),
-          baseUrl: baseInput.value.trim(),
-          model: modelInput.value.trim(),
+          serverUrl: serverInput.value.trim(),
+          appToken: tokenInput.value.trim(),
+          deviceId: deviceInput ? deviceInput.value.trim() : '',
           persona: persona.value,
-          autoComment: !!(auto && auto.checked)
+          replyLength: replyLength.value,
+          autoComment: !!(auto && auto.checked),
+          vision: !!(vision && vision.checked)
         });
-        toast('配置已保存在本机浏览器');
+        toast('本地服务配置已保存在浏览器');
       });
     }
 
-    persona.addEventListener('change', updateSummary);
-    modelInput.addEventListener('input', updateSummary);
-    applyProvider('deepseek');
+    [serverInput, tokenInput, deviceInput].forEach(function (input) {
+      if (input) input.addEventListener('input', updateSummary);
+    });
+    if (persona) persona.addEventListener('change', updateSummary);
+    if (serverInput && !serverInput.value) serverInput.value = 'http://127.0.0.1:8787';
     updateSummary();
     showStep(1);
 
@@ -517,11 +517,13 @@
 
     var saved = safeStore('smDemoConfig');
     if (saved) {
-      if (saved.provider) applyProvider(saved.provider);
-      if (saved.baseUrl) baseInput.value = saved.baseUrl;
-      if (saved.model) modelInput.value = saved.model;
-      if (saved.persona) persona.value = saved.persona;
+      if (saved.serverUrl && serverInput) serverInput.value = saved.serverUrl;
+      if (saved.appToken && tokenInput) tokenInput.value = saved.appToken;
+      if (saved.deviceId && deviceInput) deviceInput.value = saved.deviceId;
+      if (saved.persona && persona) persona.value = saved.persona;
+      if (saved.replyLength && replyLength) replyLength.value = saved.replyLength;
       if (auto) auto.checked = !!saved.autoComment;
+      if (vision) vision.checked = saved.vision !== false;
       updateSummary();
     }
   }

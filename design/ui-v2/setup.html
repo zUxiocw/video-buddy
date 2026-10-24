@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>连接本地服务 · 上头了喵喵</title>
+  <meta name="description" content="把上头了喵喵接到你本机的 Fastify 服务：启动服务、填服务地址和 APP_TOKEN、测试连接，再安装扩展。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#how">怎么用</a>
+        <a href="index.html#emotions">9 种情绪</a>
+        <a href="demo.html">在线试玩</a>
+        <a href="install.html">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="demo.html">先看 Demo</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap setup-page">
+    <div class="setup-head">
+      <div>
+        <span class="kicker">本地优先 · 与插件同栈</span>
+        <h1>先启动服务，<br>再把它接进抖音。</h1>
+        <p>公开版不把模型 Key 塞进浏览器。扩展只连你本机的 Fastify 服务（默认 <code>127.0.0.1:8787</code>），模型 Key 留在 <code>server/.env.local</code>。这一页是交互预览，不会真的请求服务。</p>
+      </div>
+      <span class="demo-badge">UI 预览 · 不发送令牌</span>
+    </div>
+
+    <ol class="step-rail" aria-label="配置步骤">
+      <li><button type="button" data-step-target="1" aria-current="step"><b>1</b>启动服务</button></li>
+      <li><button type="button" data-step-target="2"><b>2</b>调教性格</button></li>
+      <li><button type="button" data-step-target="3"><b>3</b>安装扩展</button></li>
+    </ol>
+
+    <div class="setup-grid">
+      <div class="setup-card">
+        <section class="step-panel active" data-step="1">
+          <h2>先启动本地服务</h2>
+          <p>扩展的聊天、分析和情绪提示都走这个 Fastify 服务。模型 Key 只在服务端读取，浏览器只拿到一个访问令牌。</p>
+
+          <div class="command-card">
+            <div class="command-head">
+              <span>server · 启动命令</span>
+              <button class="copy-btn" type="button" data-copy-command>复制命令</button>
+            </div>
+            <pre id="serverCommands"><span class="cmt"># 在项目根目录执行（Windows PowerShell / cmd）</span>
+cd server
+npm.cmd install
+copy .env.local.example .env.local
+npm.cmd run dev
+
+<span class="cmt"># .env.local 里至少要有：</span>
+MODEL_PROVIDER=deepseek
+DEEPSEEK_API_KEY=<span class="val">你的模型 Key</span>
+APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
+          </div>
+
+          <div class="server-steps">
+            <div class="server-step"><b>1</b><span>Node.js 22+，在 <code>server/</code> 安装依赖。</span></div>
+            <div class="server-step"><b>2</b><span>把 <code>.env.local.example</code> 复制成 <code>.env.local</code>，填模型 Key 和 APP_TOKEN。</span></div>
+            <div class="server-step"><b>3</b><span>运行 <code>npm.cmd run dev</code>，看到 <code>127.0.0.1:8787</code> 就说明服务起来了。</span></div>
+          </div>
+
+          <div class="field" style="margin-top:20px">
+            <label for="serverUrl">服务地址</label>
+            <input id="serverUrl" type="url" inputmode="url" spellcheck="false" placeholder="http://127.0.0.1:8787">
+            <small>默认本机地址；如果服务换了端口，这里一起改。</small>
+          </div>
+
+          <div class="field">
+            <label for="appToken">访问令牌（APP_TOKEN）</label>
+            <div class="key-row">
+              <input id="appToken" type="password" autocomplete="off" spellcheck="false" placeholder="server/.env.local 里的 APP_TOKEN">
+              <button id="toggleKey" type="button" aria-label="显示访问令牌">显示</button>
+            </div>
+            <small>演示页不会发送令牌；正式扩展把它存在 chrome.storage.local，用来请求本机服务。</small>
+          </div>
+
+          <details class="field" style="margin-top:4px">
+            <summary style="cursor:pointer;font-size:12px;font-weight:800;color:var(--muted)">设备 ID（可选）</summary>
+            <input id="deviceId" type="text" spellcheck="false" placeholder="留空会自动生成" style="margin-top:8px">
+            <small>用于区分不同浏览器的限时额度，通常不用手动填。</small>
+          </details>
+
+          <div class="form-note">
+            <b>为什么是本地服务</b>
+            <span>模型 Key、prompt、语音过滤和 SSE 都在 Fastify 里；扩展只负责页面和交互。这样浏览器里没有模型 Key，也不会把 Key 暴露给网页。</span>
+          </div>
+
+          <div class="connection-status" id="connectionStatus" role="status" aria-live="polite"></div>
+
+          <div class="setup-actions">
+            <button class="btn btn-ghost" id="testConnection" type="button">测试连接</button>
+            <button class="btn btn-lav" type="button" data-next-step>下一步</button>
+          </div>
+        </section>
+
+        <section class="step-panel" data-step="2" hidden>
+          <h2>它该怎么说话</h2>
+          <p>同一个服务、同一个模型，换个性格就是另一个搭子。先选一个默认人设，之后也能在扩展设置里改。</p>
+
+          <div class="field">
+            <label for="persona">默认人设</label>
+            <select id="persona">
+              <option value="直白朋友">直白朋友 · 像熟人接一句，偶尔拆台</option>
+              <option value="温柔搭子">温柔搭子 · 先接住情绪，再慢慢聊</option>
+              <option value="毒舌吐槽">毒舌吐槽 · 更敢说，专治离谱视频</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="replyLength">回复长度</label>
+            <select id="replyLength">
+              <option>一到两句，10–30 字</option>
+              <option selected>两到三句，20–45 字</option>
+              <option>可以多说一点，45–80 字</option>
+            </select>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <b>换视频时主动搭话</b>
+              <small>关掉后，只有你开口它才说话。</small>
+            </div>
+            <label class="switch"><input id="setupAuto" type="checkbox" checked aria-label="换视频时主动搭话"><span></span></label>
+          </div>
+
+          <div class="toggle-row">
+            <div>
+              <b>允许发送压缩截图</b>
+              <small>关掉后只用文案和标签，更省 token，也更保守。</small>
+            </div>
+            <label class="switch"><input id="setupVision" type="checkbox" checked aria-label="允许发送压缩截图"><span></span></label>
+          </div>
+
+          <div class="form-note">
+            <b>建议</b>
+            <span>先保留默认的“直白朋友 + 两到三句”。猫娘话太多会像客服，太少又像弹幕。</span>
+          </div>
+
+          <div class="setup-actions">
+            <button class="btn btn-ghost" type="button" data-prev-step>上一步</button>
+            <button class="btn btn-lav" type="button" data-next-step>下一步</button>
+          </div>
+        </section>
+
+        <section class="step-panel" data-step="3" hidden>
+          <h2>装到浏览器里</h2>
+          <p>当前公开版是“扩展 + 本地 Fastify 服务”。扩展包可以单独分发，服务端按上面的步骤启动。</p>
+
+          <div class="setup-install-steps">
+            <div><b>01</b><span>下载扩展 zip，解压到一个固定目录。</span></div>
+            <div><b>02</b><span>打开 <code>chrome://extensions</code>，开启「开发者模式」。</span></div>
+            <div><b>03</b><span>点「加载已解压的扩展程序」，选择解压后的文件夹。</span></div>
+            <div><b>04</b><span>打开抖音网页，在设置里填刚才的服务地址和 APP_TOKEN。</span></div>
+          </div>
+
+          <div class="form-note">
+            <b>现在就能做</b>
+            <span>先保存配置，或者去 Demo 里试玩。正式安装包发布后，这份配置不需要重填。</span>
+          </div>
+
+          <div class="setup-actions">
+            <button class="btn btn-ghost" type="button" data-prev-step>上一步</button>
+            <button class="btn btn-lav" id="saveSetup" type="button">保存配置</button>
+            <button class="btn btn-ghost" type="button" data-download>下载说明</button>
+          </div>
+        </section>
+      </div>
+
+      <aside class="preview-card" aria-label="配置预览">
+        <div class="preview-top">
+          <img src="assets/emotions/greet-128.png" alt="">
+          <div>
+            <b>上头了喵喵</b>
+            <small>它现在会这样说话</small>
+          </div>
+        </div>
+        <div class="preview-bubble" id="previewLine">这猫又在拆家，你还看得挺起劲喵？</div>
+        <div class="preview-summary">
+          <div><span>服务地址</span><b id="previewServer">http://127.0.0.1:8787</b></div>
+          <div><span>访问令牌</span><b id="previewToken">未填写</b></div>
+          <div><span>性格</span><b id="previewPersona">直白朋友</b></div>
+          <div><span>模型 Key</span><b>server/.env.local</b></div>
+          <div><span>请求方式</span><b>background SSE</b></div>
+        </div>
+        <p class="micro">演示页只校验格式，不会发起真实请求。正式扩展会请求本机服务的 <code>/health</code> 和 <code>/v1/chat</code>。</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div><a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a><p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p></div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">连接服务</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
+      <div><h3>说明</h3><p>当前公开版需要本地 Fastify 服务；不是一键安装的纯扩展。不是抖音官方产品。</p></div>
+    </div>
+    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

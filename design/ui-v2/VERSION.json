@@ -1,0 +1,18 @@
+{
+  "name": "上头了喵喵 UI",
+  "version": "2.0.0",
+  "status": "ready-for-review",
+  "date": "2026-10-24",
+  "source": "D:\\code\\video-buddy\\site",
+  "supersedes": "1.0.0",
+  "reason": "UI v1 assumed direct browser model API, conflicting with the existing Fastify + APP_TOKEN stack",
+  "stack": {
+    "extension": "Chrome Manifest V3 + vanilla JS",
+    "server": "Node 22 + Fastify + TypeScript",
+    "ui": "static HTML/CSS/JS, no framework",
+    "config": "serverUrl + appToken",
+    "modelKey": "server/.env.local"
+  },
+  "claudeCodeIntegration": "pending explicit user consent",
+  "notes": "Do not edit this snapshot; use site/ for future changes."
+}

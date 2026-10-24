@@ -24,7 +24,7 @@
         <a href="demo.html" aria-current="page">在线试玩</a>
         <a href="install.html">安装</a>
       </nav>
-      <a class="btn btn-primary btn-sm" href="setup.html">接入我的 API</a>
+      <a class="btn btn-primary btn-sm" href="setup.html">连接本地服务</a>
     </div>
   </header>
 
@@ -35,7 +35,7 @@
         <h1>先玩一下，再决定装不装。</h1>
         <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。所有回复都是本地演示，不会调用真实模型。</p>
       </div>
-      <span class="demo-badge">演示模式 · 未连接 API</span>
+      <span class="demo-badge">演示模式 · 未连接本地服务</span>
     </div>
 
     <div class="demo-grid">
@@ -123,10 +123,10 @@
         </section>
 
         <section class="control-card">
-          <h2>想接真的模型？</h2>
-          <p>Demo 里的回复是写死的。正式扩展里，你会填自己的 Base URL、API Key 和模型名。</p>
+          <h2>想接真的服务？</h2>
+          <p>Demo 里的回复是写死的。正式版会连你本机的 Fastify 服务；在设置里填服务地址和 APP_TOKEN，模型 Key 留在服务端。</p>
           <div class="control-actions">
-            <a class="btn btn-primary btn-sm" href="setup.html">去配置 API</a>
+            <a class="btn btn-primary btn-sm" href="setup.html">去连接服务</a>
             <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
           </div>
           <p class="demo-note" style="margin-top:12px">小提示：按 Tab 可以走完整个面板；Esc 关闭聊天。</p>
@@ -141,9 +141,9 @@
         <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a>
         <p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p>
       </div>
-      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">接入 API</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">连接服务</a><a href="install.html">安装说明</a></div></div>
       <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
-      <div><h3>说明</h3><p>当前为 UI 预览版，安装包会在“自带 API Key”接入完成后开放下载。不是抖音官方产品。</p></div>
+      <div><h3>说明</h3><p>当前公开版需要本机 Fastify 服务；正式包会配合 <code>server/</code> 发布。不是抖音官方产品。</p></div>
     </div>
     <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
   </footer>
