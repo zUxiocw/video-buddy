@@ -1440,3 +1440,68 @@ dialog.preview-dialog::backdrop { background: rgba(23, 19, 31, 0.56); backdrop-f
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------- desktop limit demo ---------- */
+.desktop-demo { margin-top: 56px; padding-top: 40px; border-top: 1px solid var(--line); scroll-margin-top: 90px; }
+.desktop-demo-grid { display: grid; grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); gap: 30px; align-items: center; }
+.desktop-demo-copy { min-width: 0; }
+.desktop-demo-copy .limit-presets { margin-top: 16px; }
+.desktop-demo-copy .limit-demo-meter { margin-top: 14px; }
+.desktop-flow { display: grid; gap: 9px; margin: 18px 0 0; padding: 0; list-style: none; }
+.desktop-flow li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.desktop-flow b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--paper-3); color: var(--lav); font-size: 9px; }
+.desktop-browser { border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: var(--shadow-lg); overflow: hidden; }
+.desktop-browser-bar { display: flex; align-items: center; gap: 10px; padding: 9px 11px; background: #f1ebe2; border-bottom: 1px solid var(--line); }
+.desktop-dots { display: flex; gap: 4px; flex: none; }
+.desktop-dots i { width: 7px; height: 7px; border-radius: 50%; background: #d3c9bd; }
+.desktop-dots i:first-child { background: #ff8e8e; }
+.desktop-dots i:nth-child(2) { background: #ffd479; }
+.desktop-dots i:nth-child(3) { background: #7fd6a5; }
+.desktop-tabs { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.desktop-tab { display: flex; align-items: center; gap: 10px; max-width: 230px; padding: 6px 9px; border-radius: 7px 7px 0 0; background: #fff; color: var(--ink); font-size: 10px; font-weight: 800; }
+.desktop-tab[hidden] { display: none; }
+.desktop-tab b { color: #9a8ea8; font-weight: 700; }
+.desktop-newtab { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #8f8398; font-size: 14px; }
+.desktop-viewport { position: relative; aspect-ratio: 16 / 9.2; background: #0d0a13; overflow: hidden; }
+.desktop-page { position: absolute; inset: 0; color: #fff; }
+.desktop-video { position: absolute; inset: 0; overflow: hidden; }
+.desktop-video img { width: 100%; height: 100%; object-fit: cover; filter: blur(2px) saturate(1.05); opacity: .5; }
+.desktop-video::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(13,10,19,.2), rgba(13,10,19,.88)); }
+.desktop-page-top { position: absolute; top: 12px; left: 16px; right: 16px; z-index: 2; display: flex; align-items: center; gap: 18px; color: rgba(255,255,255,.72); font-size: 10px; font-weight: 800; }
+.desktop-page-top span:first-child { color: #fff; }
+.desktop-page-url { margin-left: auto; color: rgba(255,255,255,.42); }
+.desktop-caption { position: absolute; left: 16px; bottom: 18px; z-index: 2; font-size: 12px; font-weight: 800; line-height: 1.5; text-shadow: 0 2px 12px rgba(0,0,0,.5); }
+.desktop-caption small { display: block; color: rgba(255,255,255,.62); font-size: 9px; margin-top: 3px; }
+.desktop-ball { position: absolute; right: 16px; bottom: 24px; z-index: 3; width: 58px; height: 58px; border-radius: 50%; background: var(--pink); box-shadow: 0 10px 24px rgba(0,0,0,.4), 0 0 0 5px rgba(255,255,255,.08); overflow: hidden; }
+.desktop-ball img { width: 100%; height: 100%; object-fit: cover; }
+.desktop-bubble { position: absolute; right: 84px; bottom: 34px; z-index: 3; max-width: 210px; padding: 9px 11px; border-radius: 13px 13px 4px 13px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 800; line-height: 1.5; box-shadow: 0 10px 24px rgba(0,0,0,.24); }
+.desktop-bubble::after { content: ""; position: absolute; right: -4px; bottom: 8px; width: 8px; height: 8px; background: #fff; transform: rotate(45deg); border-radius: 1px; }
+.desktop-limit-layer { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: rgba(13,10,19,.78); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
+.desktop-browser[data-state="warn"] .desktop-limit-layer, .desktop-browser[data-state="closed"] .desktop-limit-layer { opacity: 1; pointer-events: auto; }
+.desktop-limit-view { display: none; width: min(330px, 100%); text-align: center; color: #fff; flex-direction: column; align-items: center; }
+.desktop-browser[data-state="warn"] .desktop-limit-warn { display: flex; }
+.desktop-browser[data-state="closed"] .desktop-limit-closed { display: flex; }
+.desktop-limit-view > img { width: 66px; height: 66px; border-radius: 50%; border: 3px solid rgba(255,255,255,.28); background: var(--pink); margin-bottom: 10px; }
+.desktop-limit-kicker { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.08); color: #d9c8ff; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.desktop-limit-view b { display: block; margin-top: 10px; font-size: 21px; line-height: 1.25; letter-spacing: -.03em; }
+.desktop-limit-view p { margin-top: 6px; color: rgba(255,255,255,.74); font-size: 12px; line-height: 1.6; }
+.desktop-limit-view small { display: block; margin-top: 9px; color: var(--peach); font-size: 10px; font-weight: 800; }
+.desktop-limit-actions { display: grid; gap: 7px; width: min(230px, 100%); margin-top: 14px; }
+.desktop-limit-actions button { min-height: 36px; border: 1px solid rgba(255,255,255,.2); border-radius: 10px; background: rgba(255,255,255,.1); color: #fff; font-size: 11px; font-weight: 800; cursor: pointer; }
+.desktop-limit-actions button:first-child { border-color: transparent; background: var(--lav); }
+.desktop-browser[data-state="closed"] .desktop-tab { display: none; }
+@media (max-width: 980px) {
+  .desktop-demo-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .desktop-demo { margin-top: 40px; padding-top: 30px; }
+  .desktop-browser-bar { padding: 7px 9px; }
+  .desktop-tab { max-width: 180px; font-size: 9px; }
+  .desktop-page-top { top: 9px; left: 11px; right: 11px; gap: 12px; }
+  .desktop-caption { left: 11px; bottom: 12px; font-size: 10px; }
+  .desktop-ball { width: 46px; height: 46px; right: 11px; bottom: 16px; }
+  .desktop-bubble { right: 63px; bottom: 24px; max-width: 180px; font-size: 10px; }
+  .desktop-limit-layer { padding: 12px; }
+  .desktop-limit-view > img { width: 52px; height: 52px; }
+  .desktop-limit-view b { font-size: 18px; }
+}

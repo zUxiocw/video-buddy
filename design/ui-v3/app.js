@@ -196,20 +196,6 @@
     var dragStart = null;
     var ballMoved = false;
     var pointerActivated = false;
-    var limitOverlay = $('#phoneLimit');
-    var limitLine = $('#phoneLimitLine');
-    var limitCountdown = $('#phoneLimitCountdown');
-    var limitClosedNote = $('#phoneClosedNote');
-    var limitReopen = $('#phoneReopen');
-    var limitReset = $('#phoneResetLimit');
-    var startLimit = $('#startLimitDemo');
-    var stopLimit = $('#stopLimitDemo');
-    var limitBudgetLabel = $('#demoLimitBudget');
-    var limitUsedLabel = $('#demoLimitUsed');
-    var limitFill = $('#demoLimitFill');
-    var limitTimers = [];
-    var limitInterval = 0;
-    var limitBudgetMinutes = 30;
 
     function clamp(value, min, max) {
       return Math.min(max, Math.max(min, value));
@@ -287,85 +273,6 @@
       dragStart = null;
       ballMoved = false;
       if (ball) ball.classList.remove('dragging');
-    }
-
-    function formatClock(totalSeconds) {
-      var safe = Math.max(0, Math.round(totalSeconds));
-      var minutes = Math.floor(safe / 60);
-      var seconds = safe % 60;
-      return minutes + ':' + String(seconds).padStart(2, '0');
-    }
-
-    function syncLimitBudget() {
-      if (limitBudgetLabel) limitBudgetLabel.textContent = formatClock(limitBudgetMinutes * 60);
-      if (limitUsedLabel) limitUsedLabel.textContent = formatClock(limitBudgetMinutes * 60 * 0.79);
-      if (limitFill) limitFill.style.width = '79%';
-      $$('[data-demo-limit]').forEach(function (button) {
-        button.setAttribute('aria-pressed', String(Number(button.dataset.demoLimit) === limitBudgetMinutes));
-      });
-    }
-
-    function clearLimitTimers() {
-      window.clearInterval(limitInterval);
-      limitInterval = 0;
-      limitTimers.forEach(function (id) { window.clearTimeout(id); });
-      limitTimers = [];
-    }
-
-    function setLimitState(state) {
-      if (!limitOverlay) return;
-      limitOverlay.dataset.state = state;
-      limitOverlay.setAttribute('aria-hidden', state === 'off' ? 'true' : 'false');
-      if (startLimit) startLimit.disabled = state !== 'off';
-      if (stopLimit) stopLimit.hidden = state === 'off';
-    }
-
-    function resetLimitDemo(announce) {
-      clearLimitTimers();
-      setLimitState('off');
-      if (announce !== false) {
-        toast('页面已恢复，可以重新试玩');
-        if (startLimit) startLimit.focus({ preventScroll: true });
-      }
-    }
-
-    function showLimitClosed(kind) {
-      clearLimitTimers();
-      setLimitState('closed');
-      if (limitClosedNote) {
-        limitClosedNote.textContent = kind === 'back'
-          ? '冷却还没结束。再打开，它还会关。'
-          : '冷却 10 分钟内再打开，它会说一句再关一次。';
-      }
-      window.setTimeout(function () {
-        if (limitReopen) limitReopen.focus({ preventScroll: true });
-      }, 40);
-    }
-
-    function showLimitWarning(kind) {
-      if (!limitOverlay) return;
-      clearLimitTimers();
-      closePanel();
-      setLimitState('warn');
-      var isBack = kind === 'back';
-      var seconds = isBack ? 2 : 5;
-      var suffix = isBack ? ' 秒后继续关页' : ' 秒后关闭这个标签页';
-      var left = seconds;
-      if (limitLine) limitLine.textContent = isBack ? '还敢点开，不给你刷了喵' : '差不多了哦，本喵要下班了喵';
-      if (limitCountdown) limitCountdown.textContent = left + suffix;
-      limitOverlay.focus({ preventScroll: true });
-      if (phone) {
-        var rect = phone.getBoundingClientRect();
-        if (rect.top < 8 || rect.bottom > window.innerHeight - 8) {
-          var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-          phone.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-        }
-      }
-      limitInterval = window.setInterval(function () {
-        left -= 1;
-        if (left > 0 && limitCountdown) limitCountdown.textContent = left + suffix;
-      }, 1000);
-      limitTimers.push(window.setTimeout(function () { showLimitClosed(kind); }, seconds * 1000));
     }
 
     function scrollMessages() {
@@ -558,12 +465,7 @@
       });
     }
     document.addEventListener('keydown', function (event) {
-      if (event.key !== 'Escape') return;
-      if (limitOverlay && limitOverlay.dataset.state !== 'off') {
-        resetLimitDemo(true);
-        return;
-      }
-      if (panel.classList.contains('on')) closePanel();
+      if (event.key === 'Escape' && panel.classList.contains('on')) closePanel();
     });
 
     $$('.emotion-btn').forEach(function (button) {
@@ -593,25 +495,12 @@
         addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
         setEmotion('greet');
         if (bubble) bubble.classList.remove('on');
-        resetLimitDemo(false);
         toast('对话已重置');
       });
     }
 
-    $$('[data-demo-limit]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        limitBudgetMinutes = Number(button.dataset.demoLimit) || 30;
-        syncLimitBudget();
-      });
-    });
-    if (startLimit) startLimit.addEventListener('click', function () { showLimitWarning('over'); });
-    if (stopLimit) stopLimit.addEventListener('click', function () { resetLimitDemo(true); });
-    if (limitReopen) limitReopen.addEventListener('click', function () { showLimitWarning('back'); });
-    if (limitReset) limitReset.addEventListener('click', function () { resetLimitDemo(true); });
-
     addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
     showVideo(0, false);
-    syncLimitBudget();
     window.requestAnimationFrame(resetBall);
     window.addEventListener('resize', function () {
       if (!ball) return;
@@ -623,6 +512,121 @@
       openPanel();
       setTimeout(function () { panel.style.transition = ''; }, 600);
     }
+  }
+
+  function initLimitDemo() {
+    var browser = $('#desktopLimit');
+    if (!browser) return;
+
+    var tab = $('#desktopLimitTab');
+    var line = $('#desktopLimitLine');
+    var countdown = $('#desktopLimitCountdown');
+    var closedNote = $('#desktopClosedNote');
+    var reopen = $('#desktopLimitReopen');
+    var reset = $('#desktopLimitReset');
+    var start = $('#startLimitDemo');
+    var stop = $('#stopLimitDemo');
+    var budgetLabel = $('#demoLimitBudget');
+    var usedLabel = $('#demoLimitUsed');
+    var fill = $('#demoLimitFill');
+    var timers = [];
+    var interval = 0;
+    var budgetMinutes = 30;
+    var state = 'open';
+
+    function clock(totalSeconds) {
+      var safe = Math.max(0, Math.round(totalSeconds));
+      return Math.floor(safe / 60) + ':' + String(safe % 60).padStart(2, '0');
+    }
+
+    function syncBudget() {
+      if (budgetLabel) budgetLabel.textContent = clock(budgetMinutes * 60);
+      if (usedLabel) usedLabel.textContent = clock(budgetMinutes * 60 * 0.79);
+      if (fill) fill.style.width = '79%';
+      $$('[data-demo-limit]').forEach(function (button) {
+        button.setAttribute('aria-pressed', String(Number(button.dataset.demoLimit) === budgetMinutes));
+      });
+    }
+
+    function clearTimers() {
+      window.clearInterval(interval);
+      interval = 0;
+      timers.forEach(function (id) { window.clearTimeout(id); });
+      timers = [];
+    }
+
+    function setState(next) {
+      state = next;
+      browser.dataset.state = next;
+      if (tab) tab.hidden = next === 'closed';
+      if (start) start.disabled = next !== 'open';
+      if (stop) stop.hidden = next === 'open';
+    }
+
+    function resetDemo(announce) {
+      clearTimers();
+      setState('open');
+      if (announce !== false) {
+        toast('桌面标签页已恢复，可以重新试玩');
+        if (start) start.focus({ preventScroll: true });
+      }
+    }
+
+    function showClosed(kind) {
+      clearTimers();
+      setState('closed');
+      if (closedNote) {
+        closedNote.textContent = kind === 'back'
+          ? '冷却还没结束。再打开，它还会关。'
+          : '冷却 10 分钟内再打开，它会说一句再关一次。';
+      }
+      window.setTimeout(function () {
+        if (reopen) reopen.focus({ preventScroll: true });
+      }, 40);
+    }
+
+    function showWarning(kind) {
+      clearTimers();
+      var panel = $('#chatPanel');
+      if (panel && panel.classList.contains('on')) {
+        var close = $('#chatClose');
+        if (close) close.click();
+      }
+      setState('warn');
+      var isBack = kind === 'back';
+      var seconds = isBack ? 2 : 5;
+      var suffix = isBack ? ' 秒后继续关页' : ' 秒后关闭这个标签页';
+      var left = seconds;
+      if (line) line.textContent = isBack ? '还敢点开，不给你刷了喵' : '差不多了哦，本喵要下班了喵';
+      if (countdown) countdown.textContent = left + suffix;
+      var rect = browser.getBoundingClientRect();
+      if (rect.top < 8 || rect.bottom > window.innerHeight - 8) {
+        var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        browser.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+      }
+      interval = window.setInterval(function () {
+        left -= 1;
+        if (left > 0 && countdown) countdown.textContent = left + suffix;
+      }, 1000);
+      timers.push(window.setTimeout(function () { showClosed(kind); }, seconds * 1000));
+    }
+
+    $$('[data-demo-limit]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        budgetMinutes = Number(button.dataset.demoLimit) || 30;
+        syncBudget();
+      });
+    });
+    if (start) start.addEventListener('click', function () { showWarning('over'); });
+    if (stop) stop.addEventListener('click', function () { resetDemo(true); });
+    if (reopen) reopen.addEventListener('click', function () { showWarning('back'); });
+    if (reset) reset.addEventListener('click', function () { resetDemo(true); });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && state !== 'open') resetDemo(true);
+    });
+
+    syncBudget();
   }
 
   function initSetup() {
@@ -683,6 +687,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     initDownload();
     initDemo();
+    initLimitDemo();
     initSetup();
   });
 })();

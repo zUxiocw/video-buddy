@@ -1,10 +1,11 @@
 # 设计版本
 
-## ui-v3（3.0.0，2026-10-24，待验收）
+## ui-v3（3.1.0，2026-10-24，待验收）
 
-- 状态：BYOK 网页已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中
+- 状态：BYOK 网页与桌面浏览器限时演示已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中
 - 架构：用户自己开通 DeepSeek API，Key 存扩展 `chrome.storage.local`，扩展直接请求模型，不经过我们的服务器
 - 内容：BYOK 首页说明、三步开通 API / 安装 / 填 Key、安装说明、无需 Key 的 Demo
+- 限时演示：手机框只做聊天/拖拽/情绪；到点关标签页改用桌面浏览器窗口示意，明确不会实际关页
 - 本地服务：原 Fastify + APP_TOKEN 模式保留为开发者选项
 - 目录：`design/ui-v3/`
 - 压缩包：`design/shangtou-meowmeow-ui-v3.zip`

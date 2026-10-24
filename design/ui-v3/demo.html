@@ -34,7 +34,7 @@
       <div>
         <span class="kicker">交互 Demo</span>
         <h1>先玩一下，再决定装不装。</h1>
-        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动；下面的“刷视频限时”还能演示到点关页。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
+        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动。刷视频限时的效果在下方单独用桌面浏览器窗口演示，不再塞进手机屏幕。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
       </div>
       <span class="demo-badge">演示模式 · 无需 API Key</span>
     </div>
@@ -63,26 +63,6 @@
           <span><b>↗</b>分享</span>
         </div>
         <div class="phone-progress" aria-hidden="true"><i></i></div>
-
-        <div class="phone-limit" id="phoneLimit" data-state="off" aria-hidden="true" role="dialog" aria-modal="true" aria-label="刷视频限时演示" tabindex="-1">
-          <div class="phone-limit-view phone-limit-warn">
-            <img src="assets/emotions/annoyed-128.png" alt="">
-            <span class="phone-limit-kicker">刷视频限时</span>
-            <b id="phoneLimitTitle">到点了</b>
-            <p id="phoneLimitLine" aria-live="assertive">差不多了哦，本喵要下班了喵</p>
-            <small id="phoneLimitCountdown">5 秒后关闭这个标签页</small>
-          </div>
-          <div class="phone-limit-view phone-limit-closed">
-            <span class="phone-limit-kicker">标签页已关闭</span>
-            <img src="assets/emotions/angry-128.png" alt="">
-            <b>喵娘替你按了暂停。</b>
-            <p id="phoneClosedNote">冷却 10 分钟内再打开，它会说一句再关一次。</p>
-            <div class="phone-limit-actions">
-              <button id="phoneReopen" type="button">再打开一次</button>
-              <button id="phoneResetLimit" type="button">重新试玩</button>
-            </div>
-          </div>
-        </div>
 
         <div class="chat-bubble" id="chatBubble" role="status" aria-live="polite"></div>
 
@@ -146,10 +126,30 @@
           </div>
         </section>
 
-        <section class="control-card" id="limitDemo">
-          <div class="demo-status">刷视频限时 · 本地计时，不靠模型猜</div>
-          <h2 style="margin-top:14px">到点，它会替你关页。</h2>
-          <p>额度你自己设。只算视频在播、页面在前台的时间；到点先说一句，再关掉标签页。不是可以随手叉掉的弹窗。</p>
+        <section class="control-card">
+          <h2>想接真的模型？</h2>
+          <p>Demo 里的回复是写死的。正式版用你自己的 DeepSeek API Key，扩展直接请求模型；不需要本地服务。Key 只存在扩展的 <code>chrome.storage.local</code>。</p>
+          <div class="control-actions">
+            <a class="btn btn-primary btn-sm" href="setup.html">看开通步骤</a>
+            <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
+          </div>
+          <p class="demo-note" style="margin-top:12px">小提示：按 Tab 可以走完整个面板；Esc 关闭聊天。</p>
+        </section>
+      </div>
+    </div>
+
+    <section class="desktop-demo" id="limitDemo">
+      <div class="section-head">
+        <div>
+          <span class="kicker">桌面浏览器演示</span>
+          <h2 class="section-title">到点，它关的是整个标签页。</h2>
+        </div>
+        <p class="lede">插件跑在桌面网页。真实效果不是手机弹层：猫娘在页面上说一句，倒计时 5 秒，然后由后台关闭当前标签页。下面用桌面浏览器窗口示意。</p>
+      </div>
+
+      <div class="desktop-demo-grid">
+        <div class="desktop-demo-copy">
+          <div class="demo-status">刷视频限时 · 只算视频在播且页面在前台</div>
           <div class="limit-presets" role="group" aria-label="选择每日额度">
             <button type="button" data-demo-limit="15" aria-pressed="false">15 分钟</button>
             <button type="button" data-demo-limit="30" aria-pressed="true">30 分钟</button>
@@ -167,20 +167,53 @@
             <button class="btn btn-lav btn-sm" id="startLimitDemo" type="button">模拟到点</button>
             <button class="btn btn-ghost btn-sm" id="stopLimitDemo" type="button" hidden>恢复页面</button>
           </div>
-          <p class="demo-note" style="margin-top:12px">正式版限时默认关闭；开启后按真实时间执行。演示把 5 秒关页压缩展示。</p>
-        </section>
+          <ol class="desktop-flow">
+            <li><b>01</b><span>到点先开口：猫娘说一句，气泡留在页面上。</span></li>
+            <li><b>02</b><span>5 秒后关标签页：由扩展后台关闭当前标签页，不是弹窗。</span></li>
+            <li><b>03</b><span>冷却期再打开：再关一次，不重新给整份额度。</span></li>
+          </ol>
+          <p class="demo-note">示意说明：这里用桌面浏览器窗口模拟，不会真的关闭你的浏览器标签页。正式版限时默认关闭，开启后按真实时间执行。</p>
+        </div>
 
-        <section class="control-card">
-          <h2>想接真的模型？</h2>
-          <p>Demo 里的回复是写死的。正式版用你自己的 DeepSeek API Key，扩展直接请求模型；不需要本地服务。Key 只存在扩展的 <code>chrome.storage.local</code>。</p>
-          <div class="control-actions">
-            <a class="btn btn-primary btn-sm" href="setup.html">看开通步骤</a>
-            <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
+        <div class="desktop-browser" id="desktopLimit" data-state="open" aria-label="桌面浏览器限时演示">
+          <div class="desktop-browser-bar" aria-hidden="true">
+            <span class="desktop-dots"><i></i><i></i><i></i></span>
+            <div class="desktop-tabs">
+              <div class="desktop-tab" id="desktopLimitTab"><span>抖音 · 推荐</span><b>×</b></div>
+              <span class="desktop-newtab">+</span>
+            </div>
           </div>
-          <p class="demo-note" style="margin-top:12px">小提示：按 Tab 可以走完整个面板；Esc 关闭聊天。</p>
-        </section>
+          <div class="desktop-viewport">
+            <div class="desktop-page" id="desktopLimitPage">
+              <div class="desktop-page-top"><span>推荐</span><span>关注</span><span class="desktop-page-url">douyin.com</span></div>
+              <div class="desktop-video"><img src="assets/emotions/laugh-128.png" alt=""></div>
+              <div class="desktop-caption">猫主子又开始拆家了<small>#萌宠 #猫猫</small></div>
+              <span class="desktop-ball" aria-hidden="true"><img src="assets/emotions/annoyed-128.png" alt=""></span>
+              <div class="desktop-bubble" id="desktopLimitBubble">先刷你的，到点我会喊你喵</div>
+            </div>
+            <div class="desktop-limit-layer">
+              <div class="desktop-limit-view desktop-limit-warn">
+                <img src="assets/emotions/annoyed-128.png" alt="">
+                <span class="desktop-limit-kicker">刷视频限时</span>
+                <b>到点了</b>
+                <p id="desktopLimitLine" aria-live="assertive">差不多了哦，本喵要下班了喵</p>
+                <small id="desktopLimitCountdown">5 秒后关闭这个标签页</small>
+              </div>
+              <div class="desktop-limit-view desktop-limit-closed">
+                <img src="assets/emotions/angry-128.png" alt="">
+                <span class="desktop-limit-kicker">标签页已关闭</span>
+                <b>喵娘替你按了暂停。</b>
+                <p id="desktopClosedNote">冷却 10 分钟内再打开，它会说一句再关一次。</p>
+                <div class="desktop-limit-actions">
+                  <button id="desktopLimitReopen" type="button">再打开一次（仍在冷却）</button>
+                  <button id="desktopLimitReset" type="button">重新试玩</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   </main>
 
   <footer class="site-footer">

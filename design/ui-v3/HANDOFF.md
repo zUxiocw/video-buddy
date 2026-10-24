@@ -1,6 +1,6 @@
 # UI v3 · BYOK 交接单
 
-> 状态：**网页已按 BYOK 改完，等待验收；Claude Code 的 BYOK 实现仍在进行中。**
+> 状态：**网页已按 BYOK 改完，限时演示已移到桌面浏览器窗口；等待验收。Claude Code 的 BYOK 实现仍在进行中。**
 > 本仓库只改 `site/` 与 `design/`，不改 `extension/`、`server/`、manifest 或 content scripts。
 
 ## UI 假设的接口形状
@@ -23,6 +23,7 @@ UI 按现有 `extension/shared/core.js` 里的 BYOK 字段设计，期望 popup 
 - 插件不卖 Key、不代收、不共享额度；API 费用由用户和 DeepSeek 结算。
 - 原有本地 Fastify 模式保留为开发者选项，不作为公开用户的必经步骤。
 - 默认 `mode` 仍可能是 `server`（旧安装兼容）；UI 明确让用户在 popup 里选择「直接用 API Key」。
+- 限时演示必须留在桌面浏览器窗口，不能塞回手机框。网页无法真实关闭标签页，文案必须写“示意”，真实关闭由扩展后台 `chrome.tabs.remove` 完成。
 
 ## 验收
 
@@ -31,6 +32,8 @@ UI 按现有 `extension/shared/core.js` 里的 BYOK 字段设计，期望 popup 
 - `install.html` 明确不需要 Node.js / 本地服务；BYOK 四步可照着走。
 - Demo 明确不需要 API Key；正式版说明指向 BYOK。
 - 全站不出现“模型 Key 留在服务端”“需要本机 Fastify 才能用”的旧公开叙事。
+- 手机框内没有 `#phoneLimit` 或任何限时层；限时在独立桌面浏览器窗口演示。
+- 桌面演示能显示“到点开口 → 5 秒 → 标签页消失 → 冷却再打开”，并明确不实际关闭标签页。
 - 390px 移动端无横向溢出。
 - 外链都有 `rel="noopener noreferrer"`。
 - 本地 Fastify 说明只出现在开发者折叠区。

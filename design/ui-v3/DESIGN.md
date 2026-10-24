@@ -1,8 +1,8 @@
 # 上头了喵喵 · UI v3 设计说明（BYOK）
 
-- 版本：`3.0.0`
+- 版本：`3.1.0`
 - 日期：`2026-10-24`
-- 状态：**BYOK 网页已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中**
+- 状态：**BYOK 网页与桌面浏览器限时演示已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中**
 - 来源：`site/`
 - 归档：`design/ui-v3/` + `design/shangtou-meowmeow-ui-v3.zip`
 - 边界：独立静态 UI，不改 `extension/`、`server/` 或现有测试。
@@ -36,7 +36,7 @@ Chrome MV3 扩展
 | 页面 | 文件 | BYOK 下的目标 |
 |---|---|---|
 | 首页 | `index.html` | 讲清楚 BYOK、自己的账号/额度、Key 只存扩展；9 情绪与限时保留 |
-| 交互 Demo | `demo.html` | 无需 API Key 的本地演示；明确“正式版用你自己的 Key” |
+| 交互 Demo | `demo.html` | 手机框只做聊天/拖拽/情绪；限时另用桌面浏览器窗口演示，无需 Key |
 | 开通 API | `setup.html` | 三步：开通 DeepSeek API / 安装扩展 / 在扩展里填 Key |
 | 安装说明 | `install.html` | 四步安装；BYOK 为主，本地 Fastify 仅作开发者选项 |
 
@@ -57,6 +57,16 @@ Chrome MV3 扩展
 - 第三步：扩展 popup 的静态示意（方式：直接用 API Key / API Key / API 地址 / 测试连接 / 保存）。
 - 底部 `<details>`：开发者本地 Fastify 模式与启动命令。
 
+### 桌面浏览器限时演示
+
+原来的限时演示塞在手机框里，看起来像“手机 App 弹层再关页面”，和插件的桌面网页行为不符。3.1 把它拆出来：
+
+- 手机框只保留聊天、拖拽、9 情绪；不再出现任何限时层。
+- 限时改为独立的 `#limitDemo` 区块，使用**桌面浏览器窗口**：标签栏、抖音标签页、页面内容、悬浮球。
+- 到点时：猫娘先开口 → 5 秒倒计时 → 当前标签页从标签栏消失 → 浏览器窗口保留，显示“标签页已关闭”。
+- 冷却期“再打开一次”：标签页回来，再说一句，再关一次。
+- 网页无法真的调用 `chrome.tabs.remove`，所以明确标注“桌面浏览器窗口示意，不会真的关闭你的浏览器标签页”；真实关闭由扩展后台完成。
+
 ### 安全文案
 
 - 首页展示 `chrome.storage.local`、直连模型、没有我们的后端。
@@ -70,6 +80,7 @@ Chrome MV3 扩展
 - 不把“直接用 API Key”写成“无需配置”；用户必须自己开通并充值。
 - 不把本地 Fastify 模式从历史中抹掉，但也不把它当作公开用户必选项。
 - Demo 不调用模型、不需要 Key，不能暗示 Demo 已经接入真实模型。
+- 限时演示不能放在手机框里，也不能声称网页真的关闭了浏览器标签页；只能写“桌面浏览器窗口示意”，并说明真实关闭由扩展后台完成。
 
 ## 6. 可访问性与响应式
 
@@ -98,7 +109,9 @@ Chrome MV3 扩展
 - `screenshots/index-byok.png`
 - `screenshots/index-emotions.png`
 - `screenshots/demo.png`
-- `screenshots/demo-limit-warning.png`
+- `screenshots/desktop-limit-warning.png`
+- `screenshots/desktop-limit-closed.png`
+- `screenshots/desktop-limit-mobile.png`
 - `screenshots/setup-byok.png`
 - `screenshots/setup-byok-key.png`
 - `screenshots/setup-byok-mobile.png`

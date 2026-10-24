@@ -11,7 +11,7 @@
 ## 页面
 
 - `index.html` — 产品首页：定位、刷视频限时、9 种情绪、BYOK、隐私、FAQ
-- `demo.html` — 交互 Demo：假抖音页面、可拖拽悬浮球、聊天面板、限时关页演示；不需要 Key
+- `demo.html` — 交互 Demo：手机框里演示聊天/拖拽/情绪；限时另用桌面浏览器窗口示意，不在手机框里假装关页
 - `setup.html` — BYOK 三步：开通 API / 安装扩展 / 在扩展里填 Key
 - `install.html` — 扩展加载、DeepSeek API 开通、Key 填写与常见卡点
 
