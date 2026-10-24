@@ -14,7 +14,7 @@
 - `demo.html` — 交互 Demo：手机框里演示聊天/拖拽/情绪，以及首次报额度、5 分钟催促、催满计数；到点关页另用桌面浏览器窗口示意，不在手机框里假装关页
 - `404.html` — 顶层 404 页；Cloudflare Pages 只有看到它才会关闭 SPA 回退
 - `setup.html` — BYOK 三步：开通 API / 安装扩展 / 在扩展里填 Key
-- `install.html` — 扩展加载、DeepSeek API 开通、Key 填写与常见卡点
+- `install.html` — 扩展加载、DeepSeek API 开通、Key 填写与常见卡点；含 Chrome / Edge 扩展设置位置示意图
 
 ## BYOK 流程
 

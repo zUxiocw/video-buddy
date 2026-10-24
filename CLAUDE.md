@@ -24,7 +24,7 @@
   - `assets/emotions/{id}-128.png` — 9 个运行时图标
   - `icons/icon{16,48,128}.png` — 工具栏图标，由 `assets/emotions/greet-128.png`（默认态立绘）缩放生成；换角色时同步重生成
   - `tools/e2e.mjs` — 扩展 e2e harness（可选）
-  - `tools/direct-check.mjs` — **直连模式端到端检查**：headless Chrome + 本地假模型服务，不需要 API Key、不花 token，21 项断言，见 §4.7
+  - `tools/direct-check.mjs` — **直连模式端到端检查**：headless Chrome + 本地假模型服务，不需要 API Key、不花 token，25 项断言，见 §4.7
   - `tools/pack-extension.mjs` — 公开分发打包脚本；**白名单**产出 ZIP，见 §4.5
 - `server/`
   - `src/index.ts` — Fastify 启动
@@ -379,13 +379,13 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 268 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 291 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
 - `/health` 的 provider 符合预期
 - 打包：`node extension/tools/pack-extension.mjs` 后 ZIP 里有 `shared/persona.js`、`shared/text-core.js`、`shared/guards-core.js`、`shared/voice-filter.js`、`shared/zh-prompt.js`，且没有 `tools/`、`server/`、`.pem`、`.env*`
-- 直连：`node extension/tools/direct-check.mjs` 21 项全过（不需要 Key，见 §4.7.1）
+- 直连：`node extension/tools/direct-check.mjs` 25 项全过（不需要 Key，见 §4.7.1）
 - 网站：`node tools/pack-site.mjs --zip` 后 `site-dist.zip` 的条目里有**位于归档根部**的 `404.html`（`unzip -l` 或 `pack-site.test.ts`），且用 `cd site-dist && node ../site/serve.mjs` 起本地预览后 `node tools/check-deploy.mjs --url http://127.0.0.1:4173` 11/11（见 §4.8）
 - 人工回归（报额度）：全新配置、限时开启，刷视频等到第一次开口，气泡里先出现「今天设的是 N 分钟」再出视频反应；再聊几句不会重复报；点「新对话」后会再报一次
 - 人工回归（催促）：打开抖音，面板里什么都别发，等 5 分钟——每 5 秒冒一句以「喵」结尾的催促；期间悬浮球进度环**停住不动**；随便发一句，催促立刻停、进度环从原处继续走
@@ -450,7 +450,7 @@ node extension/tools/pack-extension.mjs
 #### 4.7.1 脚本验证（免费，每次改完都跑）
 
 ```powershell
-node extension/tools/direct-check.mjs          # 21 项
+node extension/tools/direct-check.mjs          # 25 项
 node extension/tools/direct-check.mjs --keep   # 保留临时 profile 排查
 ```
 

@@ -74,7 +74,7 @@
 不需要 Node.js，不需要本地服务。API 费用由你和 DeepSeek 结算；插件不卖 Key、不代收、不共享额度。
 
 > “本喵其实也是大胃袋哦，你瘾越重，我能吃的token越多喵”<br>
-> 刷得越久、聊得越多、截图越频繁，消耗的 token 越多；费用由你和 DeepSeek 结算，插件不加价。
+> 刷得越久、视频停留触发的分析越多、截图越频繁，消耗的 token 越多；费用由你和 DeepSeek 结算，插件不加价。
 
 ### 方式 B：本地 Fastify 服务
 
@@ -105,6 +105,19 @@ node serve.mjs
 - [安装说明](http://127.0.0.1:4173/install.html)
 
 Demo 不需要 API Key，不调用模型。也可以直接打开 [`submission/demo/demo.html`](submission/demo/demo.html)。
+
+## 扩展设置在哪里
+
+设置不在抖音页面里，也不在 `chrome://extensions` 的扩展卡片里。装好后：
+
+1. **Chrome**：点右上角拼图图标 →「扩展程序」；**Edge**：点右上角「扩展」图标。
+2. 找到「喵喵陪你刷」，点图钉 /「显示在工具栏」。
+3. 点工具栏上的猫娘头像，打开设置弹窗。
+4. 每日时长、催满次数、冷静期、API Key 都在这个弹窗里调。
+
+![Chrome / Edge 扩展设置位置示意](docs/screenshots/settings-guide.png)
+
+> 示意图；浏览器版本不同，图标位置可能略有差异。找不到时先看工具栏右侧的拼图/扩展图标。
 
 ## 架构
 
