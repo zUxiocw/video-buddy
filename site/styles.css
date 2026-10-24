@@ -1101,7 +1101,7 @@ ul, ol { margin: 0; padding: 0; }
 .server-step { display: flex; gap: 9px; align-items: flex-start; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .server-step b { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--pink); color: var(--ink); font-size: 10px; }
 .form-note { display: flex; gap: 8px; padding: 12px; border-radius: 12px; background: #fff4e2; border: 1px solid #f0d7a9; color: #6d4c16; font-size: 11px; line-height: 1.6; margin-top: 16px; }
-.form-note b { color: #4f3508; }
+.form-note b { flex: none; color: #4f3508; white-space: nowrap; }
 .connection-status { min-height: 24px; margin-top: 12px; font-size: 12px; font-weight: 700; color: var(--muted); }
 .connection-status.ok { color: var(--ok); }
 .connection-status.err { color: var(--danger); }
@@ -1132,6 +1132,36 @@ ul, ol { margin: 0; padding: 0; }
 .setup-install-steps { display: grid; gap: 10px; margin-top: 16px; }
 .setup-install-steps div { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); font-size: 12px; line-height: 1.6; }
 .setup-install-steps b { color: var(--lav); flex: none; }
+
+/* ---------- BYOK ---------- */
+.byok-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.byok-mock {
+  max-width: 430px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  background: #17131f;
+  color: #efeaf7;
+  box-shadow: 0 18px 38px rgba(23, 19, 31, 0.2);
+}
+.byok-mock-head { display: flex; align-items: center; gap: 9px; }
+.byok-mock-head img { width: 30px; height: 30px; border-radius: 50%; background: var(--pink); }
+.byok-mock-head b { display: block; font-size: 13px; }
+.byok-mock-head span { display: block; color: #9d8bbd; font-size: 10px; }
+.byok-mock-tabs { display: flex; gap: 4px; margin-top: 14px; padding: 4px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
+.byok-mock-tabs span { flex: 1; padding: 6px 4px; border-radius: 7px; color: #9d8bbd; font-size: 10px; font-weight: 800; text-align: center; }
+.byok-mock-tabs span[aria-current="true"] { background: var(--lav); color: #fff; }
+.byok-field { margin-top: 12px; }
+.byok-field > span { display: block; margin-bottom: 4px; color: #b7aecb; font-size: 10px; font-weight: 700; }
+.byok-input { padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; background: #120f19; color: #d9c8ff; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.byok-mock-actions { display: flex; gap: 7px; margin-top: 14px; }
+.byok-mock-actions span { flex: 1; padding: 8px 6px; border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 8px; color: #efeaf7; font-size: 11px; font-weight: 800; text-align: center; }
+.byok-mock-actions .primary { border-color: transparent; background: var(--lav); color: #fff; }
+.setup-dev { margin-top: 24px; padding: 0 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper-2); }
+.setup-dev summary { padding: 16px 0; cursor: pointer; font-size: 13px; font-weight: 800; }
+.setup-dev > p { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.setup-dev .command-card { margin: 0 0 18px; }
 
 /* ---------- install page ---------- */
 .install-page { padding: 42px 0 90px; }

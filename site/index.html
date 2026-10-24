@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上头了喵喵 · 抖音网页里的 AI 陪刷搭子</title>
-  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；刷过头时，它也会按你设的额度提醒并关掉页面。连接本机 Fastify 服务，模型 Key 留在服务端。">
+  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；刷过头时，它也会按你设的额度提醒并关掉页面。公开版走 BYOK：用自己的 DeepSeek API Key，请求不经过我们的服务器。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -25,7 +25,7 @@
         <a href="demo.html">在线试玩</a>
         <a href="install.html">安装</a>
       </nav>
-      <a class="btn btn-primary btn-sm" href="setup.html">连接本地服务</a>
+      <a class="btn btn-primary btn-sm" href="setup.html">开通 API</a>
     </div>
   </header>
 
@@ -41,12 +41,13 @@
             <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
           </div>
           <a class="hero-feature" href="#limits"><span>新</span>刷视频限时：到点先开口，再关页</a>
-          <p class="micro">Chrome / Edge 116+ · 本地 Fastify 服务 · 模型 Key 不进浏览器</p>
+          <p class="micro">Chrome / Edge 116+ · 自带 DeepSeek API Key · 不经过我们的服务器</p>
           <div class="hero-meta">
+            <span>自带 API Key</span>
             <span>停留 10 秒主动搭话</span>
             <span>AI 回复结束才换脸</span>
             <span>到点提醒并关页</span>
-            <span>截图只发给本机服务</span>
+            <span>截图只发给模型服务</span>
           </div>
         </div>
 
@@ -255,25 +256,25 @@
       <div class="wrap">
         <div class="api-band">
           <div>
-            <span class="kicker">与插件同栈</span>
-            <h2>模型 Key 留在服务端，浏览器只拿令牌。</h2>
-            <p>扩展不直连模型。它只连你本机的 Fastify 服务（默认 <code>127.0.0.1:8787</code>），服务端再请求 DeepSeek。聊天、分析、语音过滤、SSE 都在同一套后端里。</p>
+            <span class="kicker">BYOK · 自己开通 API</span>
+            <h2>用你自己的 Key，<br>直连模型服务。</h2>
+            <p>公开版不卖 Key、不代收、不共享额度。你在 DeepSeek 开放平台开通 API，把 Key 填进扩展；请求从浏览器直接发往 DeepSeek，不经过我们的服务器。</p>
             <div class="api-list">
-              <div><span class="check">✓</span><span><b>Fastify + TypeScript</b><br>就是插件现在跑的那套服务，不引入第二个后端。</span></div>
-              <div><span class="check">✓</span><span><b>APP_TOKEN 访问控制</b><br>扩展只存服务地址和令牌，模型 Key 不进浏览器。</span></div>
-              <div><span class="check">✓</span><span><b>截图只发给本机服务</b><br>服务端再按你的配置请求模型；关掉截图也能只用文案和标签。</span></div>
+              <div><span class="check">✓</span><span><b>自己的账号，自己的额度</b><br>用多少扣多少，费用由你和 DeepSeek 结算，插件不加价。</span></div>
+              <div><span class="check">✓</span><span><b>Key 只在扩展本地</b><br>存在 <code>chrome.storage.local</code>，不写进网页，也不上传给我们。</span></div>
+              <div><span class="check">✓</span><span><b>没有我们的后端</b><br>聊天和截图只发给你配置的模型服务；关掉截图也能只用文案和标签。</span></div>
             </div>
-            <a class="btn btn-lav" href="setup.html">查看连接步骤</a>
+            <a class="btn btn-lav" href="setup.html">查看 BYOK 开通步骤</a>
           </div>
-          <div class="code-card" aria-label="本地服务配置示例">
-            <div><span class="c"># server/.env.local</span></div>
-            <div><span class="k">MODEL_PROVIDER</span>=<span class="s">deepseek</span></div>
-            <div><span class="k">DEEPSEEK_API_KEY</span>=<span class="s">sk-••••••••••••</span></div>
-            <div><span class="k">APP_TOKEN</span>=<span class="s">••••••••••••</span></div>
+          <div class="code-card" aria-label="BYOK 配置示例">
+            <div><span class="c"># 扩展设置 · 接入</span></div>
+            <div><span class="k">方式</span> = <span class="s">直接用 API Key</span></div>
+            <div><span class="k">API 地址</span> = <span class="s">https://api.deepseek.com</span></div>
+            <div><span class="k">API Key</span> = <span class="s">sk-••••••••••••</span></div>
             <div>&nbsp;</div>
-            <div><span class="c"># 启动</span></div>
-            <div><span class="s">npm.cmd run dev</span></div>
-            <div><span class="c"># → http://127.0.0.1:8787</span></div>
+            <div><span class="c"># 请求路径</span></div>
+            <div><span class="s">浏览器扩展 → DeepSeek</span></div>
+            <div><span class="c"># Key 只存 chrome.storage.local</span></div>
           </div>
         </div>
       </div>
@@ -283,21 +284,21 @@
       <div class="wrap privacy-grid">
         <div>
           <span class="kicker">隐私</span>
-          <h2 class="section-title">它看视频，但不把 Key 交给网页。</h2>
-          <p class="lede" style="margin-top:14px">只读当前视频的画面、文案和标签；不读聊天记录、不读其他标签页、不自动点赞评论。模型 Key 留在本地服务，浏览器只存 APP_TOKEN。</p>
+          <h2 class="section-title">它看视频，但 Key 只在扩展里。</h2>
+          <p class="lede" style="margin-top:14px">只读当前视频的画面、文案和标签；不读其他标签页、不自动点赞评论。Key 存在扩展的 <code>chrome.storage.local</code>，抖音页面脚本读不到；请求直接发给你配置的模型服务。</p>
         </div>
         <div class="privacy-list">
           <div class="privacy-item">
             <span class="privacy-mark">◐</span>
-            <div><b>模型 Key 留在服务端</b><p>在 <code>server/.env.local</code> 里，由 Fastify 读取；不写进扩展、不暴露给抖音页面。</p></div>
+            <div><b>Key 只在浏览器扩展存储</b><p>存在 <code>chrome.storage.local</code>，不写进抖音页面，也不上传给我们；它不是加密保险箱，泄露后请立刻去平台吊销。</p></div>
           </div>
           <div class="privacy-item">
             <span class="privacy-mark">▣</span>
-            <div><b>画面只发给本机服务</b><p>截图压缩后发到本机 <code>127.0.0.1</code>，再由服务端按你的配置请求模型；不经过我们的服务器。</p></div>
+            <div><b>画面直接发给模型服务</b><p>截图压缩后随请求发给你配置的 DeepSeek，不经过我们的服务器；关掉截图也能只用文案和标签。</p></div>
           </div>
           <div class="privacy-item">
             <span class="privacy-mark">↺</span>
-            <div><b>不做自动化互动</b><p>不自动点赞、不自动评论、不刷数据。它只负责陪你说话。</p></div>
+            <div><b>没有我们的账号体系</b><p>不注册、不登录我们的服务，只有扩展和你的 API Key。我们不接收你的 Key 或聊天内容。</p></div>
           </div>
           <div class="privacy-item">
             <span class="privacy-mark">⌁</span>
@@ -321,16 +322,20 @@
             <div class="answer">总结工具回答“这视频讲了什么”；上头了喵喵回答“你现在是什么感觉”。它不替你省时间，也不生成学习笔记，重点是在你刷视频的当下，主动接一句话、陪你聊两句。</div>
           </details>
           <details>
-            <summary>必须用 DeepSeek 吗？</summary>
-            <div class="answer">当前服务端默认 DeepSeek，也保留 Mock 用于离线测试。模型 Key 在 <code>server/.env.local</code>，不在扩展里；换模型改服务端配置，不用改浏览器设置。</div>
+            <summary>一定要自己开通 API 吗？</summary>
+            <div class="answer">是。公开版走 BYOK（Bring Your Own Key）：你在 DeepSeek 开放平台注册、充值、创建 Key，再填进扩展。插件不卖 Key、不代收、不共享额度；具体价格、可用地区和实名要求以平台为准。</div>
           </details>
           <details>
-            <summary>为什么还要启动一个本地服务？</summary>
-            <div class="answer">这是现有插件的技术栈：Chrome MV3 只负责页面和交互，Fastify 负责 prompt、模型调用、语音过滤和 SSE。好处是模型 Key 不进浏览器，调试和测试也集中在服务端；代价是公开版不能只装一个扩展。</div>
+            <summary>API Key 存在哪里？安全吗？</summary>
+            <div class="answer">存在扩展的 <code>chrome.storage.local</code>，不写进抖音网页，也不上传给我们；请求只发往你配置的 「API 地址」，默认是 DeepSeek 官方地址。它不是加密保险箱：能读你浏览器配置文件的人或高权限软件仍可能拿到。不要共用设备，不要把 Key 发到群里或陌生网页，泄露后立刻去平台吊销。</div>
+          </details>
+          <details>
+            <summary>还要启动本地 Fastify 服务吗？</summary>
+            <div class="answer">不需要。BYOK 模式只装扩展；原来的 <code>serverUrl</code> + <code>APP_TOKEN</code> 模式仍然保留给本地调试、离线 Mock，或不想把 Key 存在浏览器里的开发者。</div>
           </details>
           <details>
             <summary>截图会不会上传到你们服务器？</summary>
-            <div class="answer">不会。扩展只把压缩后的画面发到本机 <code>127.0.0.1</code> 的 Fastify 服务，再由服务端按你的配置请求模型。你也可以在设置里关闭截图，只让它在文案和标签上接话。</div>
+            <div class="answer">不会经过我们的服务器。截图会随请求发给你配置的模型服务（默认 DeepSeek），用于理解画面；你也可以在设置里关闭截图，只让它根据文案和标签接话。</div>
           </details>
           <details>
             <summary>会不会自动点赞、评论，导致账号风险？</summary>
@@ -355,12 +360,12 @@
     <section class="section-tight">
       <div class="wrap">
         <div class="cta-band">
-          <span class="kicker">UI 预览版</span>
-          <h2>先看看它在抖音里长什么样。</h2>
-          <p>不用装扩展，不用启动服务。试玩页里可以直接换视频、打字、切 9 种情绪，也可以让喵娘演示一次“到点先开口、再关页”。</p>
+          <span class="kicker">公开版 · BYOK</span>
+          <h2>先试玩，或直接开通 API。</h2>
+          <p>试玩不需要 Key。决定安装后，去 DeepSeek 开放平台开通 API，再按三步把 Key 填进扩展；不需要本地服务器。</p>
           <div class="hero-actions">
             <a class="btn btn-lav" href="demo.html">打开在线试玩</a>
-            <a class="btn btn-ghost" href="setup.html">查看连接步骤</a>
+            <a class="btn btn-ghost" href="setup.html">查看开通步骤</a>
           </div>
         </div>
       </div>
@@ -380,7 +385,7 @@
         <h3>产品</h3>
         <div class="footer-links">
           <a href="demo.html">在线试玩</a>
-          <a href="setup.html">连接服务</a>
+          <a href="setup.html">开通 API</a>
           <a href="install.html">安装说明</a>
         </div>
       </div>
@@ -394,7 +399,7 @@
       </div>
       <div>
         <h3>说明</h3>
-        <p>当前公开版需要本机 Fastify 服务；正式包会配合 <code>server/</code> 发布。不是抖音官方产品。</p>
+        <p>公开版使用你自己的 DeepSeek API Key；不需要我们的账号，也不经过我们的服务器。不是抖音官方产品。</p>
       </div>
     </div>
     <div class="wrap footer-bottom">

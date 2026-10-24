@@ -1,15 +1,22 @@
 # 设计版本
 
-## ui-v2（v2.2，2026-10-24，待验收）
+## ui-v3（3.0.0，2026-10-24，待验收）
 
-- 状态：已按插件技术栈重做，补上刷视频限时与 Demo 拖拽，并移除未接通的性格调教；等待用户验收
-- 原因：v1 假设浏览器直连模型 API，与现有 Fastify + APP_TOKEN 架构冲突；v2 首次交付又漏掉了插件已有的限时能力
-- 内容：公开版首页、交互 Demo、刷视频限时介绍与关页演示、连接本地服务向导、扩展 + 本地服务安装说明
+- 状态：BYOK 网页已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中
+- 架构：用户自己开通 DeepSeek API，Key 存扩展 `chrome.storage.local`，扩展直接请求模型，不经过我们的服务器
+- 内容：BYOK 首页说明、三步开通 API / 安装 / 填 Key、安装说明、无需 Key 的 Demo
+- 本地服务：原 Fastify + APP_TOKEN 模式保留为开发者选项
+- 目录：`design/ui-v3/`
+- 压缩包：`design/shangtou-meowmeow-ui-v3.zip`
+- 校验：`design/shangtou-meowmeow-ui-v3.sha256`
+- 设计说明：`design/ui-v3/DESIGN.md`
+- 交接单：`design/ui-v3/HANDOFF.md`
+
+## ui-v2（2.2.0，2026-10-24，历史版本）
+
+- 状态：保留作对比；公开叙事是“扩展 + 本机 Fastify + APP_TOKEN”，已被 BYOK 取代
 - 目录：`design/ui-v2/`
 - 压缩包：`design/shangtou-meowmeow-ui-v2.zip`
-- 校验：`design/shangtou-meowmeow-ui-v2.sha256`
-- 设计说明：`design/ui-v2/DESIGN.md`
-- 对接交接单：`design/ui-v2/HANDOFF.md`
 
 ## ui-v1（2026-10-24，已废弃直连 API 方案）
 
@@ -22,7 +29,7 @@
 - 冻结快照不直接改。
 - 新设计在 `site/` 迭代，确认后另存新版本。
 - UI 是独立静态站点，不改 `extension/`、`server/` 或现有测试。
-- 配置流程以现有 `serverUrl` + `appToken` 为准；模型 Key 留在 `server/.env.local`。
-- 刷视频限时只呈现现有插件能力；额度、冷却、关页逻辑仍在 `extension/shared/core.js`。
-- 性格调教当前不提供；设置页保留服务地址、令牌和回复偏好的保存，不把未接通的性格选项包装成可用功能。
-- Claude Code 对接需用户明确同意后再开始。
+- 公开版走 BYOK：网站不接收、不测试、不保存真实 API Key；输入只在扩展 popup。
+- Key 存 `chrome.storage.local`，请求直接发往用户配置的模型服务；不承诺绝对安全。
+- 原有 `serverUrl` + `appToken` 本地服务模式保留给开发者，不是公开用户的必经步骤。
+- Claude Code 对接需先对齐 popup 字段名，再改网站。

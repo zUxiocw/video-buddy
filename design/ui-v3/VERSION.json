@@ -1,0 +1,25 @@
+{
+  "name": "上头了喵喵 UI",
+  "version": "3.0.0",
+  "status": "ready-for-review",
+  "date": "2026-10-24",
+  "source": "D:\\code\\video-buddy\\site",
+  "supersedes": "2.2.0",
+  "reason": "BYOK: users bring their own DeepSeek API key; the website no longer leads with a local Fastify server",
+  "stack": {
+    "extension": "Chrome Manifest V3 + vanilla JS",
+    "publicPath": "extension service worker -> user's DeepSeek API",
+    "ui": "static HTML/CSS/JS, no framework",
+    "keyStorage": "chrome.storage.local",
+    "developerMode": "optional local Fastify + APP_TOKEN"
+  },
+  "features": {
+    "homepage": "BYOK explanation, DeepSeek links, local-key privacy, no server-side key claim",
+    "setup": "three BYOK steps; website never collects a real key",
+    "install": "extension-first install, no Node.js required",
+    "demo": "key-free local demo; points to BYOK setup",
+    "retained": "watch-time limit, draggable ball, nine emotion lines"
+  },
+  "claudeCodeIntegration": "BYOK implementation in progress; coordinate popup field names before release",
+  "notes": "Do not edit this snapshot; use site/ for future changes."
+}

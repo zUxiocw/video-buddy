@@ -131,10 +131,10 @@
       '<div class="dialog-pad">' +
         '<span class="kicker">安装说明</span>' +
         '<h2>安装包正在打包</h2>' +
-        '<p>这是公开版的 UI 预览。当前插件使用 Chrome MV3 + 本机 Fastify 服务；正式扩展包会配合 <code>server/</code> 一起发布。现在可以先试玩，或先走一遍本地服务配置。</p>' +
+        '<p>公开版走 BYOK：装扩展，在设置里填你自己的 DeepSeek API Key，不需要本地服务器。安装包发布前，可以先试玩，或先看开通步骤。</p>' +
         '<div class="dialog-actions">' +
           '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
-          '<a class="btn btn-primary" href="demo.html">去试玩</a>' +
+          '<a class="btn btn-primary" href="setup.html">看开通步骤</a>' +
         '</div>' +
       '</div>';
     document.body.appendChild(dialog);
@@ -632,16 +632,6 @@
     var steps = $$('.step-panel');
     var tabs = $$('.step-rail button');
     var current = 1;
-    var serverInput = $('#serverUrl');
-    var tokenInput = $('#appToken');
-    var deviceInput = $('#deviceId');
-    var replyLength = $('#replyLength');
-    var auto = $('#setupAuto');
-    var vision = $('#setupVision');
-    var previewServer = $('#previewServer');
-    var previewToken = $('#previewToken');
-    var previewLine = $('#previewLine');
-    var status = $('#connectionStatus');
 
     function showStep(step) {
       current = Math.max(1, Math.min(3, step));
@@ -657,19 +647,9 @@
       });
     }
 
-    function updateSummary() {
-      if (previewServer) previewServer.textContent = serverInput.value.trim() || 'http://127.0.0.1:8787';
-      if (previewToken) {
-        var token = tokenInput.value.trim();
-        previewToken.textContent = token ? '已填写（' + token.length + ' 位）' : '未填写';
-      }
-      if (previewLine) previewLine.textContent = '这猫又在拆家，你还看得挺起劲喵？';
-    }
-
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () { showStep(Number(tab.dataset.stepTarget)); });
     });
-
     $$('[data-next-step]').forEach(function (button) {
       button.addEventListener('click', function () { showStep(current + 1); });
     });
@@ -681,10 +661,10 @@
     if (copy) {
       copy.addEventListener('click', function () {
         var block = $('#serverCommands');
-        var text = block ? block.innerText : '';
-        if (!text) return;
+        var value = block ? block.innerText : '';
+        if (!value) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(function () {
+          navigator.clipboard.writeText(value).then(function () {
             toast('启动命令已复制');
           }).catch(function () {
             toast('复制失败，请手动选择命令');
@@ -695,81 +675,9 @@
       });
     }
 
-    var showKey = $('#toggleKey');
-    if (showKey && tokenInput) {
-      showKey.addEventListener('click', function () {
-        var visible = tokenInput.type === 'text';
-        tokenInput.type = visible ? 'password' : 'text';
-        showKey.textContent = visible ? '显示' : '隐藏';
-        showKey.setAttribute('aria-label', visible ? '显示访问令牌' : '隐藏访问令牌');
-      });
-    }
-
-    var test = $('#testConnection');
-    if (test) {
-      test.addEventListener('click', function () {
-        if (!tokenInput.value.trim()) {
-          status.className = 'connection-status err';
-          status.textContent = '先填访问令牌（APP_TOKEN），再测试连接。';
-          tokenInput.focus();
-          return;
-        }
-        var url = serverInput.value.trim();
-        if (!/^https?:\/\//i.test(url)) {
-          status.className = 'connection-status err';
-          status.textContent = '服务地址需要以 http:// 或 https:// 开头。';
-          serverInput.focus();
-          return;
-        }
-        test.disabled = true;
-        test.textContent = '测试中…';
-        status.className = 'connection-status';
-        status.textContent = '正在检查地址和访问令牌格式…';
-        setTimeout(function () {
-          test.disabled = false;
-          test.textContent = '测试连接';
-          status.className = 'connection-status ok';
-          status.textContent = '格式通过。演示页不会请求 /health；正式扩展会在后台验证服务。';
-          toast('本地服务配置格式通过');
-        }, 900);
-      });
-    }
-
-    var save = $('#saveSetup');
-    if (save) {
-      save.addEventListener('click', function () {
-        safeStore('smDemoConfig', {
-          serverUrl: serverInput.value.trim(),
-          appToken: tokenInput.value.trim(),
-          deviceId: deviceInput ? deviceInput.value.trim() : '',
-          replyLength: replyLength.value,
-          autoComment: !!(auto && auto.checked),
-          vision: !!(vision && vision.checked)
-        });
-        toast('服务配置和回复偏好已保存在浏览器');
-      });
-    }
-
-    [serverInput, tokenInput, deviceInput].forEach(function (input) {
-      if (input) input.addEventListener('input', updateSummary);
-    });
-    if (serverInput && !serverInput.value) serverInput.value = 'http://127.0.0.1:8787';
-    updateSummary();
-    showStep(1);
-
     var requestedStep = Number(new URLSearchParams(window.location.search).get('step'));
     if (requestedStep >= 1 && requestedStep <= 3) showStep(requestedStep);
-
-    var saved = safeStore('smDemoConfig');
-    if (saved) {
-      if (saved.serverUrl && serverInput) serverInput.value = saved.serverUrl;
-      if (saved.appToken && tokenInput) tokenInput.value = saved.appToken;
-      if (saved.deviceId && deviceInput) deviceInput.value = saved.deviceId;
-      if (saved.replyLength && replyLength) replyLength.value = saved.replyLength;
-      if (auto) auto.checked = !!saved.autoComment;
-      if (vision) vision.checked = saved.vision !== false;
-      updateSummary();
-    }
+    else showStep(1);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
