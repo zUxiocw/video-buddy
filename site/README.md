@@ -37,6 +37,24 @@ node serve.mjs
 - `setup.html?step=2` — 直接看安装扩展
 - `setup.html?step=3` — 直接看填 Key
 
+## 发布到 Cloudflare Pages
+
+```powershell
+cd D:\code\video-buddy
+node extension/tools/pack-extension.mjs --out site/download   # 产出安装包
+node tools/pack-site.mjs                                       # 产出 site-dist/
+```
+
+然后 Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload assets**，把 **`site-dist/` 里面的内容**拖进去（不是拖 `site-dist` 文件夹本身），部署即可。
+
+`tools/pack-site.mjs` 是白名单：只复制 4 个页面、`styles.css`、`app.js`、`assets/**/*.png` 和 `download/*.zip`。`README.md`（含内部决策）和 `serve.mjs` 不会进发布目录。它会在以下三件事上直接失败退出：
+
+1. `site/download/` 里没有 zip —— 否则下载按钮永远只显示回退弹窗，站点看着正常但下不到扩展。
+2. `site/app.js` 的 `DOWNLOAD_URL` 与 zip 文件名不一致 —— 改了 `manifest.json` 版本却没同步这个常量时会发生。
+3. 页面引用了没被复制的文件 —— 新增页面要显式加进脚本的 `PAGES` 列表。
+
+`site-dist/` 是构建产物，已被 `.gitignore` 忽略。
+
 ## 技术栈边界
 
 - `site/` 是独立静态目录，不引用 `extension/` 的运行时代码。

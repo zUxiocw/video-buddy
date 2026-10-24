@@ -17,6 +17,9 @@ server/dist/
 # Site build output and dependencies
 site/node_modules/
 site/dist/
+# Staged deploy directory (tools/pack-site.mjs). Build product, not source:
+# it duplicates site/ plus the gitignored ZIP, so it would bloat every diff.
+site-dist/
 
 # Local release artefacts (regenerate with tools/pack-extension.mjs)
 releases/
