@@ -163,7 +163,7 @@ describe('POST /v1/chat (SSE)', () => {
 
       async *streamChat(): AsyncIterable<string> {
         // Exactly how a real model might stream a forbidden reply.
-        for (const chunk of ['上头了喵喵：', '这猫', '好可爱', '哈哈', '！', '真的呢']) yield chunk;
+        for (const chunk of ['喵喵陪你刷：', '这猫', '好可爱', '哈哈', '！', '真的呢']) yield chunk;
       }
     }
 

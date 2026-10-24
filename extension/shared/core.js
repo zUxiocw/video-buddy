@@ -62,6 +62,12 @@
   var LIMIT_MINUTES_MAX = 600;
   var LIMIT_COOLDOWN_MIN = 0;
   var LIMIT_COOLDOWN_MAX = 720;
+  // Silence nudge. Both numbers are deliberately NOT settings and have no
+  // MIN/MAX pair: the site tells users 「5 分钟与 5 秒间隔固定，不提供修改」,
+  // and a configurable version would need its own validation, migration and
+  // popup row for no benefit. Exported so the tests and the page agree.
+  var NUDGE_AFTER_MS = 5 * 60 * 1000;
+  var NUDGE_GAP_MS = 5 * 1000;
   // Bump when the stored settings shape changes in a way that needs a one-off
   // migration. normalizeSettings passes an older stamp through unchanged, so
   // future code can branch on it; a stored object with no stamp is version 1.
@@ -107,11 +113,10 @@
     ballSize: 60,
     // Watch-time budget. Time only accrues while a video plays on a visible
     // page; when the budget runs out the cat says so, then the tab is closed.
-    // Off for a fresh install: silently closing a stranger's tab half an hour
-    // after they install the extension is not a first impression worth having.
-    // Settings saved before this field existed still resolve to `true` — see
-    // normalizeSettings — so existing instalments keep the limiter they had.
-    limitEnabled: false,
+    // On for a fresh install: watching time is the product's core boundary,
+    // and the site promises this default. An explicit `false` still wins, so
+    // anyone who turns it off keeps it off.
+    limitEnabled: true,
     limitMinutes: 30,
     // After a shutdown, every fresh page gets one warning and is closed again
     // for this long. 0 = close once and stop interfering.
@@ -623,6 +628,90 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* budget announcement + silence nudge (local lines)                 */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * The first thing the cat says about the budget, before any time is spent.
+   *
+   * Announced once per conversation rather than at the deadline: the site's
+   * promise is 「第一次对话就报总时长」, and a warning that only arrives when
+   * the tab is about to close is not a heads-up, it is an ambush.
+   *
+   * These are local templates for the same reason the shutdown lines are: the
+   * budget is enforced without the network, so explaining it must not depend
+   * on /v1/chat either. `{minutes}` is substituted at the call site so the
+   * number always matches the setting in force.
+   *
+   * Note the wording: this is the one place a duration is allowed, and only
+   * because it is the user's own setting being read back, never the watch time
+   * the model is forbidden to mention (see CLAUDE.md §2.1.5 — that rule is
+   * about what reaches the prompt, not about what the extension says).
+   */
+  var BUDGET_LINES = [
+    '先说好，今天给自己设了 {minutes} 分钟，到点我关页喵',
+    '今天的额度是 {minutes} 分钟，本喵到点就动手喵',
+    '{minutes} 分钟，说好了，到点不许赖喵',
+    '提醒一下，今天设的是 {minutes} 分钟喵',
+    '{minutes} 分钟一到，我就把你从这儿带走喵',
+  ];
+
+  function pickBudgetLine(minutes, recent) {
+    var total = Number(minutes);
+    var value = Number.isFinite(total) && total > 0 ? Math.round(total) : DEFAULTS.limitMinutes;
+    var seen = Array.isArray(recent) ? recent : [];
+    var fresh = BUDGET_LINES.filter(function (line) { return seen.indexOf(line) === -1; });
+    var pool = fresh.length > 0 ? fresh : BUDGET_LINES;
+    var index = Math.floor(Math.random() * pool.length) % pool.length;
+    return pool[index].replace('{minutes}', String(value));
+  }
+
+  /**
+   * Lines for the repeated nudge once the user has gone quiet.
+   *
+   * Deliberately nagging in tone — that is the brief — but every line still
+   * ends in 喵 and none of them mentions a duration, so they stay inside the
+   * persona. Shorter than the opener pool on purpose: repetition is the
+   * mechanism here, and pretending otherwise would make the array longer
+   * without making the behaviour less repetitive.
+   */
+  var NUDGE_LINES = [
+    '喂，五分钟没理我了喵',
+    '视频比我好看是吧喵',
+    '你再不回，我就一直说喵',
+    '看我一眼，就一眼喵',
+    '行，你刷，我就在这儿念喵',
+    '人呢，屏幕还亮着喵',
+    '理我一下会少块肉吗喵',
+    '我数到三，你再不说话我就继续数喵',
+  ];
+
+  function pickNudgeLine(recent) {
+    var seen = Array.isArray(recent) ? recent : [];
+    var fresh = NUDGE_LINES.filter(function (line) { return seen.indexOf(line) === -1; });
+    var pool = fresh.length > 0 ? fresh : NUDGE_LINES;
+    var index = Math.floor(Math.random() * pool.length) % pool.length;
+    return pool[index];
+  }
+
+  /**
+   * Whether the user has been quiet long enough for the nudge to start.
+   *
+   * `lastUserAt` is the timestamp of the last message the user *typed*. Every
+   * other kind of utterance (opener, video reaction, budget notice, the nudge
+   * itself) deliberately does not count: if they did, the cat would keep
+   * resetting its own silence clock and never nudge anyone.
+   */
+  function nudgeDue(lastUserAt, nowMs) {
+    var last = Number(lastUserAt);
+    var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    if (!Number.isFinite(last) || last <= 0) return false;
+    // A clock that jumped backwards must not park the user in "quiet forever".
+    if (last > now) return false;
+    return now - last >= NUDGE_AFTER_MS;
+  }
+
+  /* ---------------------------------------------------------------- */
   /* chat history                                                      */
   /* ---------------------------------------------------------------- */
 
@@ -994,6 +1083,16 @@
     limitAfterShutdown: limitAfterShutdown,
     limitCredit: limitCredit,
     pickLimitLine: pickLimitLine,
+    // Silence nudge + budget announcement. Constants are exported (and
+    // documented as fixed) so the page, the tests and the site copy cannot
+    // drift apart on what "5 minutes" and "5 seconds" mean.
+    NUDGE_AFTER_MS: NUDGE_AFTER_MS,
+    NUDGE_GAP_MS: NUDGE_GAP_MS,
+    BUDGET_LINES: BUDGET_LINES,
+    NUDGE_LINES: NUDGE_LINES,
+    pickBudgetLine: pickBudgetLine,
+    pickNudgeLine: pickNudgeLine,
+    nudgeDue: nudgeDue,
     EMOTION_IDS: EMOTION_IDS,
     normalizeEmotionTally: normalizeEmotionTally,
     buildAnalyzeBody: buildAnalyzeBody,

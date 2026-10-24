@@ -92,13 +92,15 @@ describe('limit settings', () => {
     expect(Buddy.LIMIT_CLOSE_MAX).toBe(30);
   });
 
-  it('ships the limiter off for a fresh install', () => {
-    // Closing a stranger's tab half an hour after they install is not a first
-    // impression worth having, so the default is off and the popup offers it.
-    expect(Buddy.DEFAULTS.limitEnabled).toBe(false);
-    expect(Buddy.normalizeSettings({}).limitEnabled).toBe(false);
+  it('ships the limiter on for a fresh install', () => {
+    // The product default is on: the first conversation reports the budget,
+    // and the user can still turn it off explicitly.
+    expect(Buddy.DEFAULTS.limitEnabled).toBe(true);
+    expect(Buddy.normalizeSettings({}).limitEnabled).toBe(true);
     const fresh = Buddy.limitSnapshot(null, Date.now(), Buddy.normalizeSettings({}));
-    expect(fresh.disabled).toBe(true);
+    expect(fresh.disabled).toBe(false);
+    expect(fresh.overBudget).toBe(false);
+    expect(fresh.budgetMs).toBe(30 * 60 * 1000);
   });
 
   it('keeps the limiter on for settings saved before the field existed', () => {

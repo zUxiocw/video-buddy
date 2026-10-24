@@ -34,12 +34,13 @@
       .replace(/[ \t]{2,}/g, ' ');
   }
 
-  // 刷子喵喵 is the previous name: models warmed on the old persona sometimes
-  // still self-label with it, so both are stripped.
-  var SPEAKER_LABEL = /^\s*(上头了喵喵|刷子喵喵|喵喵|maomao)\s*[：:]\s*/i;
-  var LABEL_NAMES = ['上头了喵喵', '刷子喵喵', '喵喵', 'maomao'];
+  // The two older names are kept as legacy labels: models warmed on an older
+  // persona sometimes still self-label with them, and a rename must not leak
+  // "上头了喵喵：" into the reply text.
+  var SPEAKER_LABEL = /^\s*(喵喵陪你刷|上头了喵喵|刷子喵喵|喵喵|maomao)\s*[：:]\s*/i;
+  var LABEL_NAMES = ['喵喵陪你刷', '上头了喵喵', '刷子喵喵', '喵喵', 'maomao'];
 
-  /** True while the buffered text could still become a "上头了喵喵：" label. */
+  /** True while the buffered text could still become a "喵喵陪你刷：" label. */
   function mightBeLabel(text) {
     var head = text.trimStart().toLowerCase();
     if (!head) return true;
@@ -62,9 +63,9 @@
         buffer += chunk;
 
         if (!started) {
-          // Hold briefly when the reply might start with "上头了喵喵：" so the
-          // label is not emitted as content. Ordinary replies starting with 上
-          // stop being ambiguous as soon as the second character differs.
+          // Hold briefly when the reply might start with "喵喵陪你刷：" so the
+          // label is not emitted as content. Ordinary replies starting with 喵
+          // stop being ambiguous as soon as the next character differs.
           if (buffer.trim().length < 12 && mightBeLabel(buffer)) return '';
           buffer = buffer.replace(SPEAKER_LABEL, '');
           started = true;

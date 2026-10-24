@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>上头了喵喵 · 抖音网页里的 AI 陪刷搭子</title>
-  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；刷过头时，它也会按你设的额度提醒并关掉页面。公开版走 BYOK：用自己的 DeepSeek API Key，请求不经过我们的服务器。">
+  <title>喵喵陪你刷 · 抖音网页里的 AI 陪刷搭子</title>
+  <meta name="description" content="喵喵陪你刷是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；到点关视频默认开启，第一次对话先报总时长，5 分钟没聊就每 5 秒催你一次。公开版走 BYOK：用自己的 DeepSeek API Key，请求不经过我们的服务器。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -14,13 +14,13 @@
 
   <header class="site-header">
     <div class="wrap nav">
-      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+      <a class="brand" href="index.html" aria-label="喵喵陪你刷首页">
         <img src="assets/icon128.png" alt="">
-        <span>上头了喵喵</span>
+        <span>喵喵陪你刷</span>
       </a>
       <nav class="nav-links" aria-label="主导航">
         <a href="#how">怎么用</a>
-        <a href="#limits">管时长</a>
+        <a href="#limits">双计时器</a>
         <a href="#emotions">9 种情绪</a>
         <a href="demo.html">在线试玩</a>
         <a href="install.html">安装</a>
@@ -33,21 +33,21 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <span class="eyebrow kicker">抖音网页 · AI 陪刷搭子</span>
-          <h1 class="display">刷到上头，<br><span class="accent">它陪你接一句。</span></h1>
-          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：会接话，也会在你刷过头时把页面关掉。陪伴，但不纵容。</p>
+          <span class="eyebrow kicker">抖音网页 · 喵喵陪你刷</span>
+          <h1 class="display">刷一会儿，<br><span class="accent">它陪你接一句。</span></h1>
+          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：你停下来，它接话；你刷过头，它先报额度，到点关视频。5 分钟没理它，它还会一直催。陪伴，但不纵容。</p>
           <div class="hero-actions">
             <button class="btn btn-lav" type="button" data-download>免费下载扩展</button>
             <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
           </div>
-          <a class="hero-feature" href="#limits"><span>新</span>刷视频限时：到点先开口，再关页</a>
+          <a class="hero-feature" href="#limits"><span>新</span>双计时器：先报总时长，5 分钟没聊就催</a>
           <p class="micro">Chrome / Edge 116+ 等 Chromium 浏览器 · 不支持 Firefox / Safari · 自带 DeepSeek API Key · 不经过我们的服务器</p>
           <div class="hero-meta">
             <span>自带 API Key</span>
             <span>停留 10 秒主动搭话</span>
-            <span>AI 回复结束才换脸</span>
-            <span>到点提醒并关页</span>
-            <span>截图只发给模型服务</span>
+            <span>到点关视频默认开</span>
+            <span>5 分钟没聊就催</span>
+            <span>9 种情绪</span>
           </div>
         </div>
 
@@ -77,11 +77,11 @@
             <img src="assets/emotions/angry-128.png" alt="">
             <img src="assets/emotions/laugh-128.png" alt="">
           </div>
-          <div class="stage-bubble">这猫又在拆家，你还看得挺起劲喵？</div>
+          <div class="stage-bubble">今天 30 分钟，到点我关页喵。</div>
           <button class="stage-ball" type="button" data-stage-ball aria-label="打开聊天面板预览">
             <img src="assets/emotions/annoyed-128.png" alt="">
           </button>
-          <span class="stage-note">9 种情绪 · 会接话 · 也管时长</span>
+          <span class="stage-note">9 种情绪 · 到点关页 · 5 分钟催你</span>
         </div>
       </div>
     </section>
@@ -119,45 +119,56 @@
       <div class="wrap">
         <div class="section-head">
           <div>
-            <span class="kicker">刷视频限时</span>
-            <h2 class="section-title">陪你刷，也负责喊停。</h2>
+            <span class="kicker">双计时器</span>
+            <h2 class="section-title">一个管你刷多久，<br>一个管你多久没理它。</h2>
           </div>
-          <p class="lede">让 AI 搭子管时长，不是让它劝你“少刷点”，而是按你设的额度执行：到点先开口，再关页。</p>
+          <p class="lede">到点关视频默认开启。第一次开口就报总时长；5 分钟没主动说话，它就每 5 秒催一次。催的时候，视频停留计时暂停，不会一边催你一边继续算。</p>
         </div>
 
         <div class="limit-grid">
           <div class="limit-copy">
             <p class="limit-principle">“陪伴，不纵容。”</p>
-            <p class="limit-lede">推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。额度、冷却、关页前停留都能改；限时默认关闭，打开后才生效。</p>
+            <p class="limit-lede">推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。额度、冷却、关页前停留都能改；到点关视频默认开启，也可以单独关掉。</p>
             <ul class="limit-points">
-              <li><b>01 你定额度</b><span>每日 1–600 分钟，默认 30 分钟。到点不是弹窗，而是直接把标签页关掉。</span></li>
-              <li><b>02 只算真在看</b><span>视频正在播放、页面在前台才计时；暂停、切标签页、挂后台都不算。</span></li>
-              <li><b>03 先说话，再关页</b><span>猫娘先说一句，给你 5 秒读完，然后关页。默认冷却 10 分钟，防止马上回来继续刷。</span></li>
+              <li><b>01 先报总时长</b><span>第一次对话、停留 10 秒的第一句，都会先告诉你当次设了多少分钟；不是快用完才提醒。</span></li>
+              <li><b>02 5 分钟没聊就催</b><span>每 5 秒一句，直到你主动回它。催的时候，视频停留计时暂停；回话后从暂停处继续。</span></li>
+              <li><b>03 到点先说话，再关页</b><span>默认 30 分钟，可改 1–600 分钟。到点先说一句，5 秒后关标签页；冷却 10 分钟，防止马上回来继续刷。</span></li>
             </ul>
             <div class="hero-actions">
-              <a class="btn btn-primary" href="demo.html#limitDemo">在试玩里看它关页</a>
-              <a class="btn btn-ghost" href="setup.html">安装后开启</a>
+              <a class="btn btn-primary" href="demo.html#silenceDemo">试玩“沉默催促”</a>
+              <a class="btn btn-ghost" href="demo.html#limitDemo">看它到点关页</a>
             </div>
           </div>
 
-          <div class="limit-card" aria-label="刷视频限时示意">
+          <div class="limit-card timer-card" aria-label="双计时器示意">
             <div class="limit-card-head">
-              <span>今日额度</span>
-              <span class="limit-live">视频在播 · 计时中</span>
+              <span>喵喵的两个计时器</span>
+              <span class="limit-live">到点关视频 · 已开启</span>
             </div>
-            <div class="limit-clock"><b>23:41</b><span>/ 30:00</span></div>
-            <div class="limit-bar" aria-hidden="true"><i style="width:79%"></i></div>
+            <div class="timer-reminder"><span>第一次开口</span>今天给自己设了 30 分钟，到点我关页喵。</div>
+            <div class="timer-stack">
+              <div class="timer-block">
+                <div class="timer-label"><span>今日额度</span><b>23:41</b><em>/ 30:00</em></div>
+                <div class="limit-bar" aria-hidden="true"><i style="width:79%"></i></div>
+                <p>先报总时长，再开始算；只算视频在播、页面在前台。</p>
+              </div>
+              <div class="timer-block is-nagging">
+                <div class="timer-label"><span>沉默计时 <i class="timer-tag">催你中</i></span><b>00:00</b><em>/ 05:00</em></div>
+                <div class="limit-bar" aria-hidden="true"><i style="width:100%"></i></div>
+                <p><span class="timer-pause">视频停留计时暂停</span> 每 5 秒一句，你回话就停。</p>
+              </div>
+            </div>
             <div class="limit-warning">
               <img src="assets/emotions/annoyed-128.png" alt="">
               <div>
-                <p>差不多了哦，本喵要下班了喵</p>
-                <small>5 秒后关闭这个标签页</small>
+                <p>五分钟没理我了，视频比我好看喵？</p>
+                <small>每 5 秒一次 · 回它一句就停</small>
               </div>
             </div>
             <div class="limit-flow" aria-hidden="true">
-              <span>开口提醒</span><i>→</i><span>关闭页面</span><i>→</i><span>冷却 10 分钟</span>
+              <span>第一次对话报额度</span><i>→</i><span>5 分钟没聊开催</span><i>→</i><span>到点关页</span>
             </div>
-            <p class="limit-fine">只统计视频正在播放、且页面在前台的时间；限时默认关闭。</p>
+            <p class="limit-fine">到点关视频默认开启；只统计视频正在播放、且页面在前台的时间。5 分钟与 5 秒间隔固定，不提供修改。</p>
           </div>
         </div>
       </div>
@@ -241,7 +252,7 @@
         <div class="quote-band">
           <div>
             <p>“陪你把这条看完，也负责不让你刷到停不下来。”</p>
-            <small>上头了喵喵 · 产品原则：陪伴，不纵容</small>
+            <small>喵喵陪你刷 · 产品原则：陪伴，不纵容</small>
           </div>
           <div class="avatar-stack" aria-hidden="true">
             <img src="assets/emotions/greet-128.png" alt="">
@@ -302,7 +313,7 @@
           </div>
           <div class="privacy-item">
             <span class="privacy-mark">⌁</span>
-            <div><b>随时可以关掉</b><p>「在抖音页面显示悬浮球」「停留后主动搭话」「把画面截图一起发给模型」「到点提醒并关闭网页」都是设置里独立的开关，可以只留聊天、只留悬浮球。</p></div>
+            <div><b>随时可以关掉</b><p>「在抖音页面显示悬浮球」「停留后主动搭话」「把画面截图一起发给模型」「到点关视频」都是设置里独立的开关，可以只留聊天、只留悬浮球。</p></div>
           </div>
         </div>
       </div>
@@ -319,7 +330,7 @@
         <div class="faq">
           <details>
             <summary>它和 BibiGPT、视频总结插件有什么区别？</summary>
-            <div class="answer">总结工具回答“这视频讲了什么”；上头了喵喵回答“你现在是什么感觉”。它不替你省时间，也不生成学习笔记，重点是在你刷视频的当下，主动接一句话、陪你聊两句。</div>
+            <div class="answer">总结工具回答“这视频讲了什么”；喵喵陪你刷回答“你现在是什么感觉”。它不替你省时间，也不生成学习笔记，重点是在你刷视频的当下，主动接一句话、陪你聊两句。</div>
           </details>
           <details>
             <summary>一定要自己开通 API 吗？</summary>
@@ -343,7 +354,11 @@
           </details>
           <details>
             <summary>它会怎么管我刷多久？</summary>
-            <div class="answer">在扩展设置里打开“刷视频限时”，设每日额度和关页前的停留秒数。只统计视频正在播放、且页面在前台的时间；到点它先说一句，再把标签页关掉。默认是关闭的，不会装完就替你关页。</div>
+            <div class="answer">「到点关视频」默认开启。第一次对话、以及停留 10 秒后的第一句，都会先报当次设的额度；之后只统计视频正在播放、且页面在前台的时间。到点它先说一句，5 秒后关掉标签页。也可以在扩展设置里单独关掉。</div>
+          </details>
+          <details>
+            <summary>为什么它会一直催我？</summary>
+            <div class="answer">连续 5 分钟没有主动发消息，它就开始每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你主动回一句，计时就从暂停处继续。5 分钟和 5 秒都是固定值，不提供修改。</div>
           </details>
           <details>
             <summary>关掉的页面还能马上打开吗？</summary>
@@ -387,7 +402,7 @@
       <div>
         <a class="brand" href="index.html">
           <img src="assets/icon128.png" alt="">
-          <span>上头了喵喵</span>
+          <span>喵喵陪你刷</span>
         </a>
         <p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p>
       </div>
@@ -413,7 +428,7 @@
       </div>
     </div>
     <div class="wrap footer-bottom">
-      <span>© 2026 上头了喵喵</span>
+      <span>© 2026 喵喵陪你刷</span>
       <span>非官方产品 · 请遵守平台规则</span>
     </div>
   </footer>

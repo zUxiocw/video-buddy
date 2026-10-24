@@ -1,4 +1,4 @@
-# 上头了喵喵 · 公开版 UI（BYOK · 自带 API）
+# 喵喵陪你刷 · 公开版 UI（BYOK · 自带 API）
 
 这是公开下载方向的前端原型，对应插件的 BYOK（Bring Your Own Key）方向：
 

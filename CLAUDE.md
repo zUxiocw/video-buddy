@@ -1,16 +1,16 @@
 # video-buddy · Claude Code 项目说明
 
-> 最后更新：2026-10-24
-> 项目：抖音网页悬浮球「上头了喵喵」聊天插件
+> 最后更新：2026-10-25
+> 项目：抖音网页悬浮球「喵喵陪你刷」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（245 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（245 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
 
 - `extension/`
   - `manifest.json` — MV3；**两条** content scripts 条目：`shared/keyboard-guard.js`（`document_start`，键盘隔离）在前，`shared/core.js` → `shared/emotions.js` → `content/buddy.js`（`document_idle`）在后。第 2 条内部顺序不可改
-  - `content/buddy.js` — 悬浮球、停留计时、聊天面板、SSE 流、表情切换、刷视频限时（`limiter`）
+  - `content/buddy.js` — 悬浮球、停留计时、聊天面板、SSE 流、表情切换、到点关视频（`limiter`）
   - `shared/keyboard-guard.js` — `document_start` 安装 window 捕获阶段键盘守卫；面板输入框里的 Enter/Escape 通过 `window.__smKeyboardGuard.setHandlers()` 回调给 `buddy.js`
   - `shared/core.js` — 设置、请求体、SSE parser、历史记录、限时额度状态机
   - `shared/emotions.js` — 9 情绪、别名、关键词/语气识别、图标路径
@@ -68,7 +68,7 @@
    - **`proactive` 必须同时罩住 `sayOpener()`**：只在 `onDwell()` 里检查的话，关了「主动搭话」猫还是每次开页面都开口，网站那句承诺就是假的。限时关页的台词**不受它影响**——那是执行限制，不是搭话，归 `limitEnabled` 管。`extension-core.test.ts` 有一条读源码的测试守着这两点。
 8. **凭证检查按模式走**：`core.js` 的 `modeConfigured(settings)` 是唯一的判断点——`direct` 看 `apiKey`，`server` 看 `appToken`。曾经的写法是在 `onDwell()` 里直接查 `appToken`，而 `direct` 模式根本不显示、也不会写这个字段，于是**每一台全新 BYOK 安装都不会主动开口**；老机器只是碰巧还留着早年 `server` 模式的 `appToken` 才显得正常。加第三种模式时改这一个函数即可，不要再在调用点各写一遍。
 
-### 2.1.7 刷视频限时（每日额度 + 关页）
+### 2.1.7 到点关视频（每日额度 + 关页）
 
 1. **只统计真实观看**：`tracker.tick()` 里满足「页面可见 + 视频在播放（`readyState>=2` 且未暂停）」，才把这一段 `delta` 交给 `limiter.add()`。暂停、切后台、看别的站都不计时。
 2. 累计口径是**本地自然日**：`smLimit` 里存 `{ day, usedMs, shutAt }`，跨天（`Buddy.dayKey()`）自动归零。不按自然日的话，长期累计早晚会把每个标签页都判超时。
@@ -80,13 +80,13 @@
    - 「页面加载时额度就已经用完」这条路径不会 `creditWatch()`，所以它单独发 `sm:limitShutdown` → `stampShutdown()` 补盖 `shutAt`（幂等：已在冷却中则什么都不做）。少了这一步，之后每次打开都会说「时间到」而不是「还敢点开」。
 7. 台词在 `core.js` 的 `LIMIT_LINES`（`over` / `back` 两组），本地模板，不依赖服务端：服务没起来也得能关页。全部以「喵」结尾，且不含任何时长数字（与 2.1.5 同一条硬规则）。
 8. **招呼跟着限时走**：`limiter.start(sayOpener)` 只在允许观看时才回调 `sayOpener`。否则「你好呀」紧接「不给你刷了」再关页，像两个人格。
-9. 设置项在 popup 的「刷视频限时」：`limitEnabled`（**全新安装默认 `false`**，见 §2.1.8）/ `limitMinutes`（1–600，默认 30）/ `limitCooldownMinutes`（0–720，默认 10，0 = 只关一次）/ `limitCloseSeconds`（0–30，默认 5）。
+9. 设置项在 popup 的「到点关视频」：`limitEnabled`（**全新安装默认 `true`**，见 §2.1.8）/ `limitMinutes`（1–600，默认 30）/ `limitCooldownMinutes`（0–720，默认 10，0 = 只关一次）/ `limitCloseSeconds`（0–30，默认 5）。
 10. `limitEnabled` 关闭时 `limitBudgetMs()` 返回 0，`limitSnapshot()` 直接 `disabled`，不读也不写额度。
 
 ### 2.1.8 设置迁移与全新安装默认值
 
-1. **`limitEnabled` 默认 `false`**（面向公开分发）。陌生人装完半小时后被自动关标签页，差评和商店审核解释成本都不划算。
-2. **旧配置不能被这条默认值误伤**：凡是「限时功能上线前保存过设置」的机器，存储里根本没有 `limitEnabled` 这个键，直接落到新默认值就会**静默关掉用户已经在用的功能**。`core.js` 的 `legacyLimitEnabled(source)` 判断：**有别的键但没有 `limitEnabled`** → 视为旧配置，保留 `true`；**空对象** → 全新安装，用新默认值。显式写入的值（`true` / `false`）永远优先。
+1. **`limitEnabled` 默认 `true`**（产品决定：到点关视频默认开启）。第一次对话会先报当次总时长，用户仍可在设置里单独关掉。
+2. **显式值永远优先**：`normalizeSettings` 里 `limitEnabled: false` 必须保留为关闭；空对象用新默认值 `true`。`legacyLimitEnabled(source)` 继续保留，用于「限时功能上线前保存过设置」的机器：有别的键但没有 `limitEnabled` → 旧配置，保留 `true`。这条迁移路径现在和新默认值同向，但不要删除，旧版本升级仍要靠它。
 3. 这个判断放在 `normalizeSettings()` 内部，不新增需要各处调用的迁移函数：`normalizeSettings` 是 popup / background / content 的**唯一汇合点**，多一个入口就多一处可能被漏调。
 4. `settingsVersion` 随设置在存储里落盘（当前 `SETTINGS_VERSION = 2`，缺失视为 1），给将来的形状迁移留挂点。**未来版本号要保留原值，不能用 `clampInt` 压回当前值**：降级运行时把「数据比代码新」这个信息抹掉，会造成二次迁移。
 5. 改默认值必须同步测试：`limit.test.ts` 的共享 `settings` 常量显式写 `{ limitEnabled: true }`，因为它测的是限时器本身，不该依赖默认值。
@@ -167,6 +167,25 @@
    - 为什么先查权限：没权限时请求表现为网络错误，会被误读成「Key 不对」。
 8. 错误映射沿用服务端那套：401/403 → `UPSTREAM_AUTH`，400/404 → `MODEL_UNAVAILABLE`，其余 → `UPSTREAM_ERROR` / `UPSTREAM_TIMEOUT`。
 9. **直连没有热点/俚语注入**，`trendCandidates` / `slangCandidates` 恒为空，prompt 里显示「（无）」。这需要 `node:fs` 读词库 + 实时抓热榜，service worker 做不了，是**有意的能力取舍**，不是 bug。给直连补词库会引入第二种数据源，两份词库迟早不同步。
+
+### 2.1.10 2026-10-25 协作改动：到点关视频默认开 + 沉默催促
+
+本轮两个 Agent 在同一个仓库改，先按下面的文件所有权分工，避免互相覆盖：
+
+- **Claude Code 负责**：`extension/shared/core.js`（计时器常量/纯函数/本地台词）、`extension/content/buddy.js`（计时器接入、暂停、提醒）、`extension/background.js`（只有必须时）、`server/test/*`（新增行为测试）。**默认值 `limitEnabled: true` 和 popup 文案已由另一 Agent 先改好，不要回退**；改 `buddy.js` 时只动计时/聊天流程，不要重排 UI 结构。
+- **另一 Agent 负责**：`site/`、`submission/demo/`、`README.md`、`submission/one-pager/` 的文案与功能展示（以及品牌改名）。Claude Code 不要改这些文件，避免网页文案与实现两边同时变。
+- **共同底线**：不改 `manifest.json` 权限，不加新权限，不破坏 server / direct 两条链路，不改变 9 情绪链路和原有已确认的开关行为。
+
+**当前状态（2026-10-25）**：品牌名、默认值 `limitEnabled: true`、popup 文案、网页/README/一页介绍/截图已完成；**首次报总时长、5 分钟沉默催促、催促期间暂停停留计时尚未接入**，由 Claude Code 从下面第 2 条开始实现。网页和 Demo 已经按目标状态写好，接完代码即可联调。
+
+功能契约：
+
+1. **到点关视频默认开**：全新安装 `limitEnabled` 默认 `true`（已改）；显式保存的 `false` 必须保留，旧配置缺这个键仍按现有迁移逻辑保持开启。popup 的辅助文案已改成「默认开启」，不要再写「默认关闭」。
+2. **首次报总时长**：开启限时时，在本会话第一次用户对话、以及第一次「停留 10 秒」触发的反应处，各提醒一次当次 `limitMinutes`。提醒是本地 `appendNotice` 级别的系统话术，不调用模型、不消耗 Key；同一会话只提醒一次，`limitEnabled` 关闭时不说。提醒不能重置停留累计、不能触发 `onDwell()` 或改动额度。
+3. **沉默催促**：记录用户最后一次**主动发消息**的时间（opener、主动搭话、限时提醒都不算）。连续 5 分钟（300000ms，固定）没有主动对话，就开始每 5 秒（固定）说一句催促，直到用户主动发消息为止；不提供修改这两个值的设置项。催促台词用本地模板，不调用模型；要遵守 `enabled` / `proactive` 两个既有开关，不能绕过它们。
+4. **催促期间暂停停留计时**：催促的 5 秒计时器运行期间，`tracker` 不累加本视频停留时长，`limiter.add()` 也不计每日额度；累计值冻结而不是清零。用户主动发消息后立刻恢复，从冻结值继续，不吐掉已经看了的时间，也不因催促触发新的 `onDwell()`。
+5. **线程安全**：催促定时器与关页定时器互斥。`sayAndClose()` / 页面隐藏 / 新会话 / 关闭面板时要清掉催促定时器，不能出现关页后继续弹话、或两条催促重叠。所有台词以「喵」结尾，符合现有文风。
+6. **测试**：新增/更新测试要覆盖默认值、提醒只出现一次、5 分钟触发、5 秒间隔、用户回话停止、暂停期间不计停留/额度、关闭 `proactive` 不催。不要只测纯函数，至少用 fake timer 跑一遍 `buddy.js` 的状态转换。
 
 ### 2.2 聊天与表情链路（重点）
 
@@ -593,6 +612,6 @@ claude.cmd
 - 2026-10-23 会话记录 / 停留时长：`state.messages` 单一事实源、`smHistory`、`bubbleSeconds` / `emotionHoldSeconds`。
 - 2026-10-24 气泡头像调大：`.msgava` 24px → 36px（24px 下嫌弃和生气几乎分不出来），fallback 图标同步 16px → 24px，行 `max-width` 92% → 96% 抵消头像占宽，`gap` 7px → 8px；去掉了原先 `margin-top:1px` 的微调（气泡上内边距 8px + 首行高约 20px，首行中心正好在 18px，也是 36px 头像的中心，顶部对齐即居中）。浏览器实测 5 行消息头像均为 36px，用户消息仍不带头像。
 - 2026-10-24 面板头像 + 去副标题：删掉面板标题下的「刷视频成瘾，说话直」小字（`popup.html` 里的同名副标题保留）。新增 §2.2.2：每条 assistant 消息左侧 24px 圆形头像，取该消息自己的表情立绘；`.msg.a` 改成 flex 行 + `.col` 气泡，用户消息不带头像；`message.emotion` 随会话持久化（`normalizeMessage()` 只认 `EMOTION_IDS`，只对 assistant 生效），老存档回退到按正文 `detect()`。`appendReaction` / `appendOpening` / `startStream` / `finishStream` 都写入表情，`onDwell` 把 `vibe.id` 传进日志，所以 `isAd`、`fromMood` 这类文字推不出的路径也能对上。顺带修掉 `headAvatar()` 里的 `EMOTIONS_DEFAULT` 笔误（应为 `EMOTION_DEFAULT`，它让 `mount()` 抛错、整个面板打不开），并把 `tools/make-icons.mjs` 从画线稿猫改成从 `greet-128.png` 派生（否则重跑会把新图标盖回旧图）。166 个测试通过。
-- 2026-10-24 改名 + 换图标：「刷子喵喵」→「上头了喵喵」，同步 `manifest.json`（name / description / default_title）、`popup.html` 标题与 `<h1>`、`buddy.js` 的面板标题与 aria/title、`persona.ts` 的 `label` 与人设首句。`voiceFilter.ts` 的说话人前缀正则同时保留旧名（模型偶发自标「刷子喵喵：」仍要剥掉），并补一条测试。工具栏 `icons/icon{16,48,128}.png` 由 `assets/emotions/greet-128.png`（默认态立绘）用面积平均 + 透明度加权缩放重新生成（`popup.html` 的头部头像也换成立绘）。165 个测试通过。
+- 2026-10-24 改名 + 换图标：「刷子喵喵」→「喵喵陪你刷」，同步 `manifest.json`（name / description / default_title）、`popup.html` 标题与 `<h1>`、`buddy.js` 的面板标题与 aria/title、`persona.ts` 的 `label` 与人设首句。`voiceFilter.ts` 的说话人前缀正则同时保留旧名（模型偶发自标「刷子喵喵：」仍要剥掉），并补一条测试。工具栏 `icons/icon{16,48,128}.png` 由 `assets/emotions/greet-128.png`（默认态立绘）用面积平均 + 透明度加权缩放重新生成（`popup.html` 的头部头像也换成立绘）。165 个测试通过。
 - 2026-10-24 清理：删除 `.backup-emotion-20261023-183631`、`.backup-chat-20261023-200141`、`server/dist/`（可 `npm run build` 重建）、`extension/icons/*.svg`（manifest 只引用 PNG）；修掉 `frames.test.ts` 的 flaky 断言（原来对整个序列化 body 搜 "15"，会被随机 `requestId` 命中）。
 - 备份：无（`.backup-*` 已于 2026-10-24 清理）。

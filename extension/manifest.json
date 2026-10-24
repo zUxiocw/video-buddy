@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "上头了喵喵",
+  "name": "喵喵陪你刷",
   "version": "0.1.0",
-  "description": "刷抖音时，猫娘「上头了喵喵」会在你停下来看某条视频时主动搭话，还能陪你聊。",
+  "description": "刷抖音时，猫娘「喵喵陪你刷」会在你停下来看某条视频时主动搭话，还能陪你聊。",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
@@ -17,7 +17,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "上头了喵喵",
+    "default_title": "喵喵陪你刷",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

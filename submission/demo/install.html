@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>安装说明 · 上头了喵喵</title>
-  <meta name="description" content="上头了喵喵的 Chrome / Edge 安装说明：装扩展，自己开通 DeepSeek API，把 Key 填进扩展。不需要本地服务器，也不经过我们的服务器。">
+  <title>安装说明 · 喵喵陪你刷</title>
+  <meta name="description" content="喵喵陪你刷的 Chrome / Edge 安装说明：装扩展，自己开通 DeepSeek API，把 Key 填进扩展。不需要本地服务器，也不经过我们的服务器。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -14,13 +14,13 @@
 
   <header class="site-header">
     <div class="wrap nav">
-      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+      <a class="brand" href="index.html" aria-label="喵喵陪你刷首页">
         <img src="assets/icon128.png" alt="">
-        <span>上头了喵喵</span>
+        <span>喵喵陪你刷</span>
       </a>
       <nav class="nav-links" aria-label="主导航">
         <a href="index.html#how">怎么用</a>
-        <a href="index.html#limits">管时长</a>
+        <a href="index.html#limits">双计时器</a>
         <a href="index.html#emotions">9 种情绪</a>
         <a href="demo.html">在线试玩</a>
         <a href="install.html" aria-current="page">安装</a>
@@ -119,7 +119,7 @@
         <div class="browser-body">
           <div class="ext-row">
             <span class="ext-icon"><img src="assets/icon128.png" alt=""></span>
-            <div><b>上头了喵喵</b><small>刷抖音停留 10 秒后，主动跟你搭话</small></div>
+            <div><b>喵喵陪你刷</b><small>停留 10 秒搭话 · 到点关视频默认开</small></div>
             <span class="ext-toggle" aria-hidden="true"></span>
           </div>
           <div class="ext-row">
@@ -127,7 +127,7 @@
             <div><b>其他扩展</b><small>不会影响本插件</small></div>
             <span class="ext-toggle" style="background:#d8d0c4" aria-hidden="true"></span>
           </div>
-          <p class="micro" style="margin:6px 0 0">示意图。扩展加载后，这里会出现「上头了喵喵」。</p>
+          <p class="micro" style="margin:6px 0 0">示意图。扩展加载后，这里会出现「喵喵陪你刷」。</p>
         </div>
       </div>
 
@@ -172,7 +172,15 @@
         </details>
         <details>
           <summary>装完后抖音页面没有悬浮球？</summary>
-          <div class="answer">先在扩展管理页确认「上头了喵喵」是开启状态，刷新抖音页面。再打开扩展设置，确认「方式」选的是「直接用 API Key」、Key 已填写、测试连接通过；没有 Key 时插件不会主动请求模型。</div>
+          <div class="answer">先在扩展管理页确认「喵喵陪你刷」是开启状态，刷新抖音页面。再打开扩展设置，确认「方式」选的是「直接用 API Key」、Key 已填写、测试连接通过；没有 Key 时插件不会主动请求模型。</div>
+        </details>
+        <details>
+          <summary>装完会不会马上关页？</summary>
+          <div class="answer">不会。到点关视频默认开启，默认额度 30 分钟，而且只统计视频正在播放、页面在前台的时间；第一次对话还会先报当次总时长。不想用可以在扩展设置里关掉，或把额度调长。</div>
+        </details>
+        <details>
+          <summary>为什么它一直催我？</summary>
+          <div class="answer">连续 5 分钟没有主动发消息，它会每 5 秒催一次，直到你回它。催的时候视频停留计时暂停，你回一句就从暂停处继续。5 分钟和 5 秒是固定值，不提供修改。</div>
         </details>
         <details>
           <summary>测试连接一直失败？</summary>
@@ -192,12 +200,12 @@
 
   <footer class="site-footer">
     <div class="wrap footer-grid">
-      <div><a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a><p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p></div>
+      <div><a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>喵喵陪你刷</span></a><p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p></div>
       <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">开通 API</a><a href="install.html">安装说明</a></div></div>
       <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
       <div><h3>说明</h3><p>公开版使用你自己的 DeepSeek API Key；不需要我们的账号，也不经过我们的服务器。不是抖音官方产品。</p></div>
     </div>
-    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+    <div class="wrap footer-bottom"><span>© 2026 喵喵陪你刷</span><span>非官方产品 · 请遵守平台规则</span></div>
   </footer>
 
   <script src="app.js"></script>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>上头了喵喵 · 一页作品介绍</title>
+<title>喵喵陪你刷 · 一页作品介绍</title>
 <style>
   @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
@@ -25,6 +25,7 @@
       #f7f1e8;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     gap: 4mm;
     overflow: hidden;
   }
@@ -70,6 +71,10 @@
   .boundary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3mm; padding: 3mm 4mm; border: .3mm solid rgba(23,19,31,.12); border-radius: 3mm; background: rgba(255,250,243,.72); }
   .boundary b { display: block; font-size: 7.4pt; letter-spacing: -.02em; }
   .boundary span { display: block; margin-top: .7mm; color: #665c73; font-size: 6.3pt; line-height: 1.5; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3mm; padding: 3mm 4mm; border-radius: 3mm; background: #f0eaff; border: .3mm solid rgba(124,92,255,.2); }
+  .stats div { display: flex; align-items: baseline; gap: 2mm; }
+  .stats b { color: #17131f; font-size: 17pt; line-height: 1; letter-spacing: -.05em; white-space: nowrap; }
+  .stats span { color: #665c73; font-size: 6.4pt; line-height: 1.45; }
   .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
   .quote { padding: 4mm; border-radius: 3.5mm; background: #17131f; color: #f7f1e8; }
   .quote .kicker { color: rgba(247,241,232,.55); }
@@ -84,7 +89,7 @@
   .tech p { margin: 0; color: #665c73; font-size: 6.9pt; line-height: 1.55; }
   .tech p b { color: #17131f; }
 
-  .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; padding-top: 2.5mm; margin-top: auto; border-top: .3mm solid rgba(23,19,31,.14); }
+  .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; padding-top: 2.5mm; border-top: .3mm solid rgba(23,19,31,.14); }
   .foot p { margin: 0; color: #665c73; font-size: 6.2pt; line-height: 1.5; }
   .foot .links { text-align: right; font-size: 6.5pt; font-weight: 800; line-height: 1.6; }
   .foot .links span { display: block; color: #665c73; font-weight: 600; }
@@ -103,22 +108,22 @@
   <main class="page">
     <header class="top">
       <img class="mark" src="assets/icon128.png" alt="">
-      <div class="brand">上头了喵喵<small>抖音网页 · AI 陪刷搭子</small></div>
-      <div class="label">作品介绍<b>2026 · UI v3.1</b></div>
+      <div class="brand">喵喵陪你刷<small>抖音网页 · AI 陪刷搭子</small></div>
+      <div class="label">作品介绍<b>2026 · UI v3.2</b></div>
     </header>
 
     <section class="hero">
       <div>
         <span class="kicker">不是总结工具，是陪你刷的人</span>
-        <h1>刷到上头，<br><span>它陪你接一句。</span></h1>
+        <h1>刷一会儿，<br><span>它陪你接一句。</span></h1>
         <p class="tagline">会接话，也会喊停。</p>
-        <p>一只住在抖音网页里的猫娘：你停在同一视频 10 秒，它主动开口；你接话，它用 9 种情绪回应。刷过头时，它按你设的额度先说话，再关掉标签页。</p>
+        <p>一只住在抖音网页里的猫娘：你停在同一视频 10 秒，它主动开口；你接话，它用 9 种情绪回应。它盯着两个计时器：第一次对话先报总时长，5 分钟没聊就每 5 秒催一次，到点先说一句再关页。</p>
         <div class="chips">
-          <span>Chrome MV3</span><span>BYOK</span><span>9 种情绪</span><span>主动搭话</span><span>刷视频限时</span>
+          <span>Chrome MV3</span><span>BYOK</span><span>9 种情绪</span><span>双计时器</span><span>到点关视频</span>
         </div>
       </div>
       <figure class="hero-shot">
-        <img src="assets/index.png" alt="上头了喵喵首页">
+        <img src="assets/index.png" alt="喵喵陪你刷首页">
       </figure>
     </section>
 
@@ -135,8 +140,8 @@
       </article>
       <article class="feature">
         <span class="n">03</span>
-        <h3>到点，替你关页</h3>
-        <p>只算视频在播且页面在前台的时间。到点先说一句，5 秒后关标签页；冷却期再打开再关。</p>
+        <h3>两个计时器，真管住</h3>
+        <p>第一次对话先报总时长；5 分钟没主动说话就每 5 秒催一次，催时停留计时暂停；到点先说一句再关页。</p>
       </article>
     </section>
 
@@ -150,8 +155,8 @@
         <figcaption><b>情绪</b>九张脸，九种语气，和台词逐一对齐。</figcaption>
       </figure>
       <figure>
-        <img src="assets/desktop-limit-warning.png" alt="桌面浏览器限时演示">
-        <figcaption><b>限时</b>桌面浏览器窗口示意：开口 → 5 秒 → 关标签页。</figcaption>
+        <img src="assets/index-timers.png" alt="双计时器">
+        <figcaption><b>双计时器</b>先报总时长；5 分钟没聊就催，到点关页。</figcaption>
       </figure>
     </section>
 
@@ -159,7 +164,13 @@
       <div><span>01</span><b>你停在一条视频</b><small>10 秒，读画面、文案和标签。</small></div>
       <div><span>02</span><b>它先接一句</b><small>像熟人，挑一个具体细节开口。</small></div>
       <div><span>03</span><b>你想接就接</b><small>点悬浮球聊天；回复结束才换脸。</small></div>
-      <div><span>04</span><b>到点，替你喊停</b><small>先说话，5 秒后关标签页。</small></div>
+      <div><span>04</span><b>两个计时器，轮班盯你</b><small>先报额度 → 5 分钟催 → 到点关页。</small></div>
+    </section>
+
+    <section class="stats">
+      <div><b>30 分钟</b><span>默认额度，可改 1–600 分钟</span></div>
+      <div><b>5 分钟</b><span>没主动说话就触发催促；固定</span></div>
+      <div><b>5 秒</b><span>催促间隔；固定，回话即停</span></div>
     </section>
 
     <section class="boundary">
@@ -177,14 +188,14 @@
       <div class="tech">
         <h4>技术路径 · 自己的 Key，自己的额度</h4>
         <div class="flow">
-          <span>Chrome 扩展</span><i>→</i><span>DeepSeek API</span><i>→</i><span>9 情绪 / 限时</span>
+          <span>Chrome 扩展</span><i>→</i><span>DeepSeek API</span><i>→</i><span>9 情绪 / 双计时器</span>
         </div>
         <p><b>BYOK：</b>用户在 DeepSeek 开放平台自己开通 API，Key 存 <b>chrome.storage.local</b>，请求直连模型，不经过我们的服务器。<br><b>开发者模式：</b>原 Fastify + APP_TOKEN 链路保留；模型 Key 在 <b>server/.env.local</b>。</p>
       </div>
     </section>
 
     <footer class="foot">
-      <p>作品提交版 · Chrome / Edge 116+ · 桌面抖音网页<br>截图与 UI 均为本项目实际页面；限时为桌面窗口示意，网页不会真的关闭标签页。</p>
+      <p>作品提交版 · Chrome / Edge 116+ · 桌面抖音网页<br>截图与 UI 均为本项目实际页面；到点关页为桌面窗口示意，网页不会真的关闭标签页。</p>
       <div class="links">
         github.com/zUxiocw/video-buddy
         <span>Demo：submission/demo/demo.html</span>

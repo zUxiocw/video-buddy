@@ -26,11 +26,12 @@ describe('maomao stream filter', () => {
   });
 
   it('drops a leading speaker label', () => {
-    expect(run(['上头了喵喵：', '这猫又拆家了'])).toBe('这猫又拆家了喵');
+    expect(run(['喵喵陪你刷：', '这猫又拆家了'])).toBe('这猫又拆家了喵');
   });
 
-  it('also drops the previous name, which models still occasionally emit', () => {
+  it('also drops the previous names, which models still occasionally emit', () => {
     expect(run(['刷子喵喵：', '这猫又拆家了'])).toBe('这猫又拆家了喵');
+    expect(run(['上头了喵喵：', '这猫又拆家了'])).toBe('这猫又拆家了喵');
   });
 
   it('emits nothing until enough context has accumulated', () => {

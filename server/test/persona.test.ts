@@ -23,10 +23,10 @@ async function collect(iterable: AsyncIterable<string>): Promise<string> {
   return out;
 }
 
-describe('上头了喵喵 persona', () => {
+describe('喵喵陪你刷 persona', () => {
   it('is registered as the default-facing cat girl with an adult-friend voice', () => {
     const persona = personaFor('maomao');
-    expect(persona.label).toBe('上头了喵喵');
+    expect(persona.label).toBe('喵喵陪你刷');
     expect(persona.rules).toContain('猫娘');
     expect(persona.rules).toContain('不是主仆');
     expect(persona.rules).toContain('感叹号');
@@ -72,7 +72,7 @@ describe('上头了喵喵 persona', () => {
     };
     const chat = buildChatMessages(chatInput);
     const system = chat[0]!.content as string;
-    expect(system).toContain('上头了喵喵');
+    expect(system).toContain('喵喵陪你刷');
     expect(system).toContain('感叹号');
     expect(system).not.toContain('礼貌拒绝');
     // The tail is appended server-side; the model must not write its own, or
@@ -94,7 +94,7 @@ describe('上头了喵喵 persona', () => {
       'high',
     );
     const analyzeSystem = refine[0]!.content as string;
-    expect(analyzeSystem).toContain('上头了喵喵');
+    expect(analyzeSystem).toContain('喵喵陪你刷');
     expect(analyzeSystem).toContain('不说「我不能」');
     expect(analyzeSystem).toContain('不要出现感叹号');
   });

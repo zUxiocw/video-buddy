@@ -92,6 +92,17 @@
     }
   ];
 
+  // The real extension uses fixed 5-minute / 5-second intervals. The demo
+  // compresses the first wait so it can be tried without sitting through five
+  // minutes, but keeps the every-5-seconds rhythm and the pause/resume rule.
+  var NUDGE_LINES = [
+    '喂，五分钟没理我了喵。',
+    '视频比我好看是吧喵？',
+    '你再不回，我就一直说喵。',
+    '看我一眼，就一眼喵。',
+    '行，你刷，我就在这儿念喵。'
+  ];
+
   function toast(message) {
     var node = $('.toast');
     if (!node) {
@@ -244,6 +255,16 @@
     var autoToggle = $('#autoComment');
     var videoIndex = 0;
     var bubbleTimer = 0;
+    var silenceStatus = $('#silenceStatus');
+    var silenceClock = $('#silenceClock');
+    var silenceClockNote = $('#silenceClockNote');
+    var silenceNote = $('#silenceNote');
+    var startSilenceButton = $('#startSilence');
+    var stopSilenceButton = $('#stopSilence');
+    var budgetButton = $('#showBudget');
+    var nudgeTimer = 0;
+    var nudgeActive = false;
+    var nudgeIndex = 0;
 
     var ballPos = { x: 0, y: 0 };
     var dragStart = null;
@@ -359,6 +380,94 @@
       bubbleTimer = setTimeout(function () { bubble.classList.remove('on'); }, hold || 5200);
     }
 
+    function setSilenceUi(state) {
+      if (!silenceStatus) return;
+      var clockWrap = silenceClock ? silenceClock.parentElement : null;
+      if (clockWrap) clockWrap.classList.toggle('is-nagging', state === 'nagging');
+      if (state === 'nagging') {
+        silenceStatus.className = 'demo-status is-nagging';
+        silenceStatus.textContent = '沉默计时 · 催你中 · 视频停留计时暂停';
+        if (silenceClock) silenceClock.textContent = '5s';
+        if (silenceClockNote) silenceClockNote.textContent = '加速演示 · 真实每 5 秒一次';
+        if (silenceNote) silenceNote.textContent = '正在催：每 5 秒一句，直到你主动回话。视频停留计时从触发时冻结。';
+        if (startSilenceButton) {
+          startSilenceButton.hidden = true;
+          startSilenceButton.textContent = '模拟 5 分钟没说话';
+        }
+        if (stopSilenceButton) stopSilenceButton.hidden = false;
+        return;
+      }
+      if (state === 'stopped') {
+        silenceStatus.className = 'demo-status';
+        silenceStatus.textContent = '已恢复 · 视频停留计时继续';
+        if (silenceClock) silenceClock.textContent = '00:00';
+        if (silenceClockNote) silenceClockNote.textContent = '你回话了';
+        if (silenceNote) silenceNote.textContent = '你主动回话后，视频停留计时从暂停处继续，不会把刚才催你的几秒算进去。';
+        if (startSilenceButton) {
+          startSilenceButton.hidden = false;
+          startSilenceButton.textContent = '再模拟一次';
+        }
+        if (stopSilenceButton) stopSilenceButton.hidden = true;
+        return;
+      }
+      silenceStatus.className = 'demo-status demo-status-quiet';
+      silenceStatus.textContent = '沉默计时 · 未触发';
+      if (silenceClock) silenceClock.textContent = '05:00';
+      if (silenceClockNote) silenceClockNote.textContent = '距下一次催促';
+      if (silenceNote) silenceNote.textContent = '真实值固定：5 分钟触发，之后每 5 秒一次；两项都不可改。这里把等待加速成 2 秒，方便试玩。';
+      if (startSilenceButton) {
+        startSilenceButton.hidden = false;
+        startSilenceButton.textContent = '模拟 5 分钟没说话';
+      }
+      if (stopSilenceButton) stopSilenceButton.hidden = true;
+    }
+
+    function stopSilence() {
+      if (!nudgeActive) return;
+      nudgeActive = false;
+      clearTimeout(nudgeTimer);
+      nudgeTimer = 0;
+      setSilenceUi('stopped');
+    }
+
+    function startSilence() {
+      if (nudgeActive) return;
+      nudgeActive = true;
+      nudgeIndex = 0;
+      openPanel();
+      setEmotion('annoyed');
+      setSilenceUi('nagging');
+      // One compressed wait, then the fixed 5-second rhythm. The pause rule
+      // is represented by the status text and the counter freezing here.
+      function nudge() {
+        if (!nudgeActive) return;
+        var line = NUDGE_LINES[nudgeIndex % NUDGE_LINES.length];
+        nudgeIndex += 1;
+        addMessage('assistant', line, 'annoyed');
+        showBubble(line, 1500);
+        setEmotion('annoyed');
+        if (silenceClock) silenceClock.textContent = '5s';
+        nudgeTimer = setTimeout(nudge, 1200);
+      }
+      nudgeTimer = setTimeout(nudge, 2000);
+    }
+
+    function resetSilence() {
+      nudgeActive = false;
+      clearTimeout(nudgeTimer);
+      nudgeTimer = 0;
+      nudgeIndex = 0;
+      setSilenceUi('idle');
+    }
+
+    function showBudgetNotice() {
+      openPanel();
+      setEmotion('annoyed');
+      var line = '今天给自己设了 30 分钟，到点我关页喵。';
+      addMessage('assistant', line, 'annoyed');
+      showBubble(line, 7000);
+    }
+
     function openPanel() {
       panel.classList.add('on');
       panel.removeAttribute('inert');
@@ -415,6 +524,7 @@
         return;
       }
       addMessage('user', value);
+      if (nudgeActive) stopSilence();
       input.value = '';
       input.style.height = 'auto';
       setTimeout(function () { replyTo(value); }, 520);
@@ -541,9 +651,25 @@
       });
     }
 
+    if (budgetButton) budgetButton.addEventListener('click', showBudgetNotice);
+    if (startSilenceButton) startSilenceButton.addEventListener('click', startSilence);
+    if (stopSilenceButton) {
+      stopSilenceButton.addEventListener('click', function () {
+        if (!nudgeActive) return;
+        addMessage('user', '在呢，别催了');
+        stopSilence();
+        setTimeout(function () {
+          var line = '行，计时恢复，继续刷你的喵。';
+          addMessage('assistant', line, 'annoyed');
+          showBubble(line, 4000);
+        }, 500);
+      });
+    }
+
     var reset = $('#resetDemo');
     if (reset) {
       reset.addEventListener('click', function () {
+        resetSilence();
         messages.innerHTML = '';
         addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
         setEmotion('greet');
@@ -552,6 +678,7 @@
       });
     }
 
+    setSilenceUi('idle');
     addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
     showVideo(0, false);
     window.requestAnimationFrame(resetBall);

@@ -44,7 +44,7 @@
   }
 
   /**
-   * Post-process the 「上头了喵喵」 voice: no exclamation marks, tildes,
+   * Post-process the 「喵喵陪你刷」 voice: no exclamation marks, tildes,
    * "哈哈/呵" or trailing 语气词. Meaning-preserving edits only.
    */
   function applyMaomaoStyle(text) {

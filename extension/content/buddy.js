@@ -1,5 +1,5 @@
 /*
- * 上头了喵喵 — floating ball content script.
+ * 喵喵陪你刷 — floating ball content script.
  *
  * Watches the currently playing video on Douyin. After the user stays on the
  * same video for `dwellSeconds`, it asks the local server for a one-line
@@ -43,6 +43,14 @@
     // Per-conversation emotion counts, reported to the server so it can fill
     // neutral turns with whichever face has been shown least.
     emotionTally: Object.create(null),
+    // When the user last typed something themselves. The silence nudge counts
+    // from here, so openers, video reactions and the nudge itself must never
+    // touch it — otherwise the cat keeps resetting its own clock and never
+    // gets to nag. Seeded at page load: the clock starts when they arrive.
+    lastUserAt: Date.now(),
+    // Budget announcement is once per conversation, not per page load: a
+    // refresh must not make it say the same thing twice.
+    budgetAnnounced: false,
     sessionDirty: false,
     saveTimer: 0,
     streaming: false,
@@ -103,7 +111,7 @@
       });
     } catch (error) {
       // Extension was reloaded while the page stayed open.
-      console.warn('[上头了喵喵] context invalidated:', error && error.message);
+      console.warn('[喵喵陪你刷] context invalidated:', error && error.message);
     }
   }
 
@@ -271,8 +279,13 @@
       if (state.host && ui.needsRemount()) ui.mount();
 
       if (document.visibilityState !== 'visible') {
+        nudge.suspend();
         return;
       }
+
+      // Runs before the video checks: the silence clock is about the user, not
+      // about whether a video happens to be on screen.
+      nudge.tick();
 
       var video = pickVideo();
       if (!video) {
@@ -293,9 +306,11 @@
         return;
       }
 
-      // Paused or buffering: keep what we have, just stop counting.
+      // Paused, buffering, or being nagged: keep what we have, stop counting.
+      // The nudge case is a pause, not a reset — see the module comment: the
+      // user keeps the time they had already watched.
       var playing = !video.paused && !video.ended && video.readyState >= 2;
-      if (!playing || delta <= 0) {
+      if (!playing || delta <= 0 || nudge.isActive()) {
         var shownGoal = Buddy.dwellGoalMs(settings, firedCount[key] || 0);
         if (shownGoal > 0) ui.setProgress(Math.min(1, accumulated / shownGoal));
         return;
@@ -520,6 +535,113 @@
         closeTimer = 0;
         announced = false;
       },
+    };
+  })();
+
+  /* ---------------------------------------------------------------- */
+  /* silence nudge                                                     */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Nags the user when they have stopped talking to the cat.
+   *
+   * Five minutes of silence (fixed), then one line every five seconds (fixed)
+   * until they type something. The site states both numbers as non-configurable
+   * and the constants live in core.js next to the limit lines, so there is one
+   * place to read them.
+   *
+   * While the nudge is running the tracker must not accumulate dwell time.
+   * Two reasons, and the second is the one that matters:
+   *  - otherwise the cat nags and then, mid-nag, reacts to a video the user is
+   *    being told off for watching — two voices talking at once;
+   *  - the ring visually claims to be measuring attention, and it cannot do
+   *    that while the cat is deliberately interrupting that attention.
+   * The accumulator is frozen, not cleared: the user gets back the time they
+   * had already watched and the ring resumes where it stopped.
+   *
+   * `active` is the single source of truth for the pause. The tracker reads it
+   * on every tick, so there is no second flag to keep in sync.
+   */
+  var nudge = (function () {
+    var timer = 0;
+    var active = false;
+    var recent = [];
+
+    /** Every tick re-checks both switches, so flipping either stops it. */
+    function allowed() {
+      return !!settings.enabled && !!settings.proactive;
+    }
+
+    function stop() {
+      window.clearTimeout(timer);
+      timer = 0;
+      if (!active) return;
+      active = false;
+      // The face the nagging left behind is not the truth any more. Drop back
+      // to the resting greeting without touching the quota (source: 'nudge').
+      if (Emotions) ui.setEmotion(EMOTION_DEFAULT, { force: true, holdMs: 0, source: 'nudge' });
+    }
+
+    function fire() {
+      timer = 0;
+      if (!allowed()) { stop(); return; }
+      // Silence only counts while the page is actually being looked at. A tab
+      // left in the background is not "ignoring the cat", it is not there, and
+      // talking to an empty room at 5-second intervals is pure noise.
+      if (document.visibilityState !== 'visible') { arm(Buddy.NUDGE_GAP_MS); return; }
+
+      var line = Buddy.pickNudgeLine(recent);
+      recent = [line].concat(recent).slice(0, Buddy.NUDGE_LINES.length - 1);
+      // 嫌弃 is the joke: the cat is annoyed, not hurt. holdMs 0 so the face
+      // does not expire back to greet between two nags.
+      if (Emotions) ui.setEmotion('annoyed', { force: true, holdMs: 0, source: 'nudge' });
+      // A real utterance in the transcript, but not `seed`: unlike the opener
+      // it is something that happened in the conversation.
+      ui.appendNotice(line, 'annoyed');
+      ui.showReaction(line);
+      arm(Buddy.NUDGE_GAP_MS);
+    }
+
+    function arm(delayMs) {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(fire, delayMs);
+    }
+
+    /**
+     * Called on the tracker's 400ms tick. Cheap: one comparison when the user
+     * is not quiet, and it is idempotent — `active` guards the arm, so a slow
+     * tick cannot stack timers.
+     */
+    function tick() {
+      if (!allowed()) { stop(); return; }
+      if (active) return;
+      if (!Buddy.nudgeDue(state.lastUserAt, Date.now())) return;
+      active = true;
+      fire();
+    }
+
+    return {
+      /** True while the nag timer is the reason dwell time is frozen. */
+      isActive: function () { return active; },
+      tick: tick,
+      /** The user said something: end the nag, including any pending timer. */
+      resolve: function () {
+        state.lastUserAt = Date.now();
+        stop();
+      },
+      /** Wall-clock reset without claiming the user spoke (new session, etc). */
+      restart: function () {
+        state.lastUserAt = Date.now();
+        stop();
+      },
+      /** Page hidden or shutting down: silence, and no timer left behind. */
+      suspend: function () {
+        window.clearTimeout(timer);
+        timer = 0;
+      },
+      /** Resume after `suspend()`; the silence clock keeps running. */
+      resume: tick,
+      stop: stop,
     };
   })();
 
@@ -1171,8 +1293,8 @@
       var ball = document.createElement('button');
       ball.className = 'ball';
       ball.type = 'button';
-      ball.setAttribute('aria-label', '上头了喵喵');
-      ball.title = '上头了喵喵：点开聊天，拖动换位置，右下角小圆点调大小';
+      ball.setAttribute('aria-label', '喵喵陪你刷');
+      ball.title = '喵喵陪你刷：点开聊天，拖动换位置，右下角小圆点调大小';
       var ring = el('span', 'ring');
       var disc = el('span', 'disc');
       var emotionImg = null;
@@ -1209,11 +1331,11 @@
 
       var panel = el('div', 'panel');
       panel.setAttribute('role', 'dialog');
-      panel.setAttribute('aria-label', '上头了喵喵聊天');
+      panel.setAttribute('aria-label', '喵喵陪你刷聊天');
       panel.innerHTML =
         '<div class="head">' +
         '<span class="avatar">' + CAT_SVG + '</span>' +
-        '<span class="title">上头了喵喵</span>' +
+        '<span class="title">喵喵陪你刷</span>' +
         '<button class="icon" data-act="new" title="新建对话">新对话</button>' +
         '<button class="icon" data-act="history" title="历史对话">记录</button>' +
         '<button class="icon" data-act="close" title="关闭">×</button>' +
@@ -1565,8 +1687,8 @@
       if (!img) return false;
 
       if (state.ball) {
-        state.ball.setAttribute('aria-label', '上头了喵喵 · ' + emotion.label);
-        state.ball.title = '上头了喵喵 · ' + emotion.label + '：点开聊天，拖动换位置，右下角小圆点调大小';
+        state.ball.setAttribute('aria-label', '喵喵陪你刷 · ' + emotion.label);
+        state.ball.title = '喵喵陪你刷 · ' + emotion.label + '：点开聊天，拖动换位置，右下角小圆点调大小';
       }
 
       window.clearTimeout(state.emotionSwapTimer);

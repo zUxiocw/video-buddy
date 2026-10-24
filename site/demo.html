@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>在线试玩 · 上头了喵喵</title>
-  <meta name="description" content="不用安装扩展，直接试玩上头了喵喵：换视频、拖头像、打字聊天、切换 9 种情绪，还可以模拟到点关页。Demo 不调用模型，不需要 API Key。">
+  <title>在线试玩 · 喵喵陪你刷</title>
+  <meta name="description" content="不用安装扩展，直接试玩喵喵陪你刷：换视频、拖头像、打字聊天、切换 9 种情绪，还可以模拟首次报额度、5 分钟沉默催促和到点关页。Demo 不调用模型，不需要 API Key。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -14,13 +14,13 @@
 
   <header class="site-header">
     <div class="wrap nav">
-      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+      <a class="brand" href="index.html" aria-label="喵喵陪你刷首页">
         <img src="assets/icon128.png" alt="">
-        <span>上头了喵喵</span>
+        <span>喵喵陪你刷</span>
       </a>
       <nav class="nav-links" aria-label="主导航">
         <a href="index.html#how">怎么用</a>
-        <a href="index.html#limits">管时长</a>
+        <a href="index.html#limits">双计时器</a>
         <a href="index.html#emotions">9 种情绪</a>
         <a href="demo.html" aria-current="page">在线试玩</a>
         <a href="install.html">安装</a>
@@ -34,7 +34,7 @@
       <div>
         <span class="kicker">交互 Demo</span>
         <h1>先玩一下，再决定装不装。</h1>
-        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动。刷视频限时的效果在下方单独用桌面浏览器窗口演示，不再塞进手机屏幕。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
+        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动。下方还会演示两个计时器：第一次开口先报总时长；5 分钟没主动说话，它每 5 秒催一次，催的时候视频停留计时暂停。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
       </div>
       <span class="demo-badge">演示模式 · 无需 API Key</span>
     </div>
@@ -66,16 +66,16 @@
 
         <div class="chat-bubble" id="chatBubble" role="status" aria-live="polite"></div>
 
-        <button class="floating-ball" id="floatingBall" type="button" aria-expanded="false" aria-controls="chatPanel" aria-label="打开上头了喵喵聊天面板，可拖动" title="拖动换位置；聚焦后可用方向键移动">
+        <button class="floating-ball" id="floatingBall" type="button" aria-expanded="false" aria-controls="chatPanel" aria-label="打开喵喵陪你刷聊天面板，可拖动" title="拖动换位置；聚焦后可用方向键移动">
           <img id="ballFace" src="assets/emotions/annoyed-128.png" alt="" draggable="false">
         </button>
 
-        <section class="chat-panel" id="chatPanel" role="dialog" aria-label="与上头了喵喵聊天" aria-hidden="true" inert>
+        <section class="chat-panel" id="chatPanel" role="dialog" aria-label="与喵喵陪你刷聊天" aria-hidden="true" inert>
           <header class="chat-head">
             <img id="chatAvatar" src="assets/emotions/greet-128.png" alt="">
             <div>
-              <b>上头了喵喵</b>
-              <small>刷视频成瘾，说话直</small>
+              <b>喵喵陪你刷</b>
+              <small>陪你刷，也负责喊停</small>
             </div>
             <button class="chat-close" id="chatClose" type="button" aria-label="关闭聊天面板">×</button>
           </header>
@@ -116,6 +116,13 @@
             <button class="prompt-chip" type="button" data-prompt="今天好烦">今天好烦</button>
             <button class="prompt-chip" type="button" data-prompt="推荐点别的">推荐点别的</button>
           </div>
+          <div class="demo-callout">
+            <div>
+              <b>第一次开口，先报总时长</b>
+              <small>今天 30 分钟，到点我关页喵。</small>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="showBudget" type="button">演示</button>
+          </div>
           <div class="toggle-row">
             <div><b>换视频时自动搭话</b><small>模拟真实插件的主动开口</small></div>
             <label class="switch"><input id="autoComment" type="checkbox" checked aria-label="换视频时自动搭话"><span></span></label>
@@ -124,6 +131,21 @@
             <button class="btn btn-lav btn-sm" id="changeVideo" type="button">换一条视频</button>
             <button class="btn btn-ghost btn-sm" id="resetDemo" type="button">重置对话</button>
           </div>
+        </section>
+
+        <section class="control-card" id="silenceDemo">
+          <div class="demo-status demo-status-quiet" id="silenceStatus">沉默计时 · 未触发</div>
+          <h2 style="margin-top:14px">5 分钟没主动说话</h2>
+          <p>真实插件会每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你回一句，就从暂停处继续。</p>
+          <div class="silence-clock" aria-live="polite">
+            <b id="silenceClock">05:00</b>
+            <span id="silenceClockNote">距下一次催促</span>
+          </div>
+          <div class="silence-actions">
+            <button class="btn btn-lav btn-sm" id="startSilence" type="button">模拟 5 分钟没说话</button>
+            <button class="btn btn-ghost btn-sm" id="stopSilence" type="button" hidden>回它一句，恢复计时</button>
+          </div>
+          <p class="demo-note" id="silenceNote">真实值固定：5 分钟触发，之后每 5 秒一次；两项都不可改。这里把等待加速成 2 秒，方便试玩。</p>
         </section>
 
         <section class="control-card">
@@ -141,15 +163,15 @@
     <section class="desktop-demo" id="limitDemo">
       <div class="section-head">
         <div>
-          <span class="kicker">桌面浏览器演示</span>
+          <span class="kicker">到点关视频 · 桌面演示</span>
           <h2 class="section-title">到点，它关的是整个标签页。</h2>
         </div>
-        <p class="lede">插件跑在桌面网页。真实效果不是手机弹层：猫娘在页面上说一句，倒计时 5 秒，然后由后台关闭当前标签页。下面用桌面浏览器窗口示意。</p>
+        <p class="lede">插件跑在桌面网页。到点不是手机弹层：猫娘在页面上说一句，倒计时 5 秒，然后由后台关闭当前标签页。上方先看 5 分钟沉默催促，下面用桌面浏览器窗口示意关页。</p>
       </div>
 
       <div class="desktop-demo-grid">
         <div class="desktop-demo-copy">
-          <div class="demo-status">刷视频限时 · 只算视频在播且页面在前台</div>
+          <div class="demo-status">到点关视频 · 默认开启 · 只算视频在播且页面在前台</div>
           <div class="limit-presets" role="group" aria-label="选择每日额度">
             <button type="button" data-demo-limit="15" aria-pressed="false">15 分钟</button>
             <button type="button" data-demo-limit="30" aria-pressed="true">30 分钟</button>
@@ -163,16 +185,18 @@
             </div>
             <div class="limit-bar" aria-hidden="true"><i id="demoLimitFill" style="width:79%"></i></div>
           </div>
+          <p class="demo-reminder-line"><b>第一次开口</b> 今天给自己设了 30 分钟，到点我关页喵。</p>
           <div class="control-actions">
             <button class="btn btn-lav btn-sm" id="startLimitDemo" type="button">模拟到点</button>
             <button class="btn btn-ghost btn-sm" id="stopLimitDemo" type="button" hidden>恢复页面</button>
           </div>
           <ol class="desktop-flow">
-            <li><b>01</b><span>到点先开口：猫娘说一句，气泡留在页面上。</span></li>
-            <li><b>02</b><span>5 秒后关标签页：由扩展后台关闭当前标签页，不是弹窗。</span></li>
-            <li><b>03</b><span>冷却期再打开：再关一次，不重新给整份额度。</span></li>
+            <li><b>01</b><span>第一次对话 / 停留 10 秒：先报当次总时长，不是快用完才说。</span></li>
+            <li><b>02</b><span>5 分钟没主动说话：每 5 秒催一次；视频停留计时暂停，回话后继续。</span></li>
+            <li><b>03</b><span>到点先开口：猫娘说一句，5 秒后由扩展后台关闭当前标签页。</span></li>
+            <li><b>04</b><span>冷却期再打开：再关一次，不重新给整份额度。</span></li>
           </ol>
-          <p class="demo-note">示意说明：这里用桌面浏览器窗口模拟，不会真的关闭你的浏览器标签页。正式版限时默认关闭，开启后按真实时间执行。</p>
+          <p class="demo-note">示意说明：这里用桌面浏览器窗口模拟，不会真的关闭你的浏览器标签页。正式版「到点关视频」默认开启，按真实时间执行。</p>
         </div>
 
         <div class="desktop-browser" id="desktopLimit" data-state="open" aria-label="桌面浏览器限时演示">
@@ -189,12 +213,12 @@
               <div class="desktop-video"><img src="assets/emotions/laugh-128.png" alt=""></div>
               <div class="desktop-caption">猫主子又开始拆家了<small>#萌宠 #猫猫</small></div>
               <span class="desktop-ball" aria-hidden="true"><img src="assets/emotions/annoyed-128.png" alt=""></span>
-              <div class="desktop-bubble" id="desktopLimitBubble">先刷你的，到点我会喊你喵</div>
+              <div class="desktop-bubble" id="desktopLimitBubble">今天 30 分钟，到点我关页喵。</div>
             </div>
             <div class="desktop-limit-layer">
               <div class="desktop-limit-view desktop-limit-warn">
                 <img src="assets/emotions/annoyed-128.png" alt="">
-                <span class="desktop-limit-kicker">刷视频限时</span>
+                <span class="desktop-limit-kicker">到点关视频</span>
                 <b>到点了</b>
                 <p id="desktopLimitLine" aria-live="assertive">差不多了哦，本喵要下班了喵</p>
                 <small id="desktopLimitCountdown">5 秒后关闭这个标签页</small>
@@ -219,14 +243,14 @@
   <footer class="site-footer">
     <div class="wrap footer-grid">
       <div>
-        <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a>
+        <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>喵喵陪你刷</span></a>
         <p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p>
       </div>
       <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">开通 API</a><a href="install.html">安装说明</a></div></div>
       <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
       <div><h3>说明</h3><p>公开版使用你自己的 DeepSeek API Key；不需要我们的账号，也不经过我们的服务器。不是抖音官方产品。</p></div>
     </div>
-    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+    <div class="wrap footer-bottom"><span>© 2026 喵喵陪你刷</span><span>非官方产品 · 请遵守平台规则</span></div>
   </footer>
 
   <script src="app.js"></script>

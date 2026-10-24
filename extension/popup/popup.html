@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>上头了喵喵</title>
+    <title>喵喵陪你刷</title>
     <style>
       :root {
         color-scheme: dark;
@@ -89,8 +89,8 @@
         <img src="../assets/emotions/greet-128.png" alt="" />
       </span>
       <div>
-        <h1>上头了喵喵</h1>
-        <p>刷视频成瘾，说话直</p>
+        <h1>喵喵陪你刷</h1>
+        <p>陪你刷，也负责喊停</p>
       </div>
     </header>
 
@@ -146,13 +146,16 @@
       </fieldset>
 
       <fieldset>
-        <legend>刷视频限时</legend>
+        <legend>到点关视频</legend>
         <label class="check">
           <input id="limitEnabled" type="checkbox" />
-          <span>到点提醒并关闭网页</span>
+          <span>到点先说话，再关闭网页</span>
         </label>
         <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
-          默认关闭。打开后，它会自己盯着你刷了多久，到点说一句话再把标签页关掉。
+          默认开启。第一次对话会先报当次总时长；到点说一句，再把标签页关掉。
+        </p>
+        <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
+          另有固定的沉默计时：5 分钟没主动发消息，会每 5 秒催一次，直到你回话；催促时视频停留计时暂停。两个时长都不可改。
         </p>
         <div class="row">
           <label>
