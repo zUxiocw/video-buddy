@@ -29,6 +29,8 @@ interface BuddyApi {
   LIMIT_COOLDOWN_MAX: number;
   LIMIT_CLOSE_MIN: number;
   LIMIT_CLOSE_MAX: number;
+  NUDGE_LIMIT_MIN: number;
+  NUDGE_LIMIT_MAX: number;
   normalizeSettings(raw: unknown): Record<string, any>;
   limitBudgetMs(settings: unknown): number;
   limitCooldownMs(settings: unknown): number;
@@ -36,6 +38,7 @@ interface BuddyApi {
   normalizeLimitState(raw: unknown): { day: string; usedMs: number; shutAt: number };
   limitSnapshot(saved: unknown, nowMs: number, settings: unknown): LimitSnapshot;
   limitAfterShutdown(nowMs: number): { day: string; usedMs: number; shutAt: number };
+  limitAfterNag(saved: unknown, nowMs: number): { day: string; usedMs: number; shutAt: number };
   limitCredit(
     saved: unknown,
     deltaMs: number,
@@ -49,7 +52,7 @@ interface BuddyApi {
     disabled: boolean;
   };
   pickLimitLine(kind: string, recent?: unknown): string;
-  LIMIT_LINES: { over: string[]; back: string[] };
+  LIMIT_LINES: { over: string[]; back: string[]; nag: string[] };
   dayKey(nowMs?: number): string;
 }
 
@@ -90,6 +93,17 @@ describe('limit settings', () => {
     expect(Buddy.normalizeSettings({ limitCloseSeconds: 999 }).limitCloseSeconds).toBe(Buddy.LIMIT_CLOSE_MAX);
     expect(Buddy.normalizeSettings({ limitCloseSeconds: -1 }).limitCloseSeconds).toBe(0);
     expect(Buddy.LIMIT_CLOSE_MAX).toBe(30);
+  });
+
+  it('keeps the nudge cap inside the range the popup offers', () => {
+    // The cap is a setting because tolerance varies; the floor still leaves
+    // room to answer between nags, and the ceiling is five minutes of nagging.
+    expect(Buddy.normalizeSettings({}).nudgeLimitCount).toBe(10);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 1 }).nudgeLimitCount).toBe(Buddy.NUDGE_LIMIT_MIN);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 999 }).nudgeLimitCount).toBe(Buddy.NUDGE_LIMIT_MAX);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 'abc' }).nudgeLimitCount).toBe(10);
+    expect(Buddy.NUDGE_LIMIT_MIN).toBe(3);
+    expect(Buddy.NUDGE_LIMIT_MAX).toBe(60);
   });
 
   it('ships the limiter on for a fresh install', () => {
@@ -168,6 +182,18 @@ describe('limitSnapshot', () => {
     const shut = Buddy.limitAfterShutdown(now);
     expect(Buddy.limitSnapshot(shut, now + 10 * MINUTE - 1, settings).inCooldown).toBe(true);
     expect(Buddy.limitSnapshot(shut, now + 10 * MINUTE, settings).inCooldown).toBe(false);
+  });
+
+  it('keeps spent time after a nudge shutdown instead of farming a new budget', () => {
+    // A nag shutdown is a cooldown, not a reset: when it ends, the user gets
+    // back the time they had already spent, not a fresh allowance.
+    const nag = Buddy.limitAfterNag({ day: Buddy.dayKey(now), usedMs: 10 * MINUTE }, now);
+    const during = Buddy.limitSnapshot(nag, now + MINUTE, settings);
+    expect(during.inCooldown).toBe(true);
+    const after = Buddy.limitSnapshot(nag, now + 10 * MINUTE, settings);
+    expect(after.inCooldown).toBe(false);
+    expect(after.usedMs).toBe(10 * MINUTE);
+    expect(after.overBudget).toBe(false);
   });
 
   it('forgets yesterday', () => {
@@ -255,13 +281,15 @@ describe('limitCredit (shared across tabs)', () => {
 
 describe('limit lines', () => {
   it('every line ends with 喵 and none of them mention a duration', () => {
-    for (const kind of ['over', 'back'] as const) {
+    for (const kind of ['over', 'back', 'nag'] as const) {
       expect(Buddy.LIMIT_LINES[kind].length).toBeGreaterThan(3);
       for (const line of Buddy.LIMIT_LINES[kind]) {
         expect(line, line).toMatch(/喵[。！？!?]*$/);
         expect(line, line).not.toMatch(/\d+\s*(秒|分钟)|毫秒/);
       }
     }
+    // The cap line quotes the setting, so the pool must leave a slot for it.
+    for (const line of Buddy.LIMIT_LINES.nag) expect(line).toContain('{count}');
   });
 
   it('avoids lines already used', () => {
@@ -279,6 +307,58 @@ describe('limit lines', () => {
 
   it('falls back to the over pool for an unknown kind', () => {
     expect(Buddy.LIMIT_LINES.over).toContain(Buddy.pickLimitLine('nonsense', []));
+  });
+});
+
+describe('limitAfterNag', () => {
+  const now = Date.UTC(2026, 9, 25, 12, 0, 0);
+
+  it('stamps the cooldown without refunding the day', () => {
+    const saved = { day: Buddy.dayKey(now), usedMs: 12 * MINUTE, shutAt: 0 };
+    const nag = Buddy.limitAfterNag(saved, now);
+    expect(nag.shutAt).toBe(now);
+    expect(nag.usedMs).toBe(12 * MINUTE);
+    expect(nag.day).toBe(Buddy.dayKey(now));
+    // A budget shutdown is the one that resets, and it still does.
+    expect(Buddy.limitAfterShutdown(now).usedMs).toBe(0);
+  });
+
+  it('drops a previous day total rather than reviving it', () => {
+    const nag = Buddy.limitAfterNag({ day: '2026-10-24', usedMs: 20 * MINUTE, shutAt: 0 }, now);
+    expect(nag.usedMs).toBe(0);
+  });
+
+  it('survives a corrupted ledger', () => {
+    for (const raw of [null, undefined, 'nope', { usedMs: 'x', day: 7 }]) {
+      const nag = Buddy.limitAfterNag(raw, now);
+      expect(nag.usedMs).toBe(0);
+      expect(nag.shutAt).toBe(now);
+    }
+  });
+});
+
+describe('background wiring', () => {
+  const background = readFileSync(
+    fileURLToPath(new URL('../../extension/background.js', import.meta.url)),
+    'utf8',
+  );
+
+  it('stamps a nag shutdown with the reason the page sent', () => {
+    // The worker is the only writer of the ledger, so the distinction has to
+    // survive the message hop. Losing it would silently turn every nag
+    // shutdown into a full refund.
+    expect(background).toMatch(/stampShutdown\(message\.reason === 'nag' \? 'nag' : 'over'/);
+    const stamp = background.slice(background.indexOf('function stampShutdown'));
+    const body = stamp.slice(0, stamp.indexOf('// Keep the cached copy honest'));
+    expect(body).toContain('Buddy.limitAfterNag');
+    expect(body).toContain('Buddy.limitAfterShutdown');
+  });
+
+  it('is still idempotent, so two tabs cannot extend the cooldown', () => {
+    const stamp = background.slice(background.indexOf('function stampShutdown'));
+    const body = stamp.slice(0, stamp.indexOf('// Keep the cached copy honest'));
+    expect(body).toContain('snap.inCooldown');
+    expect(body.indexOf('snap.inCooldown')).toBeLessThan(body.indexOf('limitAfterNag'));
   });
 });
 

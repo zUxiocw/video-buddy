@@ -3,7 +3,7 @@
 > 最后更新：2026-10-25
 > 项目：抖音网页悬浮球「喵喵陪你刷」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（269 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（291 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促与催满关页（§2.1.11 / §2.1.12）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -176,7 +176,7 @@
 - **另一 Agent 负责**：`site/`、`submission/demo/`、`README.md`、`submission/one-pager/` 的文案与功能展示（以及品牌改名）。Claude Code 不要改这些文件，避免网页文案与实现两边同时变。
 - **共同底线**：不改 `manifest.json` 权限，不加新权限，不破坏 server / direct 两条链路，不改变 9 情绪链路和原有已确认的开关行为。
 
-**当前状态（2026-10-25）**：品牌名、默认值 `limitEnabled: true`、popup 文案、网页/README/一页介绍/截图已完成；Claude Code 已接入首次报总时长、5 分钟沉默催促、催促期间暂停停留/额度计时。`nudge.test.ts` 22 项、服务端共 269 项测试与 `typecheck` 通过。接完代码后仍需真实抖音页面回归。
+**当前状态（2026-10-25）**：品牌名、默认值 `limitEnabled: true`、popup 文案、网页/README/一页介绍/截图已完成；Claude Code 已接入首次报总时长、5 分钟沉默催促、催促期间暂停停留/额度计时、催满次数关页。`nudge.test.ts` 37 项、服务端共 291 项测试与 `typecheck` / `build` 通过。接完代码后仍需真实抖音页面回归。
 
 功能契约：
 
@@ -203,6 +203,17 @@
    - **催促期间冻结停留计时与每日额度**：`tracker.tick()` 里 `if (!playing || delta <= 0 || nudge.isActive())` 一个 early return 同时挡住 `limiter.add()` 和 `accumulated +=`。催的时候还在给视频计时，等于一边骂一边算你上头，而且进度环会声称它在量注意力。**冻结不是清零**：用户回来接着看，从原来的进度继续。
    - `sayAndClose()` / 页面隐藏 / `newSession()` 都清掉运行状态；关页之后不能再冒出一句催促。
    - 台词在 `core.js` 的 `NUDGE_LINES`（8 条，全部以「喵」结尾，不含任何时长数字）。
+
+### 2.1.12 催满次数关页（2026-10-25）
+
+1. **设置**：`settings.nudgeLimitCount`，默认 `10`，范围 `3–60`（`NUDGE_LIMIT_MIN` / `NUDGE_LIMIT_MAX`），在 popup 的「到点关视频」区块里调。下限 3 留出回答时间，上限 60 约等于 5 分钟催促。
+2. **计数口径**：计数在 `createNudgeMachine` 内部（`spoken` / `exhausted`），只数这次沉默 streak 里的催促台词；用户主动发消息（`userSpoke()`）或新会话（`restart()`）清零。正常聊天、视频反应、额度提醒都不计入；`stop()` 不清零，隐藏标签页不算回答。
+3. **触发**：`tick()` 先 `spoken += 1`，读 `cap()`；达到上限时本拍不说普通催促，置 `exhausted`、保持 `active`，同步调 `onExhausted()`。页面把它接到 `limiter.closeForNudge()`；关页期间 `tick()` 继续冻结停留/额度，避免倒计时里再弹视频反应。
+4. **关页**：`limiter.closeForNudge()` → `sayAndClose('nag')`：选 `LIMIT_LINES.nag` 收尾台词（含 `{count}`，替换成当前设置），写入聊天记录，显示气泡，然后走 `sm:limitShutdown`（带 `reason: 'nag'`）+ `sm:closeTab`。背景用 `limitAfterNag()` 保留已用额度再写 `shutAt`，所以冷静期结束不会白送一份新额度；冷静期沿用 `limitCooldownMinutes`（默认 10 分钟，0 = 不锁），重开时由 `limitSnapshot().inCooldown` 再关一次。
+5. **开关边界**：`cap()` 在 `limitEnabled` 关闭时返回 `0`，只催不关页；`proactive` 关闭时既不催也不关。`sayAndClose` / 页面隐藏 / 新会话都会清掉催促运行状态；`sayAndClose` 的台词标 `scripted`，不进入模型历史。
+6. **台词**：`LIMIT_LINES.nag` 全部带 `{count}` 占位、以「喵」结尾、不提时长；替换后的台词仍参与 `recentLines` 去重。
+7. **关页失败必须解冻**：`sayAndClose` 的定时器里，后台拒绝关页且 `window.close()` 也不生效时（普通标签页会被浏览器拒绝），调 `nudge.release()` 把 `exhausted` 和冻结一起撤掉，并重开沉默窗口。少了这一步，一次关不掉的标签页会留下**永久冻结的进度环和哑掉的猫**——比少关一次页严重得多。`release()` 只在 `exhausted` 时生效，正常催促期间调用是 no-op。
+8. **测试**：`nudge.test.ts` 覆盖默认值/范围/`{count}` 占位/达到上限只触发一次/冻结状态/隐藏不重置/开关关闭无上限/关页失败解冻；`limit.test.ts` 覆盖催满关页保留已用额度与 `background.js` 的 `reason` 分支。真实 DOM 关页仍建议抖音页面回归。
 
 ### 2.2 聊天与表情链路（重点）
 
@@ -379,6 +390,8 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 - 人工回归（报额度）：全新配置、限时开启，刷视频等到第一次开口，气泡里先出现「今天设的是 N 分钟」再出视频反应；再聊几句不会重复报；点「新对话」后会再报一次
 - 人工回归（催促）：打开抖音，面板里什么都别发，等 5 分钟——每 5 秒冒一句以「喵」结尾的催促；期间悬浮球进度环**停住不动**；随便发一句，催促立刻停、进度环从原处继续走
 - 人工回归（催促·开关）：popup 里取消「停留后主动搭话」，等 5 分钟不应有任何催促；切到别的标签页等 5 分钟也不应有（回来看见的是重新开始，不是攒了一批）
+- 人工回归（催满关页）：popup 里把「催促最多」拉到 3 次、冷静期设 2 分钟，打开抖音什么都不发——等 5 分钟开始催，第 3 次不是说催促而是关页台词（含「3」）、5 秒后标签页关闭；2 分钟内重开说「还敢点开」再关一次；等过 2 分钟再打开，剩余额度**小于**关页前的剩余（额度没有因为被关页而重置）
+- 人工回归（催促·关性能关）：把「到点关视频」取消勾选，等 5 分钟——照常每 5 秒催一句，但**永远不关页**（拉满催促次数也一样）
 - 人工回归：发“生气”时图标不立刻变；AI 回复结束后才变；中性回复靠 `done.emotion` 兜底
 - 人工回归（会话）：点「新对话」后旧对话出现在「记录」里；继续聊旧对话，它在列表中的位置不变
 - 人工回归（喵）：发一句普通消息，回复结尾有且只有一个「喵」；发「就这」确认图标仍是 `annoyed`（后缀不影响识别）
@@ -590,6 +603,8 @@ claude.cmd
     - **暂不上架商店**。安装走开发者模式加载，代价是 Chrome 每次启动提示「请停用开发者模式扩展程序」且**没有自动更新**；这条已在 `site/install.html` 如实写给用户。做了 Firefox 适配或决定上架时，先改这一条和网站文案，别让页面继续承诺手工安装的路径。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-25 催满次数关页（§2.1.12）：催到上限就不再说催促，改说关页台词并进冷静期。**① 计数进状态机**：`spoken` / `exhausted` 放在 `createNudgeMachine` 里，`cap()` 是注入的 getter（`limitEnabled` 关闭时返回 0），所以假时钟能驱动、popup 改完不用刷新、关掉限时立刻撤掉上限。first-cut 把计数写在 `buddy.js` 的 `onSpeak` 里，只能靠 `setTimeout` 绕开 `tick()` 尾部的 settle，既测不到也脆。**② 上限算最后一句话**：达到上限那一拍不说普通催促，直接 `onExhausted()` → `limiter.closeForNudge()` → `sayAndClose('nag')`，用户读到的最后一句是关页台词而不是又一句「人呢」。**③ 不白送额度**：新增 `limitAfterNag()`，保留当日已用时长再盖 `shutAt`（`limitAfterShutdown()` 会清零）。用 `sm:limitShutdown { reason }` 让后台区分两种关页；否则「不理猫」会变成刷额度的捷径。**④ 关页失败要解冻**：后台拒绝且 `window.close()` 也不生效时调 `nudge.release()`，否则一次关不掉的标签页会留下永久冻结的进度环和哑掉的猫。**⑤ 顺带修好 `scripted`**：`sayAndClose` 的台词原来没标 `scripted`，刷新后被当成模型说过的话。`nudgeLimitCount` 默认 10、区间 3–60（下限留出回答时间，上限约 5 分钟催促），popup 放在「到点关视频」区块内，与 `limitEnabled` 同组。291 个测试通过，`typecheck` / `build` / 全部 `node --check` / `direct-check.mjs` 25 项全绿。
 
 - 2026-10-24 线上站点检查：新增 `tools/check-deploy.mjs`（§4.8 第 6 条）。站点部署到 `https://shangtou-meowmeow.pages.dev` 后，curl 只能证明状态码和哈希；而 `site/app.js` 的下载按钮走的是「HEAD 探测 → 按结果换弹窗内容」，路径、方法或 CORS 任何一处不对，页面**看起来完全正常**，每个访客拿到的却是回退说明弹窗。脚本用 headless Chrome 打开真实 URL，从**线上** `app.js` 里读出 `DOWNLOAD_URL` 再拿它去探测，然后点真实按钮确认弹窗里出现 `.zip` 链接。另外 `README.md` / `serve.mjs` 的判断看**响应体**而不是状态码——Cloudflare 对未知路径回落到 `index.html` 并返回 200，状态码不证明任何事。10/10 通过；`--url https://example.com` 验证会红（8 项失败，退出码 1）。实测线上：四页哈希与本地一致、内嵌 ZIP 与本地字节相同、`/demo.html` → `/demo` 308 且保留查询串。
 

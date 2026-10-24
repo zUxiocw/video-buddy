@@ -23,11 +23,13 @@
     limitMinutes: document.getElementById('limitMinutes'),
     limitCooldownMinutes: document.getElementById('limitCooldownMinutes'),
     limitCloseSeconds: document.getElementById('limitCloseSeconds'),
+    nudgeLimitCount: document.getElementById('nudgeLimitCount'),
   };
   var ballSizeLabel = document.getElementById('ballSizeLabel');
   var bubbleSecondsLabel = document.getElementById('bubbleSecondsLabel');
   var emotionHoldSecondsLabel = document.getElementById('emotionHoldSecondsLabel');
   var limitCloseSecondsLabel = document.getElementById('limitCloseSecondsLabel');
+  var nudgeLimitCountLabel = document.getElementById('nudgeLimitCountLabel');
   var dot = document.getElementById('dot');
   var statusText = document.getElementById('statusText');
   var statusMeta = document.getElementById('statusMeta');
@@ -69,6 +71,8 @@
     fields.limitCooldownMinutes.value = settings.limitCooldownMinutes;
     fields.limitCloseSeconds.value = settings.limitCloseSeconds;
     limitCloseSecondsLabel.textContent = settings.limitCloseSeconds;
+    fields.nudgeLimitCount.value = settings.nudgeLimitCount;
+    nudgeLimitCountLabel.textContent = settings.nudgeLimitCount;
   }
 
   function readForm() {
@@ -93,6 +97,7 @@
       limitMinutes: fields.limitMinutes.value,
       limitCooldownMinutes: fields.limitCooldownMinutes.value,
       limitCloseSeconds: fields.limitCloseSeconds.value,
+      nudgeLimitCount: fields.nudgeLimitCount.value,
     });
   }
 
@@ -255,6 +260,10 @@
 
   fields.limitCloseSeconds.addEventListener('input', function () {
     limitCloseSecondsLabel.textContent = fields.limitCloseSeconds.value;
+  });
+
+  fields.nudgeLimitCount.addEventListener('input', function () {
+    nudgeLimitCountLabel.textContent = fields.nudgeLimitCount.value;
   });
 
   fields.mode.addEventListener('change', function () {

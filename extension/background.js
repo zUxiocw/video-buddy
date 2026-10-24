@@ -819,24 +819,31 @@ function readWatch(callback) {
 }
 
 /**
- * Record that the budget is spent and the door is now shut.
+ * Record that the door is now shut, and for what reason.
  *
  * Needed for the path that never charges anything: a page that loads with the
  * budget already gone announces 「时间到」 and closes, but no credit call runs,
  * so without this the cooldown would never be stamped — and every later open
  * would say 「时间到」 again instead of 「还敢点开」.
  *
+ * `reason` is 'over' (the budget ran out) or 'nag' (the user ignored the cat
+ * until the cap). The only difference is the used total: a budget shutdown
+ * resets it, a nag shutdown keeps it, because otherwise ignoring the cat would
+ * be rewarded with a fresh allowance. See `Buddy.limitAfterNag`.
+ *
  * Idempotent by design: when already in cooldown it does nothing, so two tabs
  * shutting down together cannot keep pushing the release time back.
  */
-function stampShutdown(callback) {
+function stampShutdown(reason, callback) {
   loadLedger(function () {
     var snap = Buddy.limitSnapshot(limitLedger.state, Date.now(), limitLedger.settings);
     if (snap.inCooldown) {
       callback({ ok: true, stamped: false, state: limitLedger.state });
       return;
     }
-    limitLedger.state = Buddy.limitAfterShutdown(Date.now());
+    limitLedger.state = reason === 'nag'
+      ? Buddy.limitAfterNag(limitLedger.state, Date.now())
+      : Buddy.limitAfterShutdown(Date.now());
     saveLedger();
     callback({ ok: true, stamped: true, state: limitLedger.state });
   });
@@ -920,7 +927,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     return true;
   }
   if (message.type === 'sm:limitShutdown') {
-    stampShutdown(sendResponse);
+    stampShutdown(message.reason === 'nag' ? 'nag' : 'over', sendResponse);
     return true;
   }
   if (message.type === 'sm:closeTab') {

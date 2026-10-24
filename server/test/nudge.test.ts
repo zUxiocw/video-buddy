@@ -27,10 +27,13 @@ interface NudgeMachine {
   isActive(): boolean;
   nextAt(): number;
   lastUserAt(): number;
+  spoken(): number;
+  isExhausted(): boolean;
   tick(): void;
   userSpoke(): void;
   restart(): void;
   stop(): void;
+  release(): void;
 }
 
 interface MachineOptions {
@@ -38,19 +41,25 @@ interface MachineOptions {
   enabled?(): boolean;
   proactive?(): boolean;
   visible?(): boolean;
+  cap?(): number;
   onSpeak?(): void;
   onStop?(): void;
+  onExhausted?(): void;
   lastUserAt?: number;
 }
 
 interface NudgeApi {
-  DEFAULTS: { limitMinutes: number };
+  DEFAULTS: { limitMinutes: number; nudgeLimitCount: number };
   NUDGE_AFTER_MS: number;
   NUDGE_GAP_MS: number;
+  NUDGE_LIMIT_MIN: number;
+  NUDGE_LIMIT_MAX: number;
   NUDGE_LINES: string[];
   BUDGET_LINES: string[];
+  LIMIT_LINES: Record<string, string[]>;
   pickNudgeLine(recent?: unknown): string;
   pickBudgetLine(minutes: unknown, recent?: unknown): string;
+  pickLimitLine(kind: string, recent?: unknown): string;
   nudgeDue(lastUserAt: unknown, nowMs: unknown): boolean;
   nudgeStep(
     current: NudgeState,
@@ -58,6 +67,10 @@ interface NudgeApi {
     flags: NudgeFlags,
   ): { active: boolean; nextAt: number; speak: boolean };
   createNudgeMachine(options: MachineOptions): NudgeMachine;
+  normalizeSettings(raw: unknown): Record<string, any>;
+  limitAfterNag(saved: unknown, nowMs: number): { day: string; usedMs: number; shutAt: number };
+  limitAfterShutdown(nowMs: number): { day: string; usedMs: number; shutAt: number };
+  dayKey(nowMs?: number): string;
 }
 
 const Buddy = (context as unknown as { Buddy: NudgeApi }).Buddy;
@@ -75,15 +88,21 @@ function harness(options: Partial<MachineOptions> = {}) {
   let clock = 1_000_000;
   let speaks = 0;
   let stops = 0;
+  let exhausted = 0;
   const flags = { enabled: true, proactive: true, visible: true };
+  // Mirrors the page's `cap` getter: the limiter switch decides whether a cap
+  // exists at all, the count decides where it sits.
+  const cap = { enabled: false, count: 10 };
 
   const machine = Buddy.createNudgeMachine({
     now: () => clock,
     enabled: () => flags.enabled,
     proactive: () => flags.proactive,
     visible: () => flags.visible,
+    cap: () => (cap.enabled ? cap.count : 0),
     onSpeak: () => { speaks += 1; },
     onStop: () => { stops += 1; },
+    onExhausted: () => { exhausted += 1; },
     ...options,
   });
 
@@ -99,9 +118,11 @@ function harness(options: Partial<MachineOptions> = {}) {
   return {
     machine,
     flags,
+    cap,
     advance,
     speaks: () => speaks,
     stops: () => stops,
+    exhausted: () => exhausted,
     now: () => clock,
   };
 }
@@ -278,6 +299,241 @@ describe('nudge lifecycle', () => {
     clock = 1000 + Buddy.NUDGE_AFTER_MS;
     machine.tick();
     expect(machine.isActive()).toBe(true);
+  });
+});
+
+describe('nudge cap (沉默催促 → 关页)', () => {
+  it('defaults to ten and clamps to a range that leaves room to answer', () => {
+    expect(Buddy.normalizeSettings({}).nudgeLimitCount).toBe(10);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 1 }).nudgeLimitCount).toBe(3);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 999 }).nudgeLimitCount).toBe(60);
+    expect(Buddy.normalizeSettings({ nudgeLimitCount: 'abc' }).nudgeLimitCount).toBe(10);
+    // A floor of 1 would go straight from the first nag to closing the tab,
+    // with no gap for the user to answer in.
+    expect(Buddy.NUDGE_LIMIT_MIN).toBeGreaterThanOrEqual(3);
+  });
+
+  it('counts the closing line as the last utterance, not an extra nag', () => {
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+
+    // 5 minutes of silence to arm, then one utterance per gap.
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    expect(h.speaks()).toBe(1);
+    expect(h.exhausted()).toBe(0);
+
+    h.advance(Buddy.NUDGE_GAP_MS);
+    expect(h.speaks()).toBe(2);
+    expect(h.exhausted()).toBe(0);
+
+    // The third utterance is the shutdown, so it is reported as exhausted and
+    // never rendered as a nag line.
+    h.advance(Buddy.NUDGE_GAP_MS);
+    expect(h.speaks()).toBe(2);
+    expect(h.exhausted()).toBe(1);
+    expect(h.machine.spoken()).toBe(3);
+    expect(h.machine.isExhausted()).toBe(true);
+  });
+
+  it('never fires a second shutdown for one streak', () => {
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    h.advance(Buddy.NUDGE_GAP_MS * 4);
+    expect(h.exhausted()).toBe(1);
+    expect(h.speaks()).toBe(2);
+  });
+
+  it('keeps the tracker frozen while the shutdown line is on screen', () => {
+    // The tracker reads `isActive()` to decide whether dwell time and the
+    // daily budget may accrue. If the cap cleared it, a video reaction could
+    // fire on top of the closing bubble during the countdown.
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    // One gap plus a tick of slack: ticks land every 400ms while the deadline
+    // is 5000ms away, so the boundary is not hit exactly.
+    h.advance(Buddy.NUDGE_GAP_MS * 2 + 1000);
+    expect(h.machine.isExhausted()).toBe(true);
+    expect(h.machine.isActive()).toBe(true);
+
+    // The page's shutdown path calls stop() from inside the callback; that must
+    // not hand control back to the tracker either.
+    h.machine.stop();
+    expect(h.machine.isActive()).toBe(true);
+    h.advance(30_000);
+    expect(h.speaks()).toBe(2);
+    expect(h.exhausted()).toBe(1);
+  });
+
+  it('does not grow the cap back when the tab is hidden and shown again', () => {
+    // Hiding the tab is not answering the cat. If it reset the count, anyone
+    // could switch tabs every few nags and never reach the cap.
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 4;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    expect(h.speaks()).toBe(1);
+
+    h.flags.visible = false;
+    h.advance(1000);
+    expect(h.machine.isActive()).toBe(false);
+    expect(h.machine.spoken()).toBe(1);
+    h.flags.visible = true;
+    h.advance(1000);
+    expect(h.machine.spoken()).toBe(2);
+
+    // ... and the streak still ends on schedule.
+    h.advance(Buddy.NUDGE_GAP_MS * 3);
+    expect(h.exhausted()).toBe(1);
+  });
+
+  it('starts a fresh count once the user actually speaks', () => {
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    h.advance(Buddy.NUDGE_GAP_MS);
+    expect(h.machine.spoken()).toBe(2);
+
+    h.machine.userSpoke();
+    expect(h.machine.spoken()).toBe(0);
+    expect(h.machine.isExhausted()).toBe(false);
+    expect(h.machine.isActive()).toBe(false);
+
+    // The next streak gets the full allowance again, from zero nags.
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    expect(h.speaks()).toBe(3);
+    expect(h.exhausted()).toBe(0);
+  });
+
+  it('has no cap at all when the limiter switch is off', () => {
+    // 到点关视频 off means "this extension does not close my tabs". The nudge
+    // has to keep nagging forever rather than quietly acquiring that power.
+    const h = harness();
+    h.cap.enabled = false;
+    h.advance(Buddy.NUDGE_AFTER_MS + Buddy.NUDGE_GAP_MS * 40);
+    expect(h.exhausted()).toBe(0);
+    expect(h.speaks()).toBeGreaterThan(30);
+    expect(h.machine.isActive()).toBe(true);
+  });
+
+  it('drops the cap mid-streak when the limiter switch is turned off', () => {
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    h.cap.enabled = false;
+    h.advance(Buddy.NUDGE_GAP_MS * 5);
+    expect(h.exhausted()).toBe(0);
+  });
+
+  it('shuts down by itself from inside the callback, without re-arming', () => {
+    // This is exactly what the page does: `onExhausted` calls the limiter,
+    // which calls `nudge.stop()` synchronously. The machine must not let the
+    // remainder of that tick put it back into an active run.
+    let clock = 1_000_000;
+    let exhausted = 0;
+    const machine: NudgeMachine = Buddy.createNudgeMachine({
+      now: () => clock,
+      cap: () => 3,
+      onExhausted: () => {
+        exhausted += 1;
+        machine.stop();
+      },
+    });
+    // Enough ticks to clear the 5-minute silence window and two 5-second gaps.
+    for (let i = 0; i < 1200; i += 1) {
+      clock += 400;
+      machine.tick();
+    }
+    expect(exhausted).toBe(1);
+    expect(machine.spoken()).toBe(3);
+    expect(machine.isExhausted()).toBe(true);
+  });
+
+  it('gives the page back when the tab could not be closed', () => {
+    // If neither chrome.tabs.remove nor window.close works, the freeze has to
+    // be undone: otherwise the tracker stays paused for the rest of the tab's
+    // life and the cat never speaks again. The silence window restarts so the
+    // user is not nagged the instant the release happens.
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 3;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    h.advance(Buddy.NUDGE_GAP_MS * 2 + 1000);
+    expect(h.machine.isActive()).toBe(true);
+    expect(h.machine.isExhausted()).toBe(true);
+
+    h.machine.release();
+    expect(h.machine.isActive()).toBe(false);
+    expect(h.machine.isExhausted()).toBe(false);
+    expect(h.machine.spoken()).toBe(0);
+
+    const before = h.speaks();
+    h.advance(Buddy.NUDGE_AFTER_MS - 5000);
+    expect(h.speaks()).toBe(before);
+  });
+
+  it('release() is a no-op unless the cap actually fired', () => {
+    const h = harness();
+    h.cap.enabled = true;
+    h.cap.count = 10;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    const lastBefore = h.machine.lastUserAt();
+    h.machine.release();
+    expect(h.machine.spoken()).toBe(1);
+    expect(h.machine.lastUserAt()).toBe(lastBefore);
+    expect(h.machine.isActive()).toBe(true);
+  });
+
+  it('keeps every shutdown line inside the persona', () => {
+    const lines = Buddy.LIMIT_LINES.nag;
+    expect(lines.length).toBeGreaterThan(3);
+    for (const line of lines) {
+      expect(line, line).toMatch(/喵[。！？!?]*$/);
+      // Own setting, not the model's guess, so a number is allowed here — but
+      // still no watch-time wording (CLAUDE.md §2.1.5).
+      expect(line, line).not.toMatch(/\d+\s*(秒|分钟)|毫秒/);
+      expect(line).toContain('{count}');
+    }
+    expect(Buddy.pickLimitLine('nag')).toContain('{count}');
+  });
+});
+
+describe('limitAfterNag vs limitAfterShutdown', () => {
+  it('keeps the time already spent today, so ignoring the cat is not a refund', () => {
+    const now = Date.UTC(2026, 9, 25, 12, 0, 0);
+    const today = Buddy.dayKey(now);
+    const saved = { day: today, usedMs: 12 * 60_000, shutAt: 0 };
+
+    const shutdown = Buddy.limitAfterShutdown(now);
+    expect(shutdown.usedMs).toBe(0);
+    expect(shutdown.shutAt).toBe(now);
+
+    const nag = Buddy.limitAfterNag(saved, now);
+    expect(nag.usedMs).toBe(12 * 60_000);
+    expect(nag.shutAt).toBe(now);
+    expect(nag.day).toBe(today);
+  });
+
+  it('does not carry a previous day total into today', () => {
+    const now = Date.UTC(2026, 9, 25, 12, 0, 0);
+    const nag = Buddy.limitAfterNag({ day: '2026-10-24', usedMs: 20 * 60_000, shutAt: 0 }, now);
+    expect(nag.usedMs).toBe(0);
+    expect(nag.day).toBe(Buddy.dayKey(now));
+  });
+
+  it('survives a corrupted ledger', () => {
+    const now = Date.UTC(2026, 9, 25, 12, 0, 0);
+    for (const raw of [null, undefined, 'nope', { usedMs: 'x', day: 7 }]) {
+      const nag = Buddy.limitAfterNag(raw, now);
+      expect(nag.usedMs).toBe(0);
+      expect(nag.shutAt).toBe(now);
+    }
   });
 });
 

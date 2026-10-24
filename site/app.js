@@ -262,9 +262,13 @@
     var startSilenceButton = $('#startSilence');
     var stopSilenceButton = $('#stopSilence');
     var budgetButton = $('#showBudget');
+    var nudgeCountEl = $('#nudgeCount');
+    var nudgeDots = $('#nudgeDots');
+    var NUDGE_DEMO_LIMIT = 10;
     var nudgeTimer = 0;
     var nudgeActive = false;
     var nudgeIndex = 0;
+    var nudgeCount = 0;
 
     var ballPos = { x: 0, y: 0 };
     var dragStart = null;
@@ -397,6 +401,19 @@
         if (stopSilenceButton) stopSilenceButton.hidden = false;
         return;
       }
+      if (state === 'locked') {
+        silenceStatus.className = 'demo-status is-locked';
+        silenceStatus.textContent = '已催满 10 次 · 正式版关页进入冷静期';
+        if (silenceClock) silenceClock.textContent = '10:00';
+        if (silenceClockNote) silenceClockNote.textContent = '冷静期示意';
+        if (silenceNote) silenceNote.textContent = '这里只演示计数，不会真的关页；正式版会关页并在冷静期内拒绝再打开。';
+        if (startSilenceButton) {
+          startSilenceButton.hidden = false;
+          startSilenceButton.textContent = '再模拟一次';
+        }
+        if (stopSilenceButton) stopSilenceButton.hidden = true;
+        return;
+      }
       if (state === 'stopped') {
         silenceStatus.className = 'demo-status';
         silenceStatus.textContent = '已恢复 · 视频停留计时继续';
@@ -414,7 +431,7 @@
       silenceStatus.textContent = '沉默计时 · 未触发';
       if (silenceClock) silenceClock.textContent = '05:00';
       if (silenceClockNote) silenceClockNote.textContent = '距下一次催促';
-      if (silenceNote) silenceNote.textContent = '真实值固定：5 分钟触发，之后每 5 秒一次；两项都不可改。这里把等待加速成 2 秒，方便试玩。';
+      if (silenceNote) silenceNote.textContent = '真实值：5 分钟触发、每 5 秒一次，两项固定；催满次数默认 10，可调 3–60。这里把等待加速成 2 秒，方便试玩。';
       if (startSilenceButton) {
         startSilenceButton.hidden = false;
         startSilenceButton.textContent = '模拟 5 分钟没说话';
@@ -422,11 +439,24 @@
       if (stopSilenceButton) stopSilenceButton.hidden = true;
     }
 
+    function setNudgeCount(count) {
+      nudgeCount = Math.max(0, count);
+      if (nudgeCountEl) nudgeCountEl.textContent = String(nudgeCount);
+      if (nudgeDots) {
+        var dots = nudgeDots.querySelectorAll('i');
+        for (var i = 0; i < dots.length; i += 1) {
+          dots[i].classList.toggle('on', i < nudgeCount);
+        }
+        nudgeDots.classList.toggle('is-full', nudgeCount >= NUDGE_DEMO_LIMIT);
+      }
+    }
+
     function stopSilence() {
       if (!nudgeActive) return;
       nudgeActive = false;
       clearTimeout(nudgeTimer);
       nudgeTimer = 0;
+      setNudgeCount(0);
       setSilenceUi('stopped');
     }
 
@@ -434,6 +464,7 @@
       if (nudgeActive) return;
       nudgeActive = true;
       nudgeIndex = 0;
+      setNudgeCount(0);
       openPanel();
       setEmotion('annoyed');
       setSilenceUi('nagging');
@@ -441,6 +472,18 @@
       // is represented by the status text and the counter freezing here.
       function nudge() {
         if (!nudgeActive) return;
+        setNudgeCount(nudgeCount + 1);
+        if (nudgeCount >= NUDGE_DEMO_LIMIT) {
+          nudgeActive = false;
+          clearTimeout(nudgeTimer);
+          nudgeTimer = 0;
+          var closeLine = '催满十次了，正式版这里就关页冷静喵。';
+          addMessage('assistant', closeLine, 'angry');
+          showBubble(closeLine, 6000);
+          setEmotion('angry');
+          setSilenceUi('locked');
+          return;
+        }
         var line = NUDGE_LINES[nudgeIndex % NUDGE_LINES.length];
         nudgeIndex += 1;
         addMessage('assistant', line, 'annoyed');
@@ -457,6 +500,7 @@
       clearTimeout(nudgeTimer);
       nudgeTimer = 0;
       nudgeIndex = 0;
+      setNudgeCount(0);
       setSilenceUi('idle');
     }
 

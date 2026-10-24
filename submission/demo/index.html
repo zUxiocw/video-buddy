@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>喵喵陪你刷 · 抖音网页里的 AI 陪刷搭子</title>
-  <meta name="description" content="喵喵陪你刷是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；到点关视频默认开启，第一次对话先报总时长，5 分钟没聊就每 5 秒催你一次。公开版走 BYOK：用自己的 DeepSeek API Key，请求不经过我们的服务器。">
+  <meta name="description" content="喵喵陪你刷是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；到点关视频默认开启，第一次对话先报总时长，5 分钟没聊就每 5 秒催你一次，催满 10 次关页进冷静期。公开版走 BYOK：用自己的 DeepSeek API Key，请求不经过我们的服务器。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -35,18 +35,19 @@
         <div class="hero-copy">
           <span class="eyebrow kicker">抖音网页 · 喵喵陪你刷</span>
           <h1 class="display">刷一会儿，<br><span class="accent">它陪你接一句。</span></h1>
-          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：你停下来，它接话；你刷过头，它先报额度，到点关视频。5 分钟没理它，它还会一直催。陪伴，但不纵容。</p>
+          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：你停下来，它接话；你刷过头，它先报额度，到点关视频。5 分钟没理它，它会一直催；催满次数，关页冷静。陪伴，但不纵容。</p>
           <div class="hero-actions">
             <button class="btn btn-lav" type="button" data-download>免费下载扩展</button>
             <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
           </div>
-          <a class="hero-feature" href="#limits"><span>新</span>双计时器：先报总时长，5 分钟没聊就催</a>
+          <a class="hero-feature" href="#limits"><span>新</span>双计时器 + 催促上限：催满 10 次就关页</a>
           <p class="micro">Chrome / Edge 116+ 等 Chromium 浏览器 · 不支持 Firefox / Safari · 自带 DeepSeek API Key · 不经过我们的服务器</p>
           <div class="hero-meta">
             <span>自带 API Key</span>
             <span>停留 10 秒主动搭话</span>
             <span>到点关视频默认开</span>
             <span>5 分钟没聊就催</span>
+            <span>催满 10 次进冷静期</span>
             <span>9 种情绪</span>
           </div>
         </div>
@@ -77,11 +78,11 @@
             <img src="assets/emotions/angry-128.png" alt="">
             <img src="assets/emotions/laugh-128.png" alt="">
           </div>
-          <div class="stage-bubble">今天 30 分钟，到点我关页喵。</div>
+          <div class="stage-bubble">第 9 次了，再不理我就关页喵。</div>
           <button class="stage-ball" type="button" data-stage-ball aria-label="打开聊天面板预览">
             <img src="assets/emotions/annoyed-128.png" alt="">
           </button>
-          <span class="stage-note">9 种情绪 · 到点关页 · 5 分钟催你</span>
+          <span class="stage-note">9 种情绪 · 5 分钟催 · 催满 10 次关页</span>
         </div>
       </div>
     </section>
@@ -119,20 +120,21 @@
       <div class="wrap">
         <div class="section-head">
           <div>
-            <span class="kicker">双计时器</span>
+            <span class="kicker">双计时器 + 催促上限</span>
             <h2 class="section-title">一个管你刷多久，<br>一个管你多久没理它。</h2>
           </div>
-          <p class="lede">到点关视频默认开启。第一次开口就报总时长；5 分钟没主动说话，它就每 5 秒催一次。催的时候，视频停留计时暂停，不会一边催你一边继续算。</p>
+          <p class="lede">到点关视频默认开启。第一次开口就报总时长；5 分钟没主动说话，它就每 5 秒催一次。催满 10 次还不回，直接关页进冷静期，规定时间内打不开。</p>
         </div>
 
         <div class="limit-grid">
           <div class="limit-copy">
             <p class="limit-principle">“陪伴，不纵容。”</p>
-            <p class="limit-lede">推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。额度、冷却、关页前停留都能改；到点关视频默认开启，也可以单独关掉。</p>
+            <p class="limit-lede">推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。额度、冷却、关页前停留、催满次数都能改；到点关视频默认开启，也可以单独关掉。</p>
             <ul class="limit-points">
               <li><b>01 先报总时长</b><span>第一次对话，或停留 10 秒后的第一句，先报一次当次设了多少分钟；不是快用完才提醒。</span></li>
               <li><b>02 5 分钟没聊就催</b><span>每 5 秒一句，直到你主动回它。催的时候，视频停留计时暂停；回话后从暂停处继续。</span></li>
-              <li><b>03 到点先说话，再关页</b><span>默认 30 分钟，可改 1–600 分钟。到点先说一句，5 秒后关标签页；冷却 10 分钟，防止马上回来继续刷。</span></li>
+              <li><b>03 催满次数就关页</b><span>默认 10 次，可在设置里调 3–60 次。催满后关页并进入冷静期；冷静期内再打开，会被再关一次。</span></li>
+              <li><b>04 到点先说话，再关页</b><span>默认 30 分钟，可改 1–600 分钟。到点先说一句，5 秒后关标签页；冷静期默认 10 分钟。</span></li>
             </ul>
             <div class="hero-actions">
               <a class="btn btn-primary" href="demo.html#silenceDemo">试玩“沉默催促”</a>
@@ -140,9 +142,9 @@
             </div>
           </div>
 
-          <div class="limit-card timer-card" aria-label="双计时器示意">
+          <div class="limit-card timer-card" aria-label="双计时器与催促上限示意">
             <div class="limit-card-head">
-              <span>喵喵的两个计时器</span>
+              <span>两个计时器 + 一个计数器</span>
               <span class="limit-live">到点关视频 · 已开启</span>
             </div>
             <div class="timer-reminder"><span>第一次开口</span>今天给自己设了 30 分钟，到点我关页喵。</div>
@@ -157,18 +159,25 @@
                 <div class="limit-bar" aria-hidden="true"><i style="width:100%"></i></div>
                 <p><span class="timer-pause">视频停留计时暂停</span> 每 5 秒一句，你回话就停。</p>
               </div>
+              <div class="timer-block timer-count">
+                <div class="timer-label"><span>催促次数</span><b>6</b><em>/ 10 次</em></div>
+                <div class="nudge-dots" aria-hidden="true">
+                  <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i>
+                </div>
+                <p>催满 10 次就关页；次数可调 3–60，关页后进入冷静期。</p>
+              </div>
             </div>
             <div class="limit-warning">
               <img src="assets/emotions/annoyed-128.png" alt="">
               <div>
                 <p>五分钟没理我了，视频比我好看喵？</p>
-                <small>每 5 秒一次 · 回它一句就停</small>
+                <small>每 5 秒一次 · 催满 10 次关页</small>
               </div>
             </div>
             <div class="limit-flow" aria-hidden="true">
-              <span>第一次对话报额度</span><i>→</i><span>5 分钟没聊开催</span><i>→</i><span>到点关页</span>
+              <span>第一次对话报额度</span><i>→</i><span>5 分钟没聊开催</span><i>→</i><span>催满 10 次关页</span><i>→</i><span>冷静期</span>
             </div>
-            <p class="limit-fine">到点关视频默认开启；只统计视频正在播放、且页面在前台的时间。5 分钟与 5 秒间隔固定，不提供修改。</p>
+            <p class="limit-fine">5 分钟与 5 秒固定；催满次数 3–60 可调，默认 10；冷静期沿用「再打开时」，默认 10 分钟，0 = 不锁。只统计视频正在播放、且页面在前台的时间。</p>
           </div>
         </div>
       </div>
@@ -275,6 +284,11 @@
               <div><span class="check">✓</span><span><b>Key 只在扩展本地</b><br>存在 <code>chrome.storage.local</code>，不写进网页，也不上传给我们。</span></div>
               <div><span class="check">✓</span><span><b>没有我们的后端</b><br>聊天和截图只发给你配置的模型服务；在设置里关掉「把画面截图一起发给模型」，就只发文案和标签。</span></div>
             </div>
+            <div class="token-quote">
+              <span class="token-quote-tag">猫的账单</span>
+              <p>“本喵其实也是大胃袋哦，你瘾越重，我能吃的token越多喵”</p>
+              <small>聊得越久、截图越频繁，消耗的 token 越多；费用由你和 DeepSeek 结算，插件不加价。</small>
+            </div>
             <a class="btn btn-lav" href="setup.html">查看 BYOK 开通步骤</a>
           </div>
           <div class="code-card" aria-label="BYOK 配置示例">
@@ -358,11 +372,15 @@
           </details>
           <details>
             <summary>为什么它会一直催我？</summary>
-            <div class="answer">连续 5 分钟没有主动发消息，它就开始每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你主动回一句，计时就从暂停处继续。5 分钟和 5 秒都是固定值，不提供修改。</div>
+            <div class="answer">连续 5 分钟没有主动发消息，它就开始每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你主动回一句，计时就从暂停处继续，催促计数也会清零。5 分钟和 5 秒都是固定值，不提供修改。</div>
+          </details>
+          <details>
+            <summary>催满次数会怎样？能改吗？</summary>
+            <div class="answer">从这次沉默开始，AI 每催一句算一次；默认催满 10 次就关页，并进入冷静期，规定时间内再打开会被再关一次。次数可以在扩展设置里调，范围 3–60，默认 10；正常聊天和视频反应不计入这个次数。关闭「到点关视频」时只催不关页。</div>
           </details>
           <details>
             <summary>关掉的页面还能马上打开吗？</summary>
-            <div class="answer">可以，但会进入冷却（默认 10 分钟）。冷却期内再打开，它会说一句再关一次，不会重新给你一整份额度。冷却结束后重新计时。</div>
+            <div class="answer">不能立刻打开。到点关页或催满关页都会进入冷静期（默认 10 分钟，可在设置里调）；冷却期内再打开，它会说一句再关一次，不会重新给你一整份额度。冷却结束后重新计时。</div>
           </details>
           <details>
             <summary>支持哪些浏览器？</summary>

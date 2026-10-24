@@ -443,11 +443,17 @@
       // page disappears, and a second bubble would cover the real message.
       nudge.stop();
       var line = Buddy.pickLimitLine(kind, recentLines);
+      if (kind === 'nag') {
+        // The line has to quote the cap the user actually chose; the template
+        // keeps the number out of the pool so a settings change cannot leave a
+        // stale "10" in the transcript.
+        line = line.replace('{count}', String(settings.nudgeLimitCount));
+      }
       recentLines = [line].concat(recentLines).slice(0, 4);
       // 生气 fits "you were told to stop"; the tab is going away anyway, so
       // the face only needs to be legible for a few seconds.
       if (Emotions) ui.setEmotion('angry', { force: true, holdMs: 0, source: 'limit' });
-      ui.appendNotice(line, 'angry');
+      ui.appendNotice(line, 'angry', 'limit');
       ui.showReaction(line);
       // The transcript is about to disappear with the tab; save it now so the
       // record survives in 记录.
@@ -461,7 +467,7 @@
       // already stamps when the budget runs out, but a page that *loads* with
       // the budget gone never charges anything — without this call that path
       // would close the tab and leave no cooldown behind.
-      if (kind === 'over') sendBg({ type: 'sm:limitShutdown' });
+      if (kind === 'over' || kind === 'nag') sendBg({ type: 'sm:limitShutdown', reason: kind });
 
       var delay = Buddy.limitCloseDelayMs(settings);
       closeTimer = window.setTimeout(function () {
@@ -471,6 +477,11 @@
           // the page itself only works for script-opened tabs, so this is a
           // best effort; say nothing rather than leave a dead bubble.
           try { window.close(); } catch (_error) { /* not script-opened */ }
+          // Still here means neither close worked. Undo the freeze the nudge
+          // put on the tracker: it is waiting for a shutdown that is not
+          // coming, and a frozen ring plus a cat that never speaks again is a
+          // worse failure than the missed shutdown.
+          nudge.release();
         });
       }, delay);
     }
@@ -537,6 +548,24 @@
         closeTimer = 0;
         announced = false;
       },
+
+      /**
+       * The nudge cap was reached. This is a real shutdown, not a pause: the
+       * page closes and the cooldown is stamped, so reopening inside it is
+       * turned away by `start()` with the 「还敢点开」 line.
+       *
+       * The watch time already spent is *not* refunded (the worker stamps with
+       * `limitAfterNag`), so ignoring the cat cannot be used to farm a fresh
+       * daily budget — the cap adds a limit, it does not replace one.
+       *
+       * Gated on `limitEnabled` deliberately: that switch is the user's
+       * permission for this extension to close tabs. With it off the nudge keeps
+       * talking instead of silently acquiring a new power.
+       */
+      closeForNudge: function () {
+        if (announced || !settings.limitEnabled) return;
+        sayAndClose('nag');
+      },
     };
   })();
 
@@ -583,6 +612,11 @@
       // background is not "ignoring the cat", it is not there, and talking to
       // an empty room every five seconds is pure noise.
       visible: function () { return document.visibilityState === 'visible'; },
+      // How many utterances this streak gets before the page is shut down. A
+      // getter, so a popup change applies without a reload and switching
+      // 到点关视频 off drops the cap immediately: closing pages is that switch's
+      // permission, and the nudge must not acquire it on its own.
+      cap: function () { return settings.limitEnabled ? settings.nudgeLimitCount : 0; },
       onSpeak: function () {
         var line = Buddy.pickNudgeLine(recent);
         recent = [line].concat(recent).slice(0, Buddy.NUDGE_LINES.length - 1);
@@ -590,9 +624,17 @@
         // does not expire back to greet between two nags.
         if (Emotions) ui.setEmotion('annoyed', { force: true, holdMs: 0, source: 'nudge' });
         // A real utterance in the transcript, but not `seed`: unlike the opener
-        // it is something that happened in the conversation.
+        // it is something that happened in the conversation. `scripted` keeps
+        // it out of the model's history (see MAX_SCRIPTED_MESSAGES).
         ui.appendNotice(line, 'annoyed', 'nudge');
         ui.showReaction(line);
+      },
+      onExhausted: function () {
+        // The cap counts this utterance, so the last thing the user reads is
+        // the closing line, not one more nag. The machine has already settled
+        // its own state before calling this, so the shutdown path can safely
+        // call `stop()` without arming the run again.
+        limiter.closeForNudge();
       },
       onStop: function () {
         // The face the nagging left behind is not the truth any more. Drop back
@@ -612,6 +654,8 @@
       restart: function () { machine.restart(); },
       /** Page hidden or shutting down: end the run. */
       stop: function () { machine.stop(); },
+      /** The close failed; give the page back instead of freezing it. */
+      release: function () { machine.release(); },
     };
   })();
 

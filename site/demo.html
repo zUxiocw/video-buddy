@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>在线试玩 · 喵喵陪你刷</title>
-  <meta name="description" content="不用安装扩展，直接试玩喵喵陪你刷：换视频、拖头像、打字聊天、切换 9 种情绪，还可以模拟首次报额度、5 分钟沉默催促和到点关页。Demo 不调用模型，不需要 API Key。">
+  <meta name="description" content="不用安装扩展，直接试玩喵喵陪你刷：换视频、拖头像、打字聊天、切换 9 种情绪，还可以模拟首次报额度、5 分钟沉默催促、催满 10 次关页和到点关页。Demo 不调用模型，不需要 API Key。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -34,7 +34,7 @@
       <div>
         <span class="kicker">交互 Demo</span>
         <h1>先玩一下，再决定装不装。</h1>
-        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动。下方还会演示两个计时器：第一次开口先报总时长；5 分钟没主动说话，它每 5 秒催一次，催的时候视频停留计时暂停。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
+        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动。下方还会演示两个计时器和一个计数器：第一次开口先报总时长；5 分钟没主动说话，它每 5 秒催一次，催的时候视频停留计时暂停；催满 10 次，正式版会关页并进入冷静期。所有回复都是本地演示，不调用模型，也不需要 API Key。</p>
       </div>
       <span class="demo-badge">演示模式 · 无需 API Key</span>
     </div>
@@ -136,16 +136,24 @@
         <section class="control-card" id="silenceDemo">
           <div class="demo-status demo-status-quiet" id="silenceStatus">沉默计时 · 未触发</div>
           <h2 style="margin-top:14px">5 分钟没主动说话</h2>
-          <p>真实插件会每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你回一句，就从暂停处继续。</p>
+          <p>真实插件会每 5 秒催一次，直到你回它。催的时候，视频停留计时暂停；你回一句，就从暂停处继续。催满次数会关页并进入冷静期。</p>
           <div class="silence-clock" aria-live="polite">
             <b id="silenceClock">05:00</b>
             <span id="silenceClockNote">距下一次催促</span>
+          </div>
+          <div class="demo-nudge-meter">
+            <div class="demo-nudge-meter-head">
+              <span>已催</span>
+              <b id="nudgeCount">0</b>
+              <span>/ <span id="nudgeLimit">10</span> 次</span>
+            </div>
+            <div class="demo-nudge-dots" id="nudgeDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
           </div>
           <div class="silence-actions">
             <button class="btn btn-lav btn-sm" id="startSilence" type="button">模拟 5 分钟没说话</button>
             <button class="btn btn-ghost btn-sm" id="stopSilence" type="button" hidden>回它一句，恢复计时</button>
           </div>
-          <p class="demo-note" id="silenceNote">真实值固定：5 分钟触发，之后每 5 秒一次；两项都不可改。这里把等待加速成 2 秒，方便试玩。</p>
+          <p class="demo-note" id="silenceNote">真实值：5 分钟触发、每 5 秒一次，两项固定；催满次数默认 10，可调 3–60。这里加速演示，不真的关页。</p>
         </section>
 
         <section class="control-card">
@@ -192,7 +200,7 @@
           </div>
           <ol class="desktop-flow">
             <li><b>01</b><span>第一次对话 / 停留 10 秒：先报当次总时长，不是快用完才说。</span></li>
-            <li><b>02</b><span>5 分钟没主动说话：每 5 秒催一次；视频停留计时暂停，回话后继续。</span></li>
+            <li><b>02</b><span>5 分钟没主动说话：每 5 秒催一次；催满 10 次关页并进入冷静期，催时停留计时暂停。</span></li>
             <li><b>03</b><span>到点先开口：猫娘说一句，5 秒后由扩展后台关闭当前标签页。</span></li>
             <li><b>04</b><span>冷却期再打开：再关一次，不重新给整份额度。</span></li>
           </ol>

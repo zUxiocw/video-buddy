@@ -68,6 +68,16 @@
   // popup row for no benefit. Exported so the tests and the page agree.
   var NUDGE_AFTER_MS = 5 * 60 * 1000;
   var NUDGE_GAP_MS = 5 * 1000;
+  // How many unanswered nags before the cat stops talking and shuts the tab.
+  // The count IS a setting (unlike the two intervals above), because "how long
+  // do I tolerate being ignored" is a matter of taste, not of mechanism.
+  //
+  // The floor is 3 rather than 1: at one nag the cat would go from "your video
+  // is more interesting than me" straight to closing the tab, with no chance to
+  // answer in between. The ceiling is 60 = five minutes of nagging at 5s apart,
+  // which is already absurdly patient; longer means the cap is effectively off.
+  var NUDGE_LIMIT_MIN = 3;
+  var NUDGE_LIMIT_MAX = 60;
   // Bump when the stored settings shape changes in a way that needs a one-off
   // migration. normalizeSettings passes an older stamp through unchanged, so
   // future code can branch on it; a stored object with no stamp is version 1.
@@ -123,6 +133,12 @@
     limitCooldownMinutes: 10,
     // How long the line stays readable before the tab goes away.
     limitCloseSeconds: 5,
+    // How many utterances the silence nudge gets before the cat stops talking
+    // and shuts the tab instead. 10 nags is 50 seconds of being ignored, which
+    // is already well past 「一直骚扰」; the cap exists so the nagging cannot go
+    // on forever. Only enforced while `limitEnabled` is on — closing pages is
+    // that switch's job, and someone who turned it off said no to exactly this.
+    nudgeLimitCount: 10,
   };
   var DEVICE_ID_RE = /^[A-Za-z0-9_.:-]{8,128}$/;
   // Kept in sync with shared/emotions.js ORDER; listed here because core.js is
@@ -332,6 +348,15 @@
         LIMIT_CLOSE_MIN,
         LIMIT_CLOSE_MAX,
       ),
+      // Only ever used when the limiter is on, so it needs no migration of its
+      // own: a machine that predates it simply gets the default, which is what
+      // the site promises.
+      nudgeLimitCount: clampInt(
+        source.nudgeLimitCount,
+        DEFAULTS.nudgeLimitCount,
+        NUDGE_LIMIT_MIN,
+        NUDGE_LIMIT_MAX,
+      ),
       // Stamped so a future release can migrate a stored shape instead of
       // guessing from which keys happen to be present. Absent on anything
       // written before this field existed; treat that as version 1. A stamp
@@ -500,8 +525,10 @@
    *
    * `inCooldown` wins over the used time: right after a shutdown the clock is
    * deliberately frozen, so returning early does not "use up" the next budget.
-   * Once the cooldown lapses the budget restarts at zero — the user gets a
-   * whole new window instead of being closed again a minute later.
+   * Once the cooldown lapses, a budget shutdown has already reset its total in
+   * `limitAfterShutdown` (a fresh window); a nag shutdown preserved the total
+   * in `limitAfterNag`, so the user resumes with the time they had already
+   * spent instead of farming a fresh allowance by ignoring the cat.
    */
   function limitSnapshot(saved, nowMs, settings) {
     var state = normalizeLimitState(saved);
@@ -524,14 +551,24 @@
         return {
           disabled: false,
           budgetMs: budgetMs,
+          // Nothing is chargeable while the door is shut; the preserved total
+          // matters again once it opens.
           usedMs: 0,
           inCooldown: true,
           cooldownLeftMs: Math.max(0, cooldownMs - elapsed),
           overBudget: false,
         };
       }
-      // The cooldown has passed: the previous budget is spent and gone.
-      return { disabled: false, budgetMs: budgetMs, usedMs: 0, inCooldown: false, cooldownLeftMs: 0, overBudget: false };
+      // Cooldown over. `limitAfterShutdown` has usedMs 0; `limitAfterNag`
+      // kept it, so both cases are represented by the saved state itself.
+      return {
+        disabled: false,
+        budgetMs: budgetMs,
+        usedMs: Math.min(state.usedMs, budgetMs),
+        inCooldown: false,
+        cooldownLeftMs: 0,
+        overBudget: state.usedMs >= budgetMs,
+      };
     }
     return {
       disabled: false,
@@ -547,6 +584,23 @@
   function limitAfterShutdown(nowMs) {
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     return { day: dayKey(now), usedMs: 0, shutAt: now };
+  }
+
+  /**
+   * The state to persist when the tab is closed for *being ignored* rather
+   * than for running out of time.
+   *
+   * Same cooldown, different used total: a budget shutdown wipes it because the
+   * cooldown alone governs the next window, but a nag shutdown must keep it —
+   * otherwise ignoring the cat would be rewarded with a full fresh allowance
+   * every time, and the cap would become a way around the daily budget instead
+   * of an extra limit on top of it.
+   */
+  function limitAfterNag(saved, nowMs) {
+    var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    var state = normalizeLimitState(saved);
+    var today = dayKey(now);
+    return { day: today, usedMs: state.day === today ? state.usedMs : 0, shutAt: now };
   }
 
   /**
@@ -613,9 +667,18 @@
       '回来得这么快，看来得再关一次喵',
       '不给你刷了，真的喵',
     ],
+    // The nudge hit its cap while the user kept ignoring the cat. `{count}` is
+    // filled from the setting so the line matches the number the user chose.
+    nag: [
+      '催到第 {count} 次了，本喵说到做到，关页冷静一下喵',
+      '问了你 {count} 次都不理，今天到这儿喵',
+      '第 {count} 次了，再刷下去你要上头了，关页喵',
+      '耐心用完了，{count} 次没回，关页冷静喵',
+      '行了，{count} 次都不吭声，本喵先关为敬喵',
+    ],
   };
 
-  /** Pick a line of `kind` ('over' | 'back') avoiding the recent ones. */
+  /** Pick a line of `kind` ('over' | 'back' | 'nag') avoiding the recent ones. */
   function pickLimitLine(kind, recent) {
     var pool = LIMIT_LINES[kind] || LIMIT_LINES.over;
     var seen = Array.isArray(recent) ? recent : [];
@@ -769,6 +832,17 @@
    * It owns no timer on purpose. The page already ticks every 400ms, so a
    * deadline checked there can be at most one tick late, and a background tab
    * cannot leave a timer firing at an empty room.
+   *
+   * `cap` is how many utterances this silence streak is allowed before the cat
+   * gives up and the page is shut down. It is read on every tick (so the popup
+   * can change it, and switching the limiter off removes the cap immediately)
+   * and the count of the closing line is included: with cap 10 the user hears
+   * nine nags and then the tenth utterance is 「关页」. `onExhausted` fires once.
+   *
+   * The count lives here rather than in the page for the same reason the clock
+   * does: the page's `onSpeak` is a DOM callback, and a threshold buried in one
+   * cannot be driven by a fake clock. It also cannot be re-armed by the page's
+   * own shutdown path, which calls `stop()` from inside the callback.
    */
   function createNudgeMachine(options) {
     var opts = options || {};
@@ -780,12 +854,19 @@
     var isEnabled = dep('enabled', true);
     var isProactive = dep('proactive', true);
     var isVisible = dep('visible', true);
+    var capOf = dep('cap', 0);
     var onSpeak = dep('onSpeak', undefined);
     var onStop = dep('onStop', undefined);
+    var onExhausted = dep('onExhausted', undefined);
 
     var lastUserAt = Number(opts.lastUserAt);
     if (!Number.isFinite(lastUserAt) || lastUserAt <= 0) lastUserAt = now();
     var state = { active: false, nextAt: 0 };
+    // Utterances in this silence streak, and whether the cap already fired.
+    // `exhausted` survives `stop()` on purpose: hiding the tab is not answering
+    // the cat, so it must not hand the user a fresh cap.
+    var spoken = 0;
+    var exhausted = false;
 
     /** Clear the run; `onStop` fires only when something was actually running. */
     function settle(active, nextAt) {
@@ -796,6 +877,11 @@
     }
 
     function tick() {
+      // Out of patience: say nothing more, but stay "active" so the tracker
+      // keeps the dwell clock and the daily budget frozen while the tab is
+      // being closed. Waking the ring up during the countdown would let a
+      // reaction fire in the middle of the shutdown line.
+      if (exhausted) return;
       var next = nudgeStep({ lastUserAt: lastUserAt, active: state.active, nextAt: state.nextAt }, now(), {
         enabled: !!isEnabled(),
         proactive: !!isProactive(),
@@ -805,7 +891,23 @@
       // Speak before the bookkeeping callback: the page's `onStop` puts the
       // resting face back, and a run that ends on the same tick it speaks would
       // otherwise be wiped a frame later.
-      if (next.speak && next.active) onSpeak();
+      if (next.speak && next.active) {
+        spoken += 1;
+        var cap = Number(capOf());
+        if (cap > 0 && spoken >= cap) {
+          // The cap counts the closing line, so this tick's utterance is the
+          // last one and it is not a nag. Settle first: `onExhausted` shuts the
+          // page down, and that path calls `stop()` from inside this callback —
+          // running it before the state is final would let the tail of `tick()`
+          // arm the run all over again.
+          exhausted = true;
+          state.active = true;
+          state.nextAt = 0;
+          onExhausted();
+          return;
+        }
+        onSpeak();
+      }
       settle(next.active, next.nextAt);
     }
 
@@ -813,19 +915,48 @@
       isActive: function () { return !!state.active; },
       nextAt: function () { return state.nextAt; },
       lastUserAt: function () { return lastUserAt; },
+      spoken: function () { return spoken; },
+      isExhausted: function () { return exhausted; },
       tick: tick,
       /** The user answered: end the run and restart the silence window. */
       userSpoke: function () {
         lastUserAt = now();
+        spoken = 0;
+        exhausted = false;
         settle(false, 0);
       },
       /** Reset the silence window without claiming the user spoke. */
       restart: function () {
         lastUserAt = now();
+        spoken = 0;
+        exhausted = false;
         settle(false, 0);
       },
-      /** Page hidden or shutting down: end the run, keep the silence window. */
+      /**
+       * Page hidden or shutting down: end the run, keep the silence window.
+       *
+       * Once the cap has fired it stays active instead. That is not a nag any
+       * more (`tick()` returns immediately) — it is the freeze the tracker
+       * reads, and the shutdown line is on screen for a few seconds while the
+       * page closes. Waking the ring up there would let a video reaction fire
+       * on top of the closing bubble.
+       */
       stop: function () {
+        settle(!!exhausted, exhausted ? state.nextAt : 0);
+      },
+      /**
+       * The tab could not actually be closed (the worker refused, or the page
+       * was not script-opened). Give the page back: the freezer must not outlive
+       * the shutdown it was waiting for, or a failed close leaves the user with
+       * a permanently frozen ring and a silent cat. The silence window restarts,
+       * so the cat does not immediately resume nagging at someone whose tab is
+       * still open in front of them.
+       */
+      release: function () {
+        if (!exhausted) return;
+        lastUserAt = now();
+        spoken = 0;
+        exhausted = false;
         settle(false, 0);
       },
     };
@@ -1207,6 +1338,7 @@
     normalizeLimitState: normalizeLimitState,
     limitSnapshot: limitSnapshot,
     limitAfterShutdown: limitAfterShutdown,
+    limitAfterNag: limitAfterNag,
     limitCredit: limitCredit,
     pickLimitLine: pickLimitLine,
     // Silence nudge + budget announcement. Constants are exported (and
@@ -1214,6 +1346,8 @@
     // drift apart on what "5 minutes" and "5 seconds" mean.
     NUDGE_AFTER_MS: NUDGE_AFTER_MS,
     NUDGE_GAP_MS: NUDGE_GAP_MS,
+    NUDGE_LIMIT_MIN: NUDGE_LIMIT_MIN,
+    NUDGE_LIMIT_MAX: NUDGE_LIMIT_MAX,
     BUDGET_LINES: BUDGET_LINES,
     NUDGE_LINES: NUDGE_LINES,
     pickBudgetLine: pickBudgetLine,
