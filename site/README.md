@@ -12,6 +12,7 @@
 
 - `index.html` — 产品首页：定位、双计时器（首次报额度 / 5 分钟沉默催促 / 到点关视频）、9 种情绪、BYOK、隐私、FAQ
 - `demo.html` — 交互 Demo：手机框里演示聊天/拖拽/情绪，以及首次报额度、5 分钟催促；到点关页另用桌面浏览器窗口示意，不在手机框里假装关页
+- `404.html` — 顶层 404 页；Cloudflare Pages 只有看到它才会关闭 SPA 回退
 - `setup.html` — BYOK 三步：开通 API / 安装扩展 / 在扩展里填 Key
 - `install.html` — 扩展加载、DeepSeek API 开通、Key 填写与常见卡点
 
@@ -54,11 +55,12 @@ Cloudflare 的提示是「The contents of your zip file or folder will be used t
 
 **不要**只上传 `index.html` 一个文件：那会是一张没有样式和脚本的裸页面。
 
-`tools/pack-site.mjs` 是白名单：只复制 4 个页面、`styles.css`、`app.js`、`assets/**/*.png` 和 `download/*.zip`。`README.md`（含内部决策）和 `serve.mjs` 不会进发布目录。它会在以下三件事上直接失败退出：
+`tools/pack-site.mjs` 是白名单：只复制 5 个页面、`styles.css`、`app.js`、`assets/**/*.png` 和 `download/*.zip`。`README.md`（含内部决策）和 `serve.mjs` 不会进发布目录。它会在以下四件事上直接失败退出：
 
 1. `site/download/` 里没有 zip —— 否则下载按钮永远只显示回退弹窗，站点看着正常但下不到扩展。
 2. `site/app.js` 的 `DOWNLOAD_URL` 与 zip 文件名不一致 —— 改了 `manifest.json` 版本却没同步这个常量时会发生。
 3. 页面引用了没被复制的文件 —— 新增页面要显式加进脚本的 `PAGES` 列表。
+4. 顶层 `404.html` 缺失 —— 没有它，Cloudflare Pages 会把未知路径回退成首页 200（soft 404）。
 
 `site-dist/` 是构建产物，已被 `.gitignore` 忽略。
 
