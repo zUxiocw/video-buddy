@@ -1,11 +1,11 @@
 {
   "name": "上头了喵喵 UI",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "status": "ready-for-review",
   "date": "2026-10-24",
   "source": "D:\\code\\video-buddy\\site",
   "supersedes": "1.0.0",
-  "reason": "UI v1 assumed a direct browser model API; v2.1 also surfaces the existing watch-time limiter and fixes demo drag",
+  "reason": "UI v1 assumed a direct browser model API; v2.2 removes the unwired persona control and fixes emotion-line alignment",
   "stack": {
     "extension": "Chrome Manifest V3 + vanilla JS",
     "server": "Node 22 + Fastify + TypeScript",
@@ -15,7 +15,9 @@
   },
   "features": {
     "watchTimeLimit": "homepage section + interactive demo; mirrors extension/shared/core.js defaults",
-    "draggableBall": "drag within phone bounds, arrow keys, Home reset, native image drag disabled"
+    "draggableBall": "drag within phone bounds, arrow keys, Home reset, native image drag disabled",
+    "personaUi": "removed; setup keeps save flow and marks persona as unavailable",
+    "emotionLines": "nine homepage / demo lines rewritten to match each expression"
   },
   "claudeCodeIntegration": "pending explicit user consent",
   "notes": "Do not edit this snapshot; use site/ for future changes."

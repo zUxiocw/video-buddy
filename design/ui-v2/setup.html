@@ -40,7 +40,7 @@
 
     <ol class="step-rail" aria-label="配置步骤">
       <li><button type="button" data-step-target="1" aria-current="step"><b>1</b>启动服务</button></li>
-      <li><button type="button" data-step-target="2"><b>2</b>调教性格</button></li>
+      <li><button type="button" data-step-target="2"><b>2</b>回复偏好</button></li>
       <li><button type="button" data-step-target="3"><b>3</b>安装扩展</button></li>
     </ol>
 
@@ -108,16 +108,16 @@ APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
         </section>
 
         <section class="step-panel" data-step="2" hidden>
-          <h2>它该怎么说话</h2>
-          <p>同一个服务、同一个模型，换个性格就是另一个搭子。先选一个默认人设，之后也能在扩展设置里改。</p>
+          <h2>它该怎么回你</h2>
+          <p>性格调教暂时关闭；当前固定为“上头了喵喵”的直白猫娘。回复长度、主动搭话和截图权限仍然可以保存。</p>
 
-          <div class="field">
-            <label for="persona">默认人设</label>
-            <select id="persona">
-              <option value="直白朋友">直白朋友 · 像熟人接一句，偶尔拆台</option>
-              <option value="温柔搭子">温柔搭子 · 先接住情绪，再慢慢聊</option>
-              <option value="毒舌吐槽">毒舌吐槽 · 更敢说，专治离谱视频</option>
-            </select>
+          <div class="persona-lock" role="note" aria-label="性格调教暂不提供">
+            <img src="assets/emotions/annoyed-128.png" alt="">
+            <div class="persona-lock-body">
+              <span class="persona-lock-quote">“本猫娘可不是你能调教的喵”</span>
+              <b>目前暂不提供该服务</b>
+              <p>服务地址、访问令牌和下面的回复偏好可以正常保存；自定义性格不在这一版开放。</p>
+            </div>
           </div>
 
           <div class="field">
@@ -147,7 +147,7 @@ APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
 
           <div class="form-note">
             <b>建议</b>
-            <span>先保留默认的“直白朋友 + 两到三句”。猫娘话太多会像客服，太少又像弹幕。</span>
+            <span>先保留默认的“两到三句”。猫娘话太多会像客服，太少又像弹幕。</span>
           </div>
 
           <div class="setup-actions">
@@ -169,7 +169,7 @@ APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
 
           <div class="form-note">
             <b>现在就能做</b>
-            <span>先保存配置，或者去 Demo 里试玩。正式安装包发布后，这份配置不需要重填。</span>
+            <span>先保存服务配置和回复偏好，或者去 Demo 里试玩。正式安装包发布后，这份配置不需要重填。</span>
           </div>
 
           <div class="setup-actions">
@@ -185,14 +185,14 @@ APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
           <img src="assets/emotions/greet-128.png" alt="">
           <div>
             <b>上头了喵喵</b>
-            <small>它现在会这样说话</small>
+            <small>性格调教暂不提供</small>
           </div>
         </div>
         <div class="preview-bubble" id="previewLine">这猫又在拆家，你还看得挺起劲喵？</div>
         <div class="preview-summary">
           <div><span>服务地址</span><b id="previewServer">http://127.0.0.1:8787</b></div>
           <div><span>访问令牌</span><b id="previewToken">未填写</b></div>
-          <div><span>性格</span><b id="previewPersona">直白朋友</b></div>
+          <div><span>性格</span><b id="previewPersona">暂不提供</b></div>
           <div><span>模型 Key</span><b>server/.env.local</b></div>
           <div><span>请求方式</span><b>background SSE</b></div>
         </div>

@@ -1,6 +1,6 @@
 # UI v2 · Claude Code 交接单
 
-> 状态：**UI v2.1 等待用户验收；Claude Code 对接尚未开始。**
+> 状态：**UI v2.2 等待用户验收；Claude Code 对接尚未开始。**
 > 用户未明确同意前，不改 `.claude` 配置、不新增/修改 Claude Code 命令、不改插件代码。
 
 ## 这次的核心约束
@@ -9,6 +9,7 @@
 - UI 不再假装“浏览器直连模型 API”。
 - 刷视频限时是插件已有能力，UI 只呈现，不改 `limit*` 的额度、冷却、关页逻辑。
 - Demo 悬浮球拖拽是展示层能力，不改 content script 的拖拽实现。
+- 性格调教当前不提供：设置页不保存 persona，只标注“暂不提供”；不要用禁用下拉框伪装成已接通。
 - 配置流程与现有 `serverUrl` + `appToken` 一致。
 - 模型 Key 只在 `server/.env.local`。
 - 不引入 React / Next / Vite 或第二套后端。
@@ -42,6 +43,8 @@
 ## 验收
 
 - UI 交互测试：Demo 聊天/情绪/换视频、头像拖动/点击/方向键、限时预设/到点/关页/冷却/重置、下载弹窗、连接服务向导、保存配置、无运行时错误。
-- 移动端 390px 检查；头像拖动后仍在手机屏幕内。
+- 设置页不再出现 persona 下拉框；头像旁出现“本猫娘可不是你能调教的喵”，并标注“目前暂不提供该服务”。
+- 保存配置仍写入 serverUrl/appToken/deviceId/replyLength/autoComment/vision，且不包含 persona。
+- 九种情绪台词与表情逐一对应；移动端 390px 检查无横向溢出。
 - 原服务端测试仍通过；本次 UI 未改服务端。
 - 本次只改 `site/` 与 `design/`，未改 `extension/`、`server/`、manifest、content scripts。

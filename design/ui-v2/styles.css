@@ -979,6 +979,39 @@ ul, ol { margin: 0; padding: 0; }
 .demo-note { color: var(--muted); font-size: 11px; line-height: 1.6; }
 
 /* ---------- setup page ---------- */
+.persona-lock {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 15px;
+  align-items: start;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #f0d7a9;
+  border-radius: 16px;
+  background: #fff4e2;
+}
+.persona-lock > img {
+  width: 82px;
+  height: 82px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: 0 6px 16px rgba(23, 19, 31, 0.14);
+}
+.persona-lock-quote {
+  display: inline-block;
+  max-width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 14px 4px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+.persona-lock-body b { display: block; margin-top: 8px; font-size: 13px; }
+.persona-lock-body p { margin-top: 4px; color: #6d4c16; font-size: 11px; line-height: 1.6; }
 .setup-page { padding: 42px 0 90px; }
 .setup-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
 .setup-head h1 { font-size: clamp(32px, 4vw, 52px); line-height: 1.05; letter-spacing: -0.055em; }
@@ -1359,6 +1392,9 @@ dialog.preview-dialog::backdrop { background: rgba(23, 19, 31, 0.56); backdrop-f
   .demo-controls { max-width: 560px; margin-inline: auto; width: 100%; }
   .provider-grid { grid-template-columns: 1fr; }
   .field-grid { grid-template-columns: 1fr; }
+  .persona-lock { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 13px; }
+  .persona-lock > img { width: 64px; height: 64px; }
+  .persona-lock-quote { font-size: 12px; }
   .setup-card { padding: 20px; }
   .install-step { grid-template-columns: 38px 1fr; gap: 12px; padding: 16px; }
   .install-step .n { width: 34px; height: 34px; }

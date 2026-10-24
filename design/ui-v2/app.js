@@ -8,49 +8,49 @@
     greet: {
       label: '打招呼',
       img: 'assets/emotions/greet-128.png',
-      line: '在，球都给你留好位置了喵。',
+      line: '来了？位置给你留着呢，坐喵。',
       color: '#b9d7ff'
     },
     happy: {
       label: '开心',
       img: 'assets/emotions/happy-128.png',
-      line: '算你有眼光，这波我认喵。',
+      line: '这波给你点个赞，今天眼光在线喵。',
       color: '#ffe6a8'
     },
     annoyed: {
       label: '嫌弃',
       img: 'assets/emotions/annoyed-128.png',
-      line: '就这？你还能再刷三条喵。',
+      line: '就这也能让你停十秒，品味真稳定喵。',
       color: '#d9c8ff'
     },
     angry: {
       label: '生气',
       img: 'assets/emotions/angry-128.png',
-      line: '这广告过分了，别惯着它喵。',
+      line: '广告都骑脸了，你还能忍，我都替你气喵。',
       color: '#ffb7a5'
     },
     laugh: {
       label: '大笑',
       img: 'assets/emotions/laugh-128.png',
-      line: '不行，这猫真把自己当回事了喵。',
+      line: '这猫一本正经地拆家，我实在绷不住喵。',
       color: '#ffd9e4'
     },
     excited: {
       label: '兴奋',
       img: 'assets/emotions/excited-128.png',
-      line: '这个我想看，往下刷喵。',
+      line: '这个有点东西，快往下刷，别停喵。',
       color: '#b9f5d1'
     },
     sad: {
       label: '委屈',
       img: 'assets/emotions/sad-128.png',
-      line: '别硬撑，视频先放一边，我在喵。',
+      line: '你都没看我一眼，我眼泪都要掉了喵。',
       color: '#b9d7ff'
     },
     confused: {
       label: '疑惑',
       img: 'assets/emotions/confused-128.png',
-      line: '等会儿，这剧情是不是少了一段喵？',
+      line: '等等，刚才那一下是不是剪掉了喵？',
       color: '#e6ddff'
     },
     shocked: {
@@ -635,13 +635,11 @@
     var serverInput = $('#serverUrl');
     var tokenInput = $('#appToken');
     var deviceInput = $('#deviceId');
-    var persona = $('#persona');
     var replyLength = $('#replyLength');
     var auto = $('#setupAuto');
     var vision = $('#setupVision');
     var previewServer = $('#previewServer');
     var previewToken = $('#previewToken');
-    var previewPersona = $('#previewPersona');
     var previewLine = $('#previewLine');
     var status = $('#connectionStatus');
 
@@ -665,13 +663,7 @@
         var token = tokenInput.value.trim();
         previewToken.textContent = token ? '已填写（' + token.length + ' 位）' : '未填写';
       }
-      if (previewPersona) previewPersona.textContent = persona.value;
-      var lines = {
-        '直白朋友': '这猫又在拆家，你还看得挺起劲喵？',
-        '温柔搭子': '先歇会儿吧，视频又不会跑，我陪你喵。',
-        '毒舌吐槽': '就这也能把你留住？你脾气真好喵。'
-      };
-      if (previewLine) previewLine.textContent = lines[persona.value] || lines['直白朋友'];
+      if (previewLine) previewLine.textContent = '这猫又在拆家，你还看得挺起劲喵？';
     }
 
     tabs.forEach(function (tab) {
@@ -750,19 +742,17 @@
           serverUrl: serverInput.value.trim(),
           appToken: tokenInput.value.trim(),
           deviceId: deviceInput ? deviceInput.value.trim() : '',
-          persona: persona.value,
           replyLength: replyLength.value,
           autoComment: !!(auto && auto.checked),
           vision: !!(vision && vision.checked)
         });
-        toast('本地服务配置已保存在浏览器');
+        toast('服务配置和回复偏好已保存在浏览器');
       });
     }
 
     [serverInput, tokenInput, deviceInput].forEach(function (input) {
       if (input) input.addEventListener('input', updateSummary);
     });
-    if (persona) persona.addEventListener('change', updateSummary);
     if (serverInput && !serverInput.value) serverInput.value = 'http://127.0.0.1:8787';
     updateSummary();
     showStep(1);
@@ -775,7 +765,6 @@
       if (saved.serverUrl && serverInput) serverInput.value = saved.serverUrl;
       if (saved.appToken && tokenInput) tokenInput.value = saved.appToken;
       if (saved.deviceId && deviceInput) deviceInput.value = saved.deviceId;
-      if (saved.persona && persona) persona.value = saved.persona;
       if (saved.replyLength && replyLength) replyLength.value = saved.replyLength;
       if (auto) auto.checked = !!saved.autoComment;
       if (vision) vision.checked = saved.vision !== false;
