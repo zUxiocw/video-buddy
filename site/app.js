@@ -184,12 +184,189 @@
     var send = $('#chatSend');
     var bubble = $('#chatBubble');
     var ball = $('#floatingBall');
+    var phone = $('.phone');
     var videoImage = $('#videoStill');
     var caption = $('#videoCaption');
     var videoMeta = $('#videoMeta');
     var autoToggle = $('#autoComment');
     var videoIndex = 0;
     var bubbleTimer = 0;
+
+    var ballPos = { x: 0, y: 0 };
+    var dragStart = null;
+    var ballMoved = false;
+    var pointerActivated = false;
+    var limitOverlay = $('#phoneLimit');
+    var limitLine = $('#phoneLimitLine');
+    var limitCountdown = $('#phoneLimitCountdown');
+    var limitClosedNote = $('#phoneClosedNote');
+    var limitReopen = $('#phoneReopen');
+    var limitReset = $('#phoneResetLimit');
+    var startLimit = $('#startLimitDemo');
+    var stopLimit = $('#stopLimitDemo');
+    var limitBudgetLabel = $('#demoLimitBudget');
+    var limitUsedLabel = $('#demoLimitUsed');
+    var limitFill = $('#demoLimitFill');
+    var limitTimers = [];
+    var limitInterval = 0;
+    var limitBudgetMinutes = 30;
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function phoneMetrics() {
+      var ballW = ball ? ball.offsetWidth : 74;
+      var ballH = ball ? ball.offsetHeight : 74;
+      var minX = 10;
+      var minY = 58;
+      return {
+        ballW: ballW,
+        ballH: ballH,
+        minX: minX,
+        minY: minY,
+        maxX: Math.max(minX, (phone ? phone.clientWidth : 390) - ballW - 10),
+        maxY: Math.max(minY, (phone ? phone.clientHeight : 780) - ballH - 10)
+      };
+    }
+
+    function placeBall(left, top, quiet) {
+      if (!ball || !phone) return;
+      var m = phoneMetrics();
+      ballPos.x = clamp(left, m.minX, m.maxX);
+      ballPos.y = clamp(top, m.minY, m.maxY);
+      ball.style.left = ballPos.x + 'px';
+      ball.style.top = ballPos.y + 'px';
+      ball.style.right = 'auto';
+      ball.style.bottom = 'auto';
+      if (!quiet) layoutBubble();
+    }
+
+    function layoutBubble() {
+      if (!bubble || !ball || !phone) return;
+      var width = phone.clientWidth;
+      var height = phone.clientHeight;
+      var bubbleW = bubble.offsetWidth;
+      var bubbleH = bubble.offsetHeight;
+      if (!width || !height || !bubbleW || !bubbleH) return;
+      var ballW = ball.offsetWidth;
+      var ballH = ball.offsetHeight;
+      var toRight = ballPos.x + ballW / 2 < width / 2;
+      var left = toRight ? ballPos.x + ballW + 10 : ballPos.x - bubbleW - 10;
+      left = clamp(left, 10, Math.max(10, width - bubbleW - 10));
+      var top = clamp(ballPos.y + ballH / 2 - bubbleH * 0.8, 58, Math.max(58, height - bubbleH - 10));
+      bubble.style.left = left + 'px';
+      bubble.style.top = top + 'px';
+      bubble.style.right = 'auto';
+      bubble.style.bottom = 'auto';
+      bubble.classList.toggle('bubble-right', toRight);
+    }
+
+    function resetBall() {
+      if (!ball || !phone) return;
+      var m = phoneMetrics();
+      placeBall(phone.clientWidth - m.ballW - 18, phone.clientHeight - m.ballH - 96, false);
+      layoutBubble();
+    }
+
+    function endBallDrag(event) {
+      if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+      var wasMoved = ballMoved;
+      dragStart = null;
+      ballMoved = false;
+      pointerActivated = true;
+      window.setTimeout(function () { pointerActivated = false; }, 800);
+      if (ball) ball.classList.remove('dragging');
+      try { ball.releasePointerCapture(event.pointerId); } catch (_error) { /* ignore */ }
+      if (wasMoved) return;
+      if (panel.classList.contains('on')) closePanel();
+      else openPanel();
+    }
+
+    function cancelBallDrag() {
+      dragStart = null;
+      ballMoved = false;
+      if (ball) ball.classList.remove('dragging');
+    }
+
+    function formatClock(totalSeconds) {
+      var safe = Math.max(0, Math.round(totalSeconds));
+      var minutes = Math.floor(safe / 60);
+      var seconds = safe % 60;
+      return minutes + ':' + String(seconds).padStart(2, '0');
+    }
+
+    function syncLimitBudget() {
+      if (limitBudgetLabel) limitBudgetLabel.textContent = formatClock(limitBudgetMinutes * 60);
+      if (limitUsedLabel) limitUsedLabel.textContent = formatClock(limitBudgetMinutes * 60 * 0.79);
+      if (limitFill) limitFill.style.width = '79%';
+      $$('[data-demo-limit]').forEach(function (button) {
+        button.setAttribute('aria-pressed', String(Number(button.dataset.demoLimit) === limitBudgetMinutes));
+      });
+    }
+
+    function clearLimitTimers() {
+      window.clearInterval(limitInterval);
+      limitInterval = 0;
+      limitTimers.forEach(function (id) { window.clearTimeout(id); });
+      limitTimers = [];
+    }
+
+    function setLimitState(state) {
+      if (!limitOverlay) return;
+      limitOverlay.dataset.state = state;
+      limitOverlay.setAttribute('aria-hidden', state === 'off' ? 'true' : 'false');
+      if (startLimit) startLimit.disabled = state !== 'off';
+      if (stopLimit) stopLimit.hidden = state === 'off';
+    }
+
+    function resetLimitDemo(announce) {
+      clearLimitTimers();
+      setLimitState('off');
+      if (announce !== false) {
+        toast('页面已恢复，可以重新试玩');
+        if (startLimit) startLimit.focus({ preventScroll: true });
+      }
+    }
+
+    function showLimitClosed(kind) {
+      clearLimitTimers();
+      setLimitState('closed');
+      if (limitClosedNote) {
+        limitClosedNote.textContent = kind === 'back'
+          ? '冷却还没结束。再打开，它还会关。'
+          : '冷却 10 分钟内再打开，它会说一句再关一次。';
+      }
+      window.setTimeout(function () {
+        if (limitReopen) limitReopen.focus({ preventScroll: true });
+      }, 40);
+    }
+
+    function showLimitWarning(kind) {
+      if (!limitOverlay) return;
+      clearLimitTimers();
+      closePanel();
+      setLimitState('warn');
+      var isBack = kind === 'back';
+      var seconds = isBack ? 2 : 5;
+      var suffix = isBack ? ' 秒后继续关页' : ' 秒后关闭这个标签页';
+      var left = seconds;
+      if (limitLine) limitLine.textContent = isBack ? '还敢点开，不给你刷了喵' : '差不多了哦，本喵要下班了喵';
+      if (limitCountdown) limitCountdown.textContent = left + suffix;
+      limitOverlay.focus({ preventScroll: true });
+      if (phone) {
+        var rect = phone.getBoundingClientRect();
+        if (rect.top < 8 || rect.bottom > window.innerHeight - 8) {
+          var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          phone.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+        }
+      }
+      limitInterval = window.setInterval(function () {
+        left -= 1;
+        if (left > 0 && limitCountdown) limitCountdown.textContent = left + suffix;
+      }, 1000);
+      limitTimers.push(window.setTimeout(function () { showLimitClosed(kind); }, seconds * 1000));
+    }
 
     function scrollMessages() {
       messages.scrollTop = messages.scrollHeight;
@@ -216,6 +393,7 @@
 
     function showBubble(text, hold) {
       bubble.textContent = text;
+      layoutBubble();
       bubble.classList.add('on');
       clearTimeout(bubbleTimer);
       bubbleTimer = setTimeout(function () { bubble.classList.remove('on'); }, hold || 5200);
@@ -299,10 +477,64 @@
     }
 
     if (ball) {
+      ball.addEventListener('pointerdown', function (event) {
+        if (event.button !== 0 || !phone) return;
+        dragStart = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          baseX: ballPos.x,
+          baseY: ballPos.y
+        };
+        ballMoved = false;
+        try { ball.setPointerCapture(event.pointerId); } catch (_error) { /* synthetic events */ }
+      });
+
+      ball.addEventListener('pointermove', function (event) {
+        if (!dragStart || event.pointerId !== dragStart.pointerId) return;
+        var dx = event.clientX - dragStart.startX;
+        var dy = event.clientY - dragStart.startY;
+        if (!ballMoved && Math.hypot(dx, dy) > 4) {
+          ballMoved = true;
+          ball.classList.add('dragging');
+        }
+        if (!ballMoved) return;
+        placeBall(dragStart.baseX + dx, dragStart.baseY + dy);
+      });
+
+      ball.addEventListener('pointerup', endBallDrag);
+      ball.addEventListener('pointercancel', cancelBallDrag);
+
+      ball.addEventListener('keydown', function (event) {
+        var step = event.shiftKey ? 20 : 8;
+        var dx = 0;
+        var dy = 0;
+        if (event.key === 'ArrowLeft') dx = -step;
+        else if (event.key === 'ArrowRight') dx = step;
+        else if (event.key === 'ArrowUp') dy = -step;
+        else if (event.key === 'ArrowDown') dy = step;
+        else if (event.key === 'Home') {
+          event.preventDefault();
+          resetBall();
+          return;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        placeBall(ballPos.x + dx, ballPos.y + dy);
+      });
+
+      // The button is activated on pointerup. Suppress the compatibility click
+      // that follows a pointer gesture; keyboard and AT clicks still work.
       ball.addEventListener('click', function () {
+        if (pointerActivated) return;
         if (panel.classList.contains('on')) closePanel();
         else openPanel();
       });
+      ball.addEventListener('dragstart', function (event) { event.preventDefault(); });
+      ball.addEventListener('selectstart', function (event) { event.preventDefault(); });
+      var face = ball.querySelector('img');
+      if (face) face.draggable = false;
     }
     var close = $('#chatClose');
     if (close) close.addEventListener('click', closePanel);
@@ -326,7 +558,12 @@
       });
     }
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && panel.classList.contains('on')) closePanel();
+      if (event.key !== 'Escape') return;
+      if (limitOverlay && limitOverlay.dataset.state !== 'off') {
+        resetLimitDemo(true);
+        return;
+      }
+      if (panel.classList.contains('on')) closePanel();
     });
 
     $$('.emotion-btn').forEach(function (button) {
@@ -356,12 +593,30 @@
         addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
         setEmotion('greet');
         if (bubble) bubble.classList.remove('on');
+        resetLimitDemo(false);
         toast('对话已重置');
       });
     }
 
+    $$('[data-demo-limit]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        limitBudgetMinutes = Number(button.dataset.demoLimit) || 30;
+        syncLimitBudget();
+      });
+    });
+    if (startLimit) startLimit.addEventListener('click', function () { showLimitWarning('over'); });
+    if (stopLimit) stopLimit.addEventListener('click', function () { resetLimitDemo(true); });
+    if (limitReopen) limitReopen.addEventListener('click', function () { showLimitWarning('back'); });
+    if (limitReset) limitReset.addEventListener('click', function () { resetLimitDemo(true); });
+
     addMessage('assistant', '来了？先刷你的，我看看今天又能刷到什么离谱东西喵。', 'greet');
     showVideo(0, false);
+    syncLimitBudget();
+    window.requestAnimationFrame(resetBall);
+    window.addEventListener('resize', function () {
+      if (!ball) return;
+      placeBall(ballPos.x, ballPos.y);
+    });
 
     if (new URLSearchParams(window.location.search).get('open') === '1') {
       panel.style.transition = 'none';

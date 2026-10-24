@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>上头了喵喵 · 抖音网页里的 AI 陪刷搭子</title>
-  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；你也能随时接话。连接本机 Fastify 服务，模型 Key 留在服务端。">
+  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；刷过头时，它也会按你设的额度提醒并关掉页面。连接本机 Fastify 服务，模型 Key 留在服务端。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -20,6 +20,7 @@
       </a>
       <nav class="nav-links" aria-label="主导航">
         <a href="#how">怎么用</a>
+        <a href="#limits">管时长</a>
         <a href="#emotions">9 种情绪</a>
         <a href="demo.html">在线试玩</a>
         <a href="install.html">安装</a>
@@ -34,15 +35,17 @@
         <div class="hero-copy">
           <span class="eyebrow kicker">抖音网页 · AI 陪刷搭子</span>
           <h1 class="display">刷到上头，<br><span class="accent">它陪你接一句。</span></h1>
-          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：看到好笑的、离谱的、气人的，会主动开口；你也能随时接话。</p>
+          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：会接话，也会在你刷过头时把页面关掉。陪伴，但不纵容。</p>
           <div class="hero-actions">
             <button class="btn btn-lav" type="button" data-download>免费下载扩展</button>
             <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
           </div>
+          <a class="hero-feature" href="#limits"><span>新</span>刷视频限时：到点先开口，再关页</a>
           <p class="micro">Chrome / Edge 116+ · 本地 Fastify 服务 · 模型 Key 不进浏览器</p>
           <div class="hero-meta">
             <span>停留 10 秒主动搭话</span>
             <span>AI 回复结束才换脸</span>
+            <span>到点提醒并关页</span>
             <span>截图只发给本机服务</span>
           </div>
         </div>
@@ -77,7 +80,7 @@
           <button class="stage-ball" type="button" data-stage-ball aria-label="打开聊天面板预览">
             <img src="assets/emotions/annoyed-128.png" alt="">
           </button>
-          <span class="stage-note">9 种情绪 · 会接话 · 不抢戏</span>
+          <span class="stage-note">9 种情绪 · 会接话 · 也管时长</span>
         </div>
       </div>
     </section>
@@ -89,7 +92,7 @@
             <span class="kicker">它不是工具</span>
             <h2 class="section-title">不是又一个 AI 总结。</h2>
           </div>
-          <p class="lede">总结工具替你省时间；它相反，是在你本来就要刷的那几分钟里，让屏幕里多一个会接话的人。</p>
+          <p class="lede">总结工具替你省时间；它相反，是在你本来就要刷的那几分钟里，让屏幕里多一个会接话的人；到点，再把你从推荐流里捞出来。</p>
         </div>
         <div class="bento">
           <article class="card card-lav">
@@ -107,6 +110,54 @@
             <h3>接得住话，不像客服</h3>
             <p>短句、直白、偶尔拆台。它会记住上一句说过什么，不每轮都问“你想聊什么”。</p>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">刷视频限时</span>
+            <h2 class="section-title">陪你刷，也负责喊停。</h2>
+          </div>
+          <p class="lede">让 AI 搭子管时长，不是让它劝你“少刷点”，而是按你设的额度执行：到点先开口，再关页。</p>
+        </div>
+
+        <div class="limit-grid">
+          <div class="limit-copy">
+            <p class="limit-principle">“陪伴，不纵容。”</p>
+            <p class="limit-lede">推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。额度、冷却、关页前停留都能改；限时默认关闭，打开后才生效。</p>
+            <ul class="limit-points">
+              <li><b>01 你定额度</b><span>每日 1–600 分钟，默认 30 分钟。到点不是弹窗，而是直接把标签页关掉。</span></li>
+              <li><b>02 只算真在看</b><span>视频正在播放、页面在前台才计时；暂停、切标签页、挂后台都不算。</span></li>
+              <li><b>03 先说话，再关页</b><span>猫娘先说一句，给你 5 秒读完，然后关页。默认冷却 10 分钟，防止马上回来继续刷。</span></li>
+            </ul>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="demo.html#limitDemo">在试玩里看它关页</a>
+              <a class="btn btn-ghost" href="setup.html">安装后开启</a>
+            </div>
+          </div>
+
+          <div class="limit-card" aria-label="刷视频限时示意">
+            <div class="limit-card-head">
+              <span>今日额度</span>
+              <span class="limit-live">视频在播 · 计时中</span>
+            </div>
+            <div class="limit-clock"><b>23:41</b><span>/ 30:00</span></div>
+            <div class="limit-bar" aria-hidden="true"><i style="width:79%"></i></div>
+            <div class="limit-warning">
+              <img src="assets/emotions/annoyed-128.png" alt="">
+              <div>
+                <p>差不多了哦，本喵要下班了喵</p>
+                <small>5 秒后关闭这个标签页</small>
+              </div>
+            </div>
+            <div class="limit-flow" aria-hidden="true">
+              <span>开口提醒</span><i>→</i><span>关闭页面</span><i>→</i><span>冷却 10 分钟</span>
+            </div>
+            <p class="limit-fine">只统计视频正在播放、且页面在前台的时间；限时默认关闭。</p>
+          </div>
         </div>
       </div>
     </section>
@@ -188,8 +239,8 @@
       <div class="wrap">
         <div class="quote-band">
           <div>
-            <p>“它不是来替你省时间的，是来陪你浪费一点时间的。”</p>
-            <small>上头了喵喵 · 产品原则</small>
+            <p>“陪你把这条看完，也负责不让你刷到停不下来。”</p>
+            <small>上头了喵喵 · 产品原则：陪伴，不纵容</small>
           </div>
           <div class="avatar-stack" aria-hidden="true">
             <img src="assets/emotions/greet-128.png" alt="">
@@ -250,7 +301,7 @@
           </div>
           <div class="privacy-item">
             <span class="privacy-mark">⌁</span>
-            <div><b>随时可以关掉</b><p>悬浮球、截图、主动搭话都能在设置里单独关闭。</p></div>
+            <div><b>随时可以关掉</b><p>悬浮球、截图、主动搭话、刷视频限时都能在设置里单独关闭。</p></div>
           </div>
         </div>
       </div>
@@ -286,6 +337,14 @@
             <div class="answer">不会。这个插件坚持只读：不点赞、不评论、不关注、不刷数据。它只读取当前视频的公开信息和页面文案。</div>
           </details>
           <details>
+            <summary>它会怎么管我刷多久？</summary>
+            <div class="answer">在扩展设置里打开“刷视频限时”，设每日额度和关页前的停留秒数。只统计视频正在播放、且页面在前台的时间；到点它先说一句，再把标签页关掉。默认是关闭的，不会装完就替你关页。</div>
+          </details>
+          <details>
+            <summary>关掉的页面还能马上打开吗？</summary>
+            <div class="answer">可以，但会进入冷却（默认 10 分钟）。冷却期内再打开，它会说一句再关一次，不会重新给你一整份额度。冷却结束后重新计时。</div>
+          </details>
+          <details>
             <summary>手机能用吗？</summary>
             <div class="answer">目前只做桌面浏览器的抖音网页版（Chrome / Edge 116+）。手机 App 不在范围内。</div>
           </details>
@@ -298,7 +357,7 @@
         <div class="cta-band">
           <span class="kicker">UI 预览版</span>
           <h2>先看看它在抖音里长什么样。</h2>
-          <p>不用装扩展，不用启动服务。试玩页里可以直接换视频、打字、切 9 种情绪，感受一下它接话的节奏。</p>
+          <p>不用装扩展，不用启动服务。试玩页里可以直接换视频、打字、切 9 种情绪，也可以让喵娘演示一次“到点先开口、再关页”。</p>
           <div class="hero-actions">
             <a class="btn btn-lav" href="demo.html">打开在线试玩</a>
             <a class="btn btn-ghost" href="setup.html">查看连接步骤</a>
@@ -315,7 +374,7 @@
           <img src="assets/icon128.png" alt="">
           <span>上头了喵喵</span>
         </a>
-        <p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p>
+        <p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p>
       </div>
       <div>
         <h3>产品</h3>

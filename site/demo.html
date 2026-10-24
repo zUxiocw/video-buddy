@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>在线试玩 · 上头了喵喵</title>
-  <meta name="description" content="不用安装扩展，直接试玩上头了喵喵：换视频、打字聊天、切换 9 种情绪，感受抖音网页里的 AI 陪刷搭子。">
+  <meta name="description" content="不用安装扩展，直接试玩上头了喵喵：换视频、拖头像、打字聊天、切换 9 种情绪，还可以模拟到点关页。">
   <meta name="theme-color" content="#f7f1e8">
   <link rel="icon" href="assets/icon128.png">
   <link rel="stylesheet" href="styles.css">
@@ -20,6 +20,7 @@
       </a>
       <nav class="nav-links" aria-label="主导航">
         <a href="index.html#how">怎么用</a>
+        <a href="index.html#limits">管时长</a>
         <a href="index.html#emotions">9 种情绪</a>
         <a href="demo.html" aria-current="page">在线试玩</a>
         <a href="install.html">安装</a>
@@ -33,13 +34,14 @@
       <div>
         <span class="kicker">交互 Demo</span>
         <h1>先玩一下，再决定装不装。</h1>
-        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。所有回复都是本地演示，不会调用真实模型。</p>
+        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。头像可以拖动；下面的“刷视频限时”还能演示到点关页。所有回复都是本地演示，不会调用真实模型。</p>
       </div>
       <span class="demo-badge">演示模式 · 未连接本地服务</span>
     </div>
 
     <div class="demo-grid">
-      <div class="phone" aria-label="抖音网页模拟器">
+      <div class="phone-wrap">
+        <div class="phone" aria-label="抖音网页模拟器">
         <div class="phone-video">
           <img id="videoStill" src="assets/emotions/laugh-128.png" alt="">
         </div>
@@ -62,10 +64,30 @@
         </div>
         <div class="phone-progress" aria-hidden="true"><i></i></div>
 
+        <div class="phone-limit" id="phoneLimit" data-state="off" aria-hidden="true" role="dialog" aria-modal="true" aria-label="刷视频限时演示" tabindex="-1">
+          <div class="phone-limit-view phone-limit-warn">
+            <img src="assets/emotions/annoyed-128.png" alt="">
+            <span class="phone-limit-kicker">刷视频限时</span>
+            <b id="phoneLimitTitle">到点了</b>
+            <p id="phoneLimitLine" aria-live="assertive">差不多了哦，本喵要下班了喵</p>
+            <small id="phoneLimitCountdown">5 秒后关闭这个标签页</small>
+          </div>
+          <div class="phone-limit-view phone-limit-closed">
+            <span class="phone-limit-kicker">标签页已关闭</span>
+            <img src="assets/emotions/angry-128.png" alt="">
+            <b>喵娘替你按了暂停。</b>
+            <p id="phoneClosedNote">冷却 10 分钟内再打开，它会说一句再关一次。</p>
+            <div class="phone-limit-actions">
+              <button id="phoneReopen" type="button">再打开一次</button>
+              <button id="phoneResetLimit" type="button">重新试玩</button>
+            </div>
+          </div>
+        </div>
+
         <div class="chat-bubble" id="chatBubble" role="status" aria-live="polite"></div>
 
-        <button class="floating-ball" id="floatingBall" type="button" aria-expanded="false" aria-controls="chatPanel" aria-label="打开上头了喵喵聊天面板">
-          <img id="ballFace" src="assets/emotions/annoyed-128.png" alt="">
+        <button class="floating-ball" id="floatingBall" type="button" aria-expanded="false" aria-controls="chatPanel" aria-label="打开上头了喵喵聊天面板，可拖动" title="拖动换位置；聚焦后可用方向键移动">
+          <img id="ballFace" src="assets/emotions/annoyed-128.png" alt="" draggable="false">
         </button>
 
         <section class="chat-panel" id="chatPanel" role="dialog" aria-label="与上头了喵喵聊天" aria-hidden="true" inert>
@@ -83,6 +105,8 @@
             <button id="chatSend" type="button">发送</button>
           </div>
         </section>
+      </div>
+        <p class="drag-note">拖动头像，在手机屏幕内换位置；聚焦后也可用方向键。</p>
       </div>
 
       <div class="demo-controls">
@@ -122,6 +146,30 @@
           </div>
         </section>
 
+        <section class="control-card" id="limitDemo">
+          <div class="demo-status">刷视频限时 · 本地计时，不靠模型猜</div>
+          <h2 style="margin-top:14px">到点，它会替你关页。</h2>
+          <p>额度你自己设。只算视频在播、页面在前台的时间；到点先说一句，再关掉标签页。不是可以随手叉掉的弹窗。</p>
+          <div class="limit-presets" role="group" aria-label="选择每日额度">
+            <button type="button" data-demo-limit="15" aria-pressed="false">15 分钟</button>
+            <button type="button" data-demo-limit="30" aria-pressed="true">30 分钟</button>
+            <button type="button" data-demo-limit="45" aria-pressed="false">45 分钟</button>
+          </div>
+          <div class="limit-demo-meter">
+            <div class="limit-demo-meter-head">
+              <span>今日已刷</span>
+              <b id="demoLimitUsed">23:41</b>
+              <span>/ <span id="demoLimitBudget">30:00</span></span>
+            </div>
+            <div class="limit-bar" aria-hidden="true"><i id="demoLimitFill" style="width:79%"></i></div>
+          </div>
+          <div class="control-actions">
+            <button class="btn btn-lav btn-sm" id="startLimitDemo" type="button">模拟到点</button>
+            <button class="btn btn-ghost btn-sm" id="stopLimitDemo" type="button" hidden>恢复页面</button>
+          </div>
+          <p class="demo-note" style="margin-top:12px">正式版限时默认关闭；开启后按真实时间执行。演示把 5 秒关页压缩展示。</p>
+        </section>
+
         <section class="control-card">
           <h2>想接真的服务？</h2>
           <p>Demo 里的回复是写死的。正式版会连你本机的 Fastify 服务；在设置里填服务地址和 APP_TOKEN，模型 Key 留在服务端。</p>
@@ -139,7 +187,7 @@
     <div class="wrap footer-grid">
       <div>
         <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a>
-        <p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p>
+        <p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p>
       </div>
       <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">连接服务</a><a href="install.html">安装说明</a></div></div>
       <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
