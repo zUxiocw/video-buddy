@@ -17,9 +17,10 @@ site/dist/
 # Local release artefacts (regenerate with tools/pack-extension.mjs)
 releases/
 *.zip
-# ...except the frozen design archive, which is a deliberate record with a
-# checksum beside it, not a build product.
+# ...except the frozen design archive and the submission packages, which are
+# deliberate deliverables, not build products.
 !design/*.zip
+!submission/*.zip
 
 # Editor / OS noise
 .DS_Store

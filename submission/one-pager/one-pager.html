@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上头了喵喵 · 一页作品介绍</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #d9d1c6; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    color: #17131f;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto;
+    padding: 9mm 11mm 8mm;
+    background:
+      radial-gradient(110mm 65mm at 100% 0%, rgba(181, 140, 255, .22), transparent 70%),
+      radial-gradient(80mm 55mm at 0% 100%, rgba(255, 183, 165, .22), transparent 70%),
+      #f7f1e8;
+    display: flex;
+    flex-direction: column;
+    gap: 4mm;
+    overflow: hidden;
+  }
+  .top { display: flex; align-items: center; gap: 3mm; }
+  .mark { width: 9mm; height: 9mm; border-radius: 50%; box-shadow: 0 1mm 4mm rgba(23,19,31,.18); }
+  .brand { font-size: 11pt; font-weight: 900; letter-spacing: -.03em; }
+  .brand small { display: block; margin-top: .5mm; color: #665c73; font-size: 6.5pt; font-weight: 600; letter-spacing: .06em; }
+  .top .label { margin-left: auto; text-align: right; color: #665c73; font-size: 6.5pt; font-weight: 700; letter-spacing: .12em; }
+  .top .label b { display: block; color: #17131f; font-size: 8pt; letter-spacing: .04em; }
+
+  .hero { display: grid; grid-template-columns: 1.12fr .88fr; gap: 6mm; align-items: stretch; }
+  .kicker { display: inline-flex; align-items: center; gap: 1.4mm; color: #665c73; font-size: 6.5pt; font-weight: 800; letter-spacing: .14em; }
+  .kicker::before { content: ""; width: 1.6mm; height: 1.6mm; border-radius: 50%; background: #7c5cff; box-shadow: 0 0 0 1mm rgba(124,92,255,.12); }
+  h1 { margin: 2mm 0 0; font-size: 32pt; line-height: .96; letter-spacing: -.07em; font-weight: 900; }
+  h1 span { color: #7c5cff; }
+  .tagline { margin: 2.5mm 0 0; font-size: 14pt; line-height: 1.2; font-weight: 900; letter-spacing: -.04em; }
+  .hero p { margin: 2mm 0 0; color: #665c73; font-size: 8.2pt; line-height: 1.65; }
+  .chips { display: flex; flex-wrap: wrap; gap: 1.5mm; margin-top: 2.5mm; }
+  .chips span { padding: 1mm 2mm; border: .3mm solid rgba(23,19,31,.13); border-radius: 99mm; background: rgba(255,250,243,.7); color: #4f465c; font-size: 6.2pt; font-weight: 800; }
+  .hero-shot { position: relative; border-radius: 4mm; overflow: hidden; background: #17131f; box-shadow: 0 4mm 12mm rgba(23,19,31,.18); min-height: 70mm; }
+  .hero-shot img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+  .hero-shot::after { content: "首页 · 自带 API Key"; position: absolute; left: 2.5mm; bottom: 2.5mm; padding: 1mm 2mm; border-radius: 99mm; background: rgba(23,19,31,.72); color: #fff; font-size: 5.8pt; font-weight: 800; backdrop-filter: blur(3px); }
+
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 3mm; }
+  .feature { padding: 3.2mm; border: .3mm solid rgba(23,19,31,.11); border-radius: 3mm; background: rgba(255,250,243,.78); }
+  .feature .n { display: grid; place-items: center; width: 6mm; height: 6mm; border-radius: 50%; background: #17131f; color: #f7f1e8; font-size: 6pt; font-weight: 900; }
+  .feature h3 { margin: 2mm 0 1mm; font-size: 10pt; letter-spacing: -.03em; }
+  .feature p { margin: 0; color: #665c73; font-size: 7.3pt; line-height: 1.55; }
+  .feature:nth-child(2) { background: #f0eaff; border-color: rgba(124,92,255,.2); }
+  .feature:nth-child(3) { background: #eaf8f0; border-color: rgba(36,123,87,.16); }
+
+  .showcase { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 3mm; }
+  figure { margin: 0; border: .3mm solid rgba(23,19,31,.12); border-radius: 3mm; background: #fffaf3; overflow: hidden; }
+  figure img { width: 100%; height: 38mm; object-fit: cover; object-position: top; display: block; }
+  figcaption { display: flex; align-items: baseline; gap: 1.5mm; padding: 1.7mm 2.2mm 2mm; color: #665c73; font-size: 6.3pt; line-height: 1.35; }
+  figcaption b { color: #17131f; font-size: 7pt; white-space: nowrap; }
+
+  .journey { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2mm; padding: 3mm; border-radius: 3.5mm; background: #17131f; color: #f7f1e8; }
+  .journey div { padding-left: 2.5mm; border-left: .3mm solid rgba(247,241,232,.18); }
+  .journey span { color: #b58cff; font-size: 6pt; font-weight: 900; letter-spacing: .1em; }
+  .journey b { display: block; margin-top: .8mm; font-size: 8pt; letter-spacing: -.02em; }
+  .journey small { display: block; margin-top: .8mm; color: rgba(247,241,232,.56); font-size: 6.2pt; line-height: 1.45; }
+  .boundary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3mm; padding: 3mm 4mm; border: .3mm solid rgba(23,19,31,.12); border-radius: 3mm; background: rgba(255,250,243,.72); }
+  .boundary b { display: block; font-size: 7.4pt; letter-spacing: -.02em; }
+  .boundary span { display: block; margin-top: .7mm; color: #665c73; font-size: 6.3pt; line-height: 1.5; }
+  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .quote { padding: 4mm; border-radius: 3.5mm; background: #17131f; color: #f7f1e8; }
+  .quote .kicker { color: rgba(247,241,232,.55); }
+  .quote .kicker::before { background: #ffd9e4; box-shadow: 0 0 0 1mm rgba(255,217,228,.12); }
+  .quote p { margin: 2mm 0 0; font-size: 16pt; line-height: 1.25; letter-spacing: -.05em; font-weight: 900; }
+  .quote small { display: block; margin-top: 2mm; color: rgba(247,241,232,.55); font-size: 6.3pt; line-height: 1.55; }
+  .tech { padding: 3.2mm; border: .3mm solid rgba(23,19,31,.12); border-radius: 3.5mm; background: rgba(255,250,243,.78); }
+  .tech h4 { margin: 0 0 1.5mm; font-size: 8.5pt; letter-spacing: -.02em; }
+  .flow { display: flex; align-items: center; gap: 1.2mm; flex-wrap: wrap; margin: 2mm 0; }
+  .flow span { padding: 1mm 1.5mm; border-radius: 1.4mm; background: #f0eaff; color: #17131f; font-size: 6.2pt; font-weight: 800; }
+  .flow i { color: #7c5cff; font-style: normal; font-size: 7pt; font-weight: 900; }
+  .tech p { margin: 0; color: #665c73; font-size: 6.9pt; line-height: 1.55; }
+  .tech p b { color: #17131f; }
+
+  .foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 4mm; padding-top: 2.5mm; margin-top: auto; border-top: .3mm solid rgba(23,19,31,.14); }
+  .foot p { margin: 0; color: #665c73; font-size: 6.2pt; line-height: 1.5; }
+  .foot .links { text-align: right; font-size: 6.5pt; font-weight: 800; line-height: 1.6; }
+  .foot .links span { display: block; color: #665c73; font-weight: 600; }
+  @media screen {
+    body { padding: 10mm 0; }
+    .page { box-shadow: 0 8mm 24mm rgba(23,19,31,.24); }
+  }
+  @media print {
+    html, body { background: #fff !important; }
+    body { padding: 0 !important; }
+    .page { margin: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <img class="mark" src="assets/icon128.png" alt="">
+      <div class="brand">上头了喵喵<small>抖音网页 · AI 陪刷搭子</small></div>
+      <div class="label">作品介绍<b>2026 · UI v3.1</b></div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <span class="kicker">不是总结工具，是陪你刷的人</span>
+        <h1>刷到上头，<br><span>它陪你接一句。</span></h1>
+        <p class="tagline">会接话，也会喊停。</p>
+        <p>一只住在抖音网页里的猫娘：你停在同一视频 10 秒，它主动开口；你接话，它用 9 种情绪回应。刷过头时，它按你设的额度先说话，再关掉标签页。</p>
+        <div class="chips">
+          <span>Chrome MV3</span><span>BYOK</span><span>9 种情绪</span><span>主动搭话</span><span>刷视频限时</span>
+        </div>
+      </div>
+      <figure class="hero-shot">
+        <img src="assets/index.png" alt="上头了喵喵首页">
+      </figure>
+    </section>
+
+    <section class="features">
+      <article class="feature">
+        <span class="n">01</span>
+        <h3>它先开口</h3>
+        <p>停留 10 秒，读画面、文案和标签，像熟人一样挑一个具体细节接一句；不用先想问题。</p>
+      </article>
+      <article class="feature">
+        <span class="n">02</span>
+        <h3>9 种情绪，真的会变脸</h3>
+        <p>开心、嫌弃、委屈、震惊……回复结束才换图标；表情是这一轮的态度，不是装饰。</p>
+      </article>
+      <article class="feature">
+        <span class="n">03</span>
+        <h3>到点，替你关页</h3>
+        <p>只算视频在播且页面在前台的时间。到点先说一句，5 秒后关标签页；冷却期再打开再关。</p>
+      </article>
+    </section>
+
+    <section class="showcase">
+      <figure>
+        <img src="assets/demo.png" alt="试玩页">
+        <figcaption><b>试玩</b>手机框里聊天、拖拽、切 9 种情绪；不需要 Key。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/index-emotions.png" alt="九种情绪">
+        <figcaption><b>情绪</b>九张脸，九种语气，和台词逐一对齐。</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/desktop-limit-warning.png" alt="桌面浏览器限时演示">
+        <figcaption><b>限时</b>桌面浏览器窗口示意：开口 → 5 秒 → 关标签页。</figcaption>
+      </figure>
+    </section>
+
+    <section class="journey">
+      <div><span>01</span><b>你停在一条视频</b><small>10 秒，读画面、文案和标签。</small></div>
+      <div><span>02</span><b>它先接一句</b><small>像熟人，挑一个具体细节开口。</small></div>
+      <div><span>03</span><b>你想接就接</b><small>点悬浮球聊天；回复结束才换脸。</small></div>
+      <div><span>04</span><b>到点，替你喊停</b><small>先说话，5 秒后关标签页。</small></div>
+    </section>
+
+    <section class="boundary">
+      <div><b>不做视频总结</b><span>不替你学习，也不生成笔记；只陪刷视频的这一会儿。</span></div>
+      <div><b>不自动互动</b><span>不点赞、不评论、不关注、不刷数据；只读当前视频。</span></div>
+      <div><b>不共享 API Key</b><span>不卖 Key、不代收；BYOK 请求不经过我们的服务器。</span></div>
+    </section>
+
+    <section class="bottom">
+      <div class="quote">
+        <span class="kicker">产品原则</span>
+        <p>“陪伴，不纵容。”</p>
+        <small>推荐流的目标是让你再刷一条；这只猫的目标是陪你一会儿，然后把你送回现实。</small>
+      </div>
+      <div class="tech">
+        <h4>技术路径 · 自己的 Key，自己的额度</h4>
+        <div class="flow">
+          <span>Chrome 扩展</span><i>→</i><span>DeepSeek API</span><i>→</i><span>9 情绪 / 限时</span>
+        </div>
+        <p><b>BYOK：</b>用户在 DeepSeek 开放平台自己开通 API，Key 存 <b>chrome.storage.local</b>，请求直连模型，不经过我们的服务器。<br><b>开发者模式：</b>原 Fastify + APP_TOKEN 链路保留；模型 Key 在 <b>server/.env.local</b>。</p>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>作品提交版 · Chrome / Edge 116+ · 桌面抖音网页<br>截图与 UI 均为本项目实际页面；限时为桌面窗口示意，网页不会真的关闭标签页。</p>
+      <div class="links">
+        github.com/zUxiocw/video-buddy
+        <span>Demo：submission/demo/demo.html</span>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

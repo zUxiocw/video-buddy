@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>开通 API · 上头了喵喵</title>
+  <meta name="description" content="上头了喵喵 BYOK 配置：自己开通 DeepSeek API，安装扩展，在扩展设置里填自己的 API Key。不需要我们的账号，也不经过我们的服务器。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#how">怎么用</a>
+        <a href="index.html#limits">管时长</a>
+        <a href="index.html#emotions">9 种情绪</a>
+        <a href="demo.html">在线试玩</a>
+        <a href="install.html">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="install.html">去安装</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap setup-page">
+    <div class="setup-head">
+      <div>
+        <span class="kicker">BYOK · 自带 API Key</span>
+        <h1>用自己的 Key，<br>把猫娘接进抖音。</h1>
+        <p>公开版不代收 API 费用，也没有共享 Key。你先在 DeepSeek 开放平台开通 API，再把 Key 填进扩展；请求从浏览器直接发往模型服务，不经过我们的服务器。</p>
+      </div>
+      <span class="demo-badge">不需要我们的账号 · 本页不收 Key</span>
+    </div>
+
+    <ol class="step-rail" aria-label="BYOK 配置步骤">
+      <li><button type="button" data-step-target="1" aria-current="step"><b>1</b>开通 API</button></li>
+      <li><button type="button" data-step-target="2"><b>2</b>安装扩展</button></li>
+      <li><button type="button" data-step-target="3"><b>3</b>填 Key</button></li>
+    </ol>
+
+    <div class="setup-grid">
+      <div class="setup-card">
+        <section class="step-panel active" data-step="1">
+          <h2>先开通 DeepSeek API</h2>
+          <p>API 按量计费，需要你自己的账号和余额。插件不卖 Key、不代充、不共享额度；用多少由你和 DeepSeek 结算。</p>
+
+          <div class="byok-actions">
+            <a class="btn btn-lav" href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">打开 DeepSeek 开放平台</a>
+            <a class="btn btn-ghost" href="https://api-docs.deepseek.com/" target="_blank" rel="noopener noreferrer">看 API 文档</a>
+          </div>
+
+          <div class="server-steps">
+            <div class="server-step"><b>1</b><span>注册 / 登录 DeepSeek 开放平台，按平台要求完成认证和充值。</span></div>
+            <div class="server-step"><b>2</b><span>确认账户余额和计费方式。API 按调用量扣费，是否有赠送额度以平台为准。</span></div>
+            <div class="server-step"><b>3</b><span>在「API Keys」里创建一个 Key，复制保存；它通常只完整显示一次。</span></div>
+          </div>
+
+          <div class="form-note">
+            <b>先别急着粘贴</b>
+            <span>API Key 等同于账户余额。不要发到群里、截图里或任何网页；本页不会要求你填写 Key。</span>
+          </div>
+
+          <div class="setup-actions">
+            <button class="btn btn-lav" type="button" data-next-step>下一步：安装扩展</button>
+          </div>
+        </section>
+
+        <section class="step-panel" data-step="2" hidden>
+          <h2>把扩展装进浏览器</h2>
+          <p>BYOK 模式只需要扩展，不需要 Node.js，也不需要本地 Fastify 服务。</p>
+
+          <div class="setup-install-steps">
+            <div><b>01</b><span>下载扩展 zip，解压到一个固定目录。</span></div>
+            <div><b>02</b><span>打开 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），开启「开发者模式」。</span></div>
+            <div><b>03</b><span>点「加载已解压的扩展程序」，选择解压后的文件夹。</span></div>
+          </div>
+
+          <div class="form-note">
+            <b>还没有安装包？</b>
+            <span>公开包正在打包。现在可以先用 Demo 试玩，或者看完整的安装说明。</span>
+          </div>
+
+          <div class="setup-actions">
+            <button class="btn btn-ghost" type="button" data-prev-step>上一步</button>
+            <a class="btn btn-ghost" href="install.html">完整安装说明</a>
+            <button class="btn btn-lav" type="button" data-next-step>下一步：填 Key</button>
+          </div>
+        </section>
+
+        <section class="step-panel" data-step="3" hidden>
+          <h2>在扩展里填 Key</h2>
+          <p>网站不接收 Key。点浏览器工具栏的猫娘图标，在「方式」里选「直接用 API Key」，粘贴 Key，测试连接后保存。</p>
+
+          <div class="byok-mock" aria-label="扩展设置示意">
+            <div class="byok-mock-head">
+              <img src="assets/icon128.png" alt="">
+              <div><b>上头了喵喵</b><span>扩展设置</span></div>
+            </div>
+            <div class="byok-mock-tabs" aria-hidden="true">
+              <span aria-current="true">直接用 API Key</span>
+              <span>连自己的服务</span>
+            </div>
+            <div class="byok-field">
+              <span>API Key</span>
+              <div class="byok-input">sk-••••••••••••••••</div>
+            </div>
+            <div class="byok-field">
+              <span>API 地址</span>
+              <div class="byok-input">https://api.deepseek.com</div>
+            </div>
+            <div class="byok-mock-actions" aria-hidden="true">
+              <span>测试连接</span>
+              <span class="primary">保存</span>
+            </div>
+          </div>
+
+          <div class="form-note">
+            <b>Key 存在哪里</b>
+            <span>存在扩展的 <code>chrome.storage.local</code>，抖音页面脚本读不到，也不上传给我们。首次测试时浏览器会向该 API 地址申请访问权限；不要改成陌生中转地址，那等于把 Key 交给对方。</span>
+          </div>
+
+          <div class="setup-actions">
+            <button class="btn btn-ghost" type="button" data-prev-step>上一步</button>
+            <a class="btn btn-primary" href="install.html">去安装</a>
+            <a class="btn btn-ghost" href="demo.html">先试玩</a>
+          </div>
+        </section>
+      </div>
+
+      <aside class="preview-card" aria-label="BYOK 配置预览">
+        <div class="preview-top">
+          <img src="assets/emotions/greet-128.png" alt="">
+          <div>
+            <b>上头了喵喵</b>
+            <small>BYOK · 直接用 API Key</small>
+          </div>
+        </div>
+        <div class="preview-bubble">接上之后，刷到好笑的，它会先开口喵。</div>
+        <div class="preview-summary">
+          <div><span>接入方式</span><b>直接用 API Key</b></div>
+          <div><span>模型服务</span><b>DeepSeek</b></div>
+          <div><span>API Key</span><b>只存扩展本地</b></div>
+          <div><span>本地服务</span><b>不需要</b></div>
+          <div><span>费用</span><b>你自己和平台结算</b></div>
+        </div>
+        <p class="micro">这一页只说明步骤，不接收、不测试、不保存你的 Key。</p>
+      </aside>
+    </div>
+
+    <details class="setup-dev">
+      <summary>开发者：还想用本地 Fastify 模式？</summary>
+      <p>原有的 <code>serverUrl</code> + <code>APP_TOKEN</code> 模式仍然保留，适合本地调试、离线 Mock，或不想把 Key 存在浏览器里的场景。公开用户不需要它。</p>
+      <div class="command-card">
+        <div class="command-head">
+          <span>server · 开发者模式</span>
+          <button class="copy-btn" type="button" data-copy-command>复制命令</button>
+        </div>
+        <pre id="serverCommands"><span class="cmt"># 在项目根目录执行（Windows PowerShell / cmd）</span>
+cd server
+npm.cmd install
+copy .env.local.example .env.local
+npm.cmd run dev
+
+<span class="cmt"># .env.local 里至少要有：</span>
+MODEL_PROVIDER=deepseek
+DEEPSEEK_API_KEY=<span class="val">你的模型 Key</span>
+APP_TOKEN=<span class="val">你自己的长随机串</span></pre>
+      </div>
+    </details>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a>
+        <p>抖音网页里的 AI 陪刷搭子。会接话，也会喊停。</p>
+      </div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">开通 API</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
+      <div><h3>说明</h3><p>公开版使用你自己的 DeepSeek API Key；不需要我们的账号，也不经过我们的服务器。不是抖音官方产品。</p></div>
+    </div>
+    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
