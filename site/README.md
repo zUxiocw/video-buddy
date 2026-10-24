@@ -57,3 +57,16 @@ node serve.mjs
   ```
 
   ZIP 是构建产物，被 `.gitignore` 的 `*.zip` 规则挡在仓库外，所以 `site/download/` 只保留一个 `.gitkeep`；打包脚本要手动跑，或者在部署流程里跑。
+
+## 浏览器支持
+
+只支持 **Chromium 内核**的桌面浏览器：Chrome 116+、Edge 116+、Brave、Opera、Vivaldi。
+
+- **Firefox 不支持**：它的 Manifest V3 还没有 `background.service_worker`，而本插件的所有请求和截图都在 service worker 里。
+- **Safari 不支持**：需要另行封装，暂无计划。
+
+网站首页 hero、`install.html` 的 FAQ、`setup.html` 第 2 步都已写明这一点。**不要改成「主流浏览器」这类含糊说法**——用户在 Firefox 里会看不到悬浮球，而页面没给任何解释。
+
+## 分发方式
+
+暂不上架浏览器商店，安装走开发者模式加载。这是当前正式路径，不是临时方案，所以页面必须如实说明代价：Chrome 每次启动提示「请停用开发者模式扩展程序」，且没有自动更新（换版本要重新下载 zip 替换目录）。

@@ -512,8 +512,12 @@ claude.cmd
 7. 抖音没有稳定的公开广告 DOM 契约：`readAdLabel()` 是按常见 class/data-e2e 名猜的选择器集合，页面改版后可能失效（表现为广告不再被识别）。失效时应补选择器，**不要**放宽成「文案里含广告就算」。同一条广告在复聊间隔内可能再次触发（每次按新请求处理）。
 8. 短视频自动循环不会重置 `firedCount`：同一个 15 秒视频连刷十几分钟，会按复聊间隔持续开口。这是当前取舍（循环与「长视频继续看」在页面上无法可靠区分）；如需抑制，可在 `tracker` 里按 `video.duration` 很短时下限流。
 9. **网页的安装包不在仓库里**：`site/app.js` 的下载按钮先 `HEAD site/download/shangtou-miaomiao-v<version>.zip`，文件在才给下载，不在就退回说明弹窗（不会给一个 404 链接）。ZIP 是构建产物，被 `.gitignore` 的 `*.zip` 挡在仓库外，所以 `site/download/` 只提交 `.gitkeep`；发布前要跑 `node extension/tools/pack-extension.mjs --out site/download`，部署时整个目录一起上传。版本号跟 `manifest.json`，改版本要同步 `site/app.js` 里 `DOWNLOAD_URL` 那一个常量。
+10. **浏览器支持与分发方式是有意的取舍（2026-10-24 定）**：只支持 **Chromium 内核**（Chrome / Edge 116+、Brave、Opera、Vivaldi）。**Firefox 不支持**——它的 MV3 至今没有 `background.service_worker`，而所有请求和截图都在这里；**Safari 不支持**（需另行封装）。网站已在首页 hero、安装页 FAQ、BYOK 步骤三处写明，不要改成含糊的「主流浏览器」。
+    - **暂不上架商店**。安装走开发者模式加载，代价是 Chrome 每次启动提示「请停用开发者模式扩展程序」且**没有自动更新**；这条已在 `site/install.html` 如实写给用户。做了 Firefox 适配或决定上架时，先改这一条和网站文案，别让页面继续承诺手工安装的路径。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 发布前收尾：新增 §7.10。网站上线前补三件事。**① 写明兼容范围**：首页 hero、安装页 FAQ、BYOK 步骤三处说明只支持 Chromium 内核（Chrome / Edge 116+ 等），**Firefox（MV3 无后台 service worker）和 Safari 明确不支持**。**② 如实交代开发者模式的代价**：Chrome 每次启动会提示「请停用开发者模式扩展程序」、且没有自动更新；不解释的话用户会以为是装坏了。**③ 下载回退文案改写给访客看**：原来写的是「部署时把安装包放在 download/ 下」「自己构建 `node ...`」，那是给部署者的话，访客只会看到一堆无从下手的命令；同时删掉过时的「公开包正在打包」。已决定**暂不上架商店**，因此上述手工安装路径是当前正式路径，不是临时方案。提交 `f2e0b56`。
 
 - 2026-10-24 与前端网页对接：新增 §2.1 第 7–8 条、§2.1.9 第 7 条、§7.9。网站已经把「悬浮球、截图、主动搭话、限时都能单独关闭」「测试连接」写成对用户的承诺，这一轮把它们补成真的，而不是把文案删掉。
   **① 两个新开关**：`proactive`（主动搭话）与 `captureEnabled`（截图），都和 `enabled` 一样**默认 `true`、缺失键也解析成 `true`**，所以升级不改变任何现有行为。`proactive` 同时罩住 `onDwell()` 的反应**和 `sayOpener()` 的开机招呼**——只罩前一半的话，关掉开关后猫仍会每次开页面都开口，网站承诺就是假的；限时关页台词不受它影响（那是执行限制，归 `limitEnabled`）。`captureEnabled` 关掉后 `capture` 直接是 `{ ok: false }`，请求体里不再出现 `images` 键。
