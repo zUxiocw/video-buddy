@@ -41,6 +41,7 @@
 - `tools/`
   - `pack-site.mjs` — **网站发布目录打包**（白名单）→ `site-dist/`；`--zip` 同时产出 `site-dist.zip`，见 §4.8
   - `zip-writer.mjs` — **ZIP 写入唯一副本**（无依赖），`pack-extension.mjs` 与 `pack-site.mjs` 共用
+  - `check-deploy.mjs` — **线上站点检查**：headless Chrome 打开真实 URL，10 项断言，不需要 Key，见 §4.8
 - `site/` — 公开网页（4 页 + `app.js` / `styles.css` / 情绪图 / `download/*.zip`），`site/README.md` 是内部说明、不进发布目录
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
 - `.claude/commands/` — Claude Code 斜杠命令
@@ -467,6 +468,16 @@ Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload asset
 3. **ZIP 条目位于归档根部，不带 `site-dist/` 前缀**。多一层前缀不报错，但整站会被部署到下一级目录，`/` 上什么都没有。`pack-site.test.ts` 解析中央目录断言这一点（已回退验证会红）。
 4. **ZIP 写入逻辑只有一份**：`tools/zip-writer.mjs`，`pack-extension.mjs` 和 `pack-site.mjs` 都 import 它。两个发布路径各写一份的话，修好一处、另一处仍是旧的。
 5. `site-dist/` 与 `*.zip` 都在 `.gitignore` 里，是构建产物，不要提交。
+6. **部署后跑一次线上检查**（免费、不用 Key）：
+
+   ```powershell
+   node tools/check-deploy.mjs                                   # 默认打 https://shangtou-meowmeow.pages.dev
+   node tools/check-deploy.mjs --url https://预览域名.pages.dev   # 换 URL
+   ```
+
+   它用 headless Chrome 打开真实站点，而不是 curl：`site/app.js` 的下载按钮是「HEAD 探测 → 换弹窗内容」，路径写错、方法写错、CORS 挡掉都会让页面**看着完全正常**但每个访客拿到的都是回退说明弹窗——纯 HTTP 状态码检查发现不了这一段。10 项覆盖四个页面渲染、从**线上** `app.js` 里读出 `DOWNLOAD_URL` 再拿它去探测、点真实按钮确认弹窗里有 `.zip` 链接、`README.md` / `serve.mjs` 没有泄露、未知路径回落到站点（不是错误页）。
+   - 判断「没有泄露」看的是**响应体**而不是状态码：Cloudflare 对未知路径回落到 `index.html` 并返回 200，所以 `200` 本身不证明任何事。
+   - 已用 `--url https://example.com` 验证它会红（10 项里 8 项失败，退出码 1）。
 
 ## 5. 环境与密钥
 
@@ -536,6 +547,8 @@ claude.cmd
     - **暂不上架商店**。安装走开发者模式加载，代价是 Chrome 每次启动提示「请停用开发者模式扩展程序」且**没有自动更新**；这条已在 `site/install.html` 如实写给用户。做了 Firefox 适配或决定上架时，先改这一条和网站文案，别让页面继续承诺手工安装的路径。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 线上站点检查：新增 `tools/check-deploy.mjs`（§4.8 第 6 条）。站点部署到 `https://shangtou-meowmeow.pages.dev` 后，curl 只能证明状态码和哈希；而 `site/app.js` 的下载按钮走的是「HEAD 探测 → 按结果换弹窗内容」，路径、方法或 CORS 任何一处不对，页面**看起来完全正常**，每个访客拿到的却是回退说明弹窗。脚本用 headless Chrome 打开真实 URL，从**线上** `app.js` 里读出 `DOWNLOAD_URL` 再拿它去探测，然后点真实按钮确认弹窗里出现 `.zip` 链接。另外 `README.md` / `serve.mjs` 的判断看**响应体**而不是状态码——Cloudflare 对未知路径回落到 `index.html` 并返回 200，状态码不证明任何事。10/10 通过；`--url https://example.com` 验证会红（8 项失败，退出码 1）。实测线上：四页哈希与本地一致、内嵌 ZIP 与本地字节相同、`/demo.html` → `/demo` 308 且保留查询串。
 
 - 2026-10-24 网站发布目录 + 共用 ZIP 写入：新增 §4.8。`tools/pack-site.mjs` 白名单产出 `site-dist/`，`--zip` 同时产出 `site-dist.zip`（18 个条目**位于归档根部**，不带 `site-dist/` 前缀——多一层不报错，但整站会部署到下一级目录、`/` 上什么都没有）。ZIP 写入抽成 `tools/zip-writer.mjs` 一份，`pack-extension.mjs` 与 `pack-site.mjs` 共用；抽出来后重跑扩展打包仍是 25 个文件、`pack-extension.test.ts` 全绿。`pack-site.test.ts` 新增一条解析中央目录的断言（归档根 + 内嵌 `download/*.zip`），**已回退验证会红**。修正文档里写反的一处：Cloudflare 的提示是「The contents of your zip file or folder will be used to deploy your project」，**拖 `site-dist` 文件夹本身就是对的**，不需要进去全选；之前 `site/README.md` 与给用户的说明都是反的。245 个测试通过。
 
