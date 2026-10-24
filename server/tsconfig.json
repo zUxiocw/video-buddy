@@ -12,7 +12,23 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    // The persona / guard / voice-filter rules live in extension/shared/*.js so
+    // the server and the extension share one copy. allowJs lets the imports
+    // resolve; checkJs stays off because those files are deliberately plain
+    // browser scripts (no types, no build step) and are not ours to type.
+    "allowJs": true,
+    "checkJs": false
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+  // Listed one by one, not `../extension/shared/*.js`: the other files there
+  // (core/emotions/keyboard-guard) are browser-only content scripts the server
+  // never imports, and a wildcard would copy them into dist/.
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "vitest.config.ts",
+    "../extension/shared/persona.js",
+    "../extension/shared/guards-core.js",
+    "../extension/shared/voice-filter.js"
+  ]
 }

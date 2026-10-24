@@ -14,6 +14,9 @@
   - `shared/keyboard-guard.js` — `document_start` 安装 window 捕获阶段键盘守卫；面板输入框里的 Enter/Escape 通过 `window.__smKeyboardGuard.setHandlers()` 回调给 `buddy.js`
   - `shared/core.js` — 设置、请求体、SSE parser、历史记录、限时额度状态机
   - `shared/emotions.js` — 9 情绪、别名、关键词/语气识别、图标路径
+  - `shared/persona.js` — **人设规则唯一副本**（`globalThis.SmPersona`）；服务端 `prompts/persona.ts` 只是薄封装
+  - `shared/guards-core.js` — **喵后缀 / maomao 文风 / 广告台词 / 中性兜底唯一副本**（`globalThis.SmGuards`）；服务端 `safety/guards.ts` 只保留扩展用不到的部分
+  - `shared/voice-filter.js` — **流式过滤唯一副本**（`globalThis.SmVoiceFilter`），依赖 `guards-core.js` 先加载
   - `background.js` — 唯一访问本地服务的 service worker；代理 SSE，转发 `done.emotion`
   - `popup/` — 设置页（服务地址、令牌、停留/复聊间隔/气泡/图标时长等）
   - `assets/emotions/{id}-128.png` — 9 个运行时图标
@@ -24,10 +27,12 @@
   - `src/index.ts` — Fastify 启动
   - `src/routes/chat.ts` — `/v1/chat` SSE
   - `src/routes/analyze.ts` — `/v1/analyze`
-  - `src/prompts/persona.ts` — 人设
-  - `src/prompts/zh.ts` — system prompt、视频锚点、每轮情绪底色、`pickChatEmotion()`
+  - `src/prompts/persona.ts` — 人设**薄封装**，实现是 `extension/shared/persona.js`
+  - `src/prompts/zh.ts` — system prompt、视频锚点、每轮情绪底色、`pickChatEmotion()`。**留在服务端**：依赖 `node:fs`（`SlangLexicon`）与 `node:crypto`（`hashShort`），搬进 `extension/` 会让扩展加载即崩
   - `src/providers/` — `DeepSeekProvider` / `MockProvider`
-  - `src/safety/voiceFilter.ts` — 流式过滤感叹号、哈哈等
+  - `src/safety/guards.ts` — **部分封装**：喵后缀 / 文风 / 广告台词 / 中性兜底来自 `extension/shared/guards-core.js`；`BLOCKED_TERMS`、`AD_MARKERS`、`isAdvertisement()`、`containsBlockedTerm()`、`finalizeAnalyzeResult()`、`normalizeMeme()` 只在服务端
+  - `src/safety/voiceFilter.ts` — **薄封装**，实现是 `extension/shared/voice-filter.js`
+  - `src/lib/dataPath.ts` — 从 `import.meta.url` 逐级上溯定位 `server/data/*.json`（见 §4.6）
   - `test/` — Vitest
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
 - `.claude/commands/` — Claude Code 斜杠命令
@@ -245,6 +250,10 @@ node --check extension/content/buddy.js
 node --check extension/background.js
 node --check extension/shared/emotions.js
 node --check extension/shared/core.js
+# 共享规则的三个文件服务端也 import，改完一并检查
+node --check extension/shared/persona.js
+node --check extension/shared/guards-core.js
+node --check extension/shared/voice-filter.js
 ```
 
 ### 4.2.1 设置项取值区间（改区间前必读）
@@ -281,7 +290,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 - `npm.cmd test` 全部通过（当前 198 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
-- `npm.cmd run build` 退出码 0
+- `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 四个扩展 JS 的 `node --check` 退出码 0
 - `/health` 的 provider 符合预期
 - 人工回归：发“生气”时图标不立刻变；AI 回复结束后才变；中性回复靠 `done.emotion` 兜底
@@ -316,6 +325,15 @@ node extension/tools/pack-extension.mjs
 3. ZIP 条目名一律正斜杠。Windows 上 `path.join()` 产出反斜杠，严格读取器会把 `popup\popup.js` 当成一个文件名。
 4. 发布前必须确认解压后**不含** `extension.pem`、`server/`、`.env*`。`extension.pem` 在仓库根目录，永远不要从仓库根执行打包或部署类命令。
 5. 版本号改 `manifest.json` 的 `version`，ZIP 文件名自动跟随。
+
+### 4.6 共享规则文件（`extension/shared/*.js`）与服务端构建布局
+
+1. **为什么是 classic script 而不是 ESM**：MV3 content script 没有模块加载器，只能按顺序当普通脚本执行；项目也禁止给扩展加构建步骤（§6.3）。所以这三个文件是 IIFE —— 既给浏览器挂 `globalThis.Sm{X}`，也给 Node `module.exports` 留口子（Node ESM 里 `import '...js'` 只求副作用，`globalThis` 上就有了）。
+2. **服务端只做薄封装**：`persona.ts` / `guards.ts` / `voiceFilter.ts` 读 `globalThis` 再导出，规则本体只有一份。改规则改 `extension/shared/*.js`，不要在两处各写一遍。
+3. **`voice-filter.js` 依赖 `guards-core.js` 先加载**（它在 `flush()` 里才取 `globalThis.SmGuards`）。`voiceFilter.ts` 因此**显式**先 import `guards-core.js`——少这一行，`voiceFilter.test.ts` 会报「requires guards-core.js to be loaded first」。
+4. **`rootDir` 是 `..`，emit 比原来深一层**：入口变成 `dist/server/src/index.js`，共享脚本落在 `dist/extension/shared/`，`package.json` 的 `start` 已跟着改。两份 tsconfig 的 `include` **逐个列出**这三个 js，不用 `../extension/shared/*.js` 通配——通配会把 `core.js` / `emotions.js` / `keyboard-guard.js` 也拷进 dist。
+5. **数据文件的相对路径不能写死**：`../../data/*.json` 在 emit 深一层后就指错地方，启动时只打一行 `failed to load lexicon` 然后带空词库继续跑（静默降级，很难发现）。改走 `src/lib/dataPath.ts` 的 `dataFile(name, import.meta.url)`，从模块位置逐级上溯找 `data/`，`tsx` 跑 `src/` 与 `node dist/...` 两种布局都能命中；找不到直接抛错。
+6. **刻意留在服务端的**：`zh.ts`（prompt 组装）和 `trends/*`。它们 `import` `node:fs` / `node:crypto`，放进 `extension/` 会让 content script 一加载就崩——直接违反原则 1。
 
 ## 5. 环境与密钥
 
@@ -362,7 +380,8 @@ claude.cmd
 - 改 `server/` 后至少跑 `npm.cmd test` + `typecheck`；改扩展跑 `node --check`。
 - 改情绪识别/映射必须补测试（`server/test/extension-core.test.ts` 或新增）。
 - 不改 `manifest.json` 里 buddy 那条 content script 的顺序（`core.js` → `emotions.js` → `buddy.js`），也不改它 `document_idle` 的时机；`keyboard-guard.js` 必须留在 `document_start` 那条。图标路径保持 `assets/emotions/{id}-128.png`。
-- 不引入扩展构建步骤或框架；扩展是原生 JS。
+- 不引入扩展构建步骤或框架；扩展是原生 JS。`extension/shared/persona.js` / `guards-core.js` / `voice-filter.js` 是**共享规则**，服务端 import 它们，改完两边一起验（§4.6）。
+- 服务端那三个同名模块（`prompts/persona.ts`、`safety/guards.ts`、`safety/voiceFilter.ts`）**不允许再长出实现**。要改规则改 `extension/shared/*.js`；要加服务端专用逻辑（denylist、analyze 管线），加在 `guards.ts` 的共享段之外。
 - 不读/写 `.env`、`.env.local`、`extension.pem`；不把 token 写进代码、日志或回复。
 - 不把服务端情绪提示改成权威结果；客户端正文优先是有意设计。
 - 改完更新本文件相关段落和命令。
@@ -379,6 +398,10 @@ claude.cmd
 8. 短视频自动循环不会重置 `firedCount`：同一个 15 秒视频连刷十几分钟，会按复聊间隔持续开口。这是当前取舍（循环与「长视频继续看」在页面上无法可靠区分）；如需抑制，可在 `tracker` 里按 `video.duration` 很短时下限流。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 P1 共享规则去重：新增 §4.6。把「服务端和扩展都要用」的规则从 TypeScript 提到 `extension/shared/`，服务端改成薄封装，规则只留一份。**已搬走**：`persona.js`（人设，4 个 tone 的全部规则串）、`guards-core.js`（`withMaoSuffix` / `applyMaomaoStyle` / `NEUTRAL_BY_TONE` / `AD_REACTIONS` / `adReaction` / `neutralReaction`）、`voice-filter.js`（`createMaomaoStreamFilter`）。**刻意没搬**：`zh.ts` 与 `trends/*`，因为它们 `import` `node:fs` / `node:crypto`，进 `extension/` 会让 content script 加载即崩。形状是 IIFE 而不是 ESM——MV3 content script 无模块加载器且禁止构建步骤，文件同时挂 `globalThis` 和 `module.exports`，Node 里 `import '...js'` 求副作用即可。
+
+  **构建布局跟着变**：`rootDir` `src` → `..`，入口移到 `dist/server/src/index.js`（`package.json` 的 `start` 已改）。这次位移暴露了一个**静默降级**：`trends/*` 里写死的 `../../data/*.json` 指进了 `dist/`，启动只打一行 `failed to load lexicon` 就带着空词库继续跑，`/health` 完全正常。改为 `src/lib/dataPath.ts` 的 `dataFile(name, import.meta.url)` 逐级上溯。`voiceFilter.ts` 必须显式先 import `guards-core.js`：`voice-filter.js` 到 `flush()` 才取 `globalThis.SmGuards`，漏掉这行 6 个测试红。两份 tsconfig 的 `include` 逐个列出三个 js（通配会把浏览器专用脚本也拷进 dist）。198 个测试通过，typecheck / build 退出码 0，干净构建后启动 `/health` 正常且无 lexicon 警告，`/v1/analyze`（mock）与 `/v1/chat` SSE 的 `喵` 尾和 `done.emotion` 实测正常。
 
 - 2026-10-24 tick 开销 + 设置区间重定：新增 §2.1.6.1、§4.2.1。**① 每 400ms 的 tick 不再做排版**：`videoKey()` 原来走 `readScreenText()`，在 4 万节点的长 feed 上单次 tick 47–56ms（约 12% CPU）。拆成 `readCaption()`（仅 caption+hashtags，仍用于 `onDwell`）与 `captionSignature(video)`（`textContent`、不排版、限定在播放中视频的 item 内），`videoKey()` 只调后者；null 时有文档级回退，避免所有 `blob:` 视频共用一个 key。实测 38831 节点：旧 47–56ms → 新 0.001ms（6000 次合计 7.2ms）。**② 广告选择器分两段**：精确契约 `AD_CHIP_SELECTOR` 可整页查，泛化猜测 `AD_LOOSE_SELECTOR`（`[class*="tag" i] span`）限定在 item 内；无 item 时不回退整页。**③ 设置区间按服务端额度反推**：`DWELL_MIN` 3→10（60/10 = 服务端的 6 次/分，旧值 20 次/分导致快速刷视频几乎全 429）、`REPEAT_DWELL_MIN` 0→20 但**保留 0 = 不复聊**（新增 `normalizeRepeatDwell()`，`max(min,v)` 会把「关」抬成最小值）、`COOLDOWN_MIN` 0→10（0 等于失败后立刻撞回 429）、`BUBBLE_MIN` 4→6、`EMOTION_HOLD_MAX` 120→60、`limitCloseSeconds` 上限 60→30（与 popup 对齐）、`dwellSeconds` 默认 8→10（默认值必须落在自己区间内）。`limitMinutes` / `limitCooldownMinutes` **故意不动**：不发请求，且 1 分钟是限时端到端回归用的档位（收紧后 `limit-check.mjs` 3 项红）。新增测试：popup.html 的 `min`/`max` 与 `core.js` 常量逐项比对（这两份手维护列表以前漂移过）、`DEFAULTS` 落在各自区间内、区间与 6 次/分额度的算术关系。195 个测试通过；`limit-check.mjs` 15/15、`shared-check.mjs` 8/8。
 

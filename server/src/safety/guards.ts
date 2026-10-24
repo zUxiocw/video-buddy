@@ -1,10 +1,55 @@
+/*
+ * Thin TypeScript wrapper over extension/shared/guards-core.js.
+ *
+ * The voice rules that both runtimes need — the 喵 tail, the style pass, the
+ * ad lines, the neutral fallbacks — live in one shared file. What stays here
+ * is only what the extension has no use for: the output denylist, the analyze
+ * result pipeline, and the meme normaliser. They need server-only types and
+ * node built-ins, and putting them in the browser bundle would be dead weight.
+ */
+import '../../../extension/shared/guards-core.js';
 import type { AnalyzeResult, SlangEntry, Tone } from '../types.js';
 import { clampText, dedupeStrings } from '../lib/text.js';
+
+interface GuardsCoreApi {
+  NEUTRAL_BY_TONE: Record<Tone, string>;
+  AD_REACTIONS: Record<Tone, string>;
+  withMaoSuffix(text: string): string;
+  applyMaomaoStyle(text: string): string;
+  adReaction(tone: Tone): string;
+  neutralReaction(tone: Tone): string;
+}
+
+const core = (globalThis as unknown as { SmGuards: GuardsCoreApi }).SmGuards;
+if (!core) {
+  throw new Error('extension/shared/guards-core.js did not install globalThis.SmGuards');
+}
+
+export const NEUTRAL_BY_TONE: Record<Tone, string> = core.NEUTRAL_BY_TONE;
+
+export function withMaoSuffix(text: string): string {
+  return core.withMaoSuffix(text);
+}
+
+export function applyMaomaoStyle(text: string): string {
+  return core.applyMaomaoStyle(text);
+}
+
+export function adReaction(tone: Tone): string {
+  return core.adReaction(tone);
+}
+
+export function neutralReaction(tone: Tone): string {
+  return core.neutralReaction(tone);
+}
 
 /**
  * Conservative denylist for *outputs* and injected trend candidates.
  * We would rather stay silent than comment on high-risk material.
  * The model also receives safety instructions and may return risk="blocked".
+ *
+ * Server-only: the extension never checks text against this list, because it
+ * never composes prompt copy of its own.
  */
 const BLOCKED_TERMS: readonly string[] = [
   // Politics / state
@@ -27,78 +72,7 @@ const BLOCKED_TERMS: readonly string[] = [
   '色情', '裸体', '未成年性', '人肉搜索', '开盒', '身份证号', '家庭住址',
 ];
 
-const NEUTRAL_BY_TONE: Record<Tone, string> = {
-  maomao: '这段没看明白，你说说哪里最离谱喵',
-  roaster: '这段我有点没看准，你先说说你的感觉？',
-  cheerleader: '这段我还没太看清，你跟我讲讲好不好？',
-  professor: '画面信息不太够，我先不急着下结论，你说说看？',
-};
-
-/**
- * Append the 「喵」 tail to one finished utterance.
- *
- * This is a verbal tic, not an emotion signal: it must never feed back into
- * emotion detection, so it is added only after the text has been styled and
- * clamped. A model that already ended with 喵 is deduped instead of doubled.
- */
-export function withMaoSuffix(text: string): string {
-  const trimmed = String(text ?? '').trim();
-  if (!trimmed) return '';
-
-  // Split off the trailing punctuation so the tail lands *before* it:
-  // "真的假的？" becomes "真的假的喵？", not "真的假的？喵".
-  const match = /^([\s\S]*?)([。，,、！!？?~～\s]*)$/.exec(trimmed);
-  const tail = match?.[2] ?? '';
-  let head = (match?.[1] ?? '').replace(/喵+$/, '').replace(/[。，,、\s]+$/, '').trim();
-
-  // A reply that is nothing but punctuation ("？", "？？") is a deliberate
-  // beat, not an utterance: tagging it with 喵 would read as a glitch.
-  if (!head) return trimmed;
-  return `${head}喵${tail}`;
-}
-
-/**
- * Post-process the 「上头了喵喵」 voice: no exclamation marks, tildes,
- * "哈哈/呵" or trailing 语气词. Meaning-preserving edits only.
- */
-export function applyMaomaoStyle(text: string): string {
-  return text
-    .replace(/[~～]+/g, '')
-    .replace(/(哈哈+|呵呵+|hhh+|233+)/gi, '')
-    .replace(/([？?])[!！]+/g, '$1')
-    .replace(/[!！]+([？?])/g, '$1')
-    .replace(/[!！]+/g, '。')
-    .replace(/(呢|啦|哦|嘛|呀|噢|哟)(?=[。，,、？?\s]|$)/g, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .replace(/[。，]{2,}/g, (match) => match[0]!)
-    .replace(/^[，,。、\s]+/, '')
-    .replace(/[，,、\s]+$/, '')
-    .replace(/。$/, '')
-    .trim();
-}
-
 const ALLOWED_MOODS = new Set(['搞笑', '治愈', '无语', '种草', '感动', '燃', '其他']);
-
-/**
- * An ad gets one fixed reaction: the cat is annoyed at being sold to.
- *
- * Fixed rather than generated on purpose — a "please buy this" video can be
- * friendly, useful or funny, and a model asked to react to it would sometimes
- * play along. Anger at the interruption is the honest, consistent response,
- * and it keeps the ad from ever looking like a recommendation.
- */
-const AD_REACTIONS: Record<Tone, string> = {
-  // Each line carries an anger marker the client's content detection can read
-  // (过分 / 气人), so the avatar turns angry even if the mood never gets there.
-  maomao: '又塞广告，太过分了喵',
-  roaster: '又来一条广告，真够可以的',
-  cheerleader: '又是广告，这可真有点气人',
-  professor: '广告，跳过比分析它有用，太过分了',
-};
-
-export function adReaction(tone: Tone): string {
-  return AD_REACTIONS[tone] ?? AD_REACTIONS.roaster;
-}
 
 /**
  * Wording that shows up in ad copy or in the page's own ad labels, but almost
@@ -234,8 +208,4 @@ function normalizeMeme(
     if (names.some((name) => name.toLocaleLowerCase('zh-CN') === needle)) return entry.term;
   }
   return null;
-}
-
-export function neutralReaction(tone: Tone): string {
-  return NEUTRAL_BY_TONE[tone];
 }

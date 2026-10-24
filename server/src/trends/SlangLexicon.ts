@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { SlangEntry } from '../types.js';
+import { dataFile } from '../lib/dataPath.js';
 import { clampText, normalizeForMatch } from '../lib/text.js';
 import { containsBlockedTerm } from '../safety/guards.js';
 
-const DEFAULT_SLANG_PATH = fileURLToPath(new URL('../../data/slang.json', import.meta.url));
+const DEFAULT_SLANG_PATH = dataFile('slang.json', import.meta.url);
 
 /**
  * Curated, hand-maintained slang. Kept small and safe on purpose.

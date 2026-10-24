@@ -3,9 +3,18 @@
   "compilerOptions": {
     "noEmit": false,
     "outDir": "dist",
-    "rootDir": "src",
+    // rootDir must cover extension/shared/*.js too, which sits one level above
+    // server/. That shifts the emit one directory deeper: the entry point is
+    // dist/server/src/index.js and the shared scripts land in dist/extension/.
+    // package.json's `start` script follows that path.
+    "rootDir": "..",
     "sourceMap": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "../extension/shared/persona.js",
+    "../extension/shared/guards-core.js",
+    "../extension/shared/voice-filter.js"
+  ],
   "exclude": ["test", "dist", "node_modules"]
 }

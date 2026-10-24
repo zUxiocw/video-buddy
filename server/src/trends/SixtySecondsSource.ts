@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { TrendItem } from '../types.js';
+import { dataFile } from '../lib/dataPath.js';
 import type { TrendSource } from './TrendSource.js';
 import { filterSafeTrends } from './TrendFilter.js';
 
-const DEFAULT_SNAPSHOT_PATH = fileURLToPath(new URL('../../data/hot-snapshot.json', import.meta.url));
+const DEFAULT_SNAPSHOT_PATH = dataFile('hot-snapshot.json', import.meta.url);
 
 export interface SixtySecondsSourceOptions {
   url: string;
