@@ -35,6 +35,7 @@ interface BuddyApi {
   normalizeRepeatDwell(value: unknown): number;
   DEVICE_ID_RE: RegExp;
   normalizeSettings(raw: unknown): Record<string, unknown>;
+  modeConfigured(settings: unknown): boolean;
   normalizeServerUrl(value: unknown): string;
   normalizeApiBaseUrl(value: unknown): string;
   emotionHoldMs(settings: unknown, overrideMs?: number): number;
@@ -146,6 +147,27 @@ describe('extension core', () => {
     // `enabled`.
     expect(Buddy.normalizeSettings({ mode: 'DIRECT' }).mode).toBe('direct');
     expect(Buddy.normalizeSettings({ mode: 'byok' }).mode).toBe('direct');
+  });
+
+  it('checks the credential the selected mode actually uses', () => {
+    // Regression guard: onDwell() used to gate proactive talk on `appToken`
+    // alone. That field is hidden and unused in 'direct' mode, so a fresh BYOK
+    // install — which is now the default — had an empty appToken forever and
+    // the cat never spoke on its own. Existing machines only looked fine
+    // because they still carried an appToken from an earlier server setup.
+    const direct = Buddy.normalizeSettings({ mode: 'direct', apiKey: 'sk-x' });
+    expect(direct.appToken).toBe('');
+    expect(Buddy.modeConfigured(direct)).toBe(true);
+
+    // No key: direct mode is not usable, and saying so must not fall back to
+    // the server-mode wording.
+    expect(Buddy.modeConfigured(Buddy.normalizeSettings({ mode: 'direct' }))).toBe(false);
+
+    // Server mode still keys off appToken; an API key on that route is inert.
+    const server = Buddy.normalizeSettings({ mode: 'server', appToken: 'abc' });
+    expect(Buddy.modeConfigured(server)).toBe(true);
+    expect(Buddy.modeConfigured(Buddy.normalizeSettings({ mode: 'server', apiKey: 'sk-x' }))).toBe(false);
+    expect(Buddy.modeConfigured(null)).toBe(false);
   });
 
   it('requires https for the direct-mode endpoint, except loopback', () => {
@@ -269,6 +291,55 @@ describe('extension core', () => {
     expect(Buddy.normalizeSettings({ emotionHoldSeconds: 500 }).emotionHoldSeconds).toBe(60);
   });
 
+  it('defaults the proactive and screenshot switches to on, for old configs too', () => {
+    // Both switches exist so the site's 「主动搭话、截图可以在设置里单独关闭」
+    // is accurate. They are new fields, so the migration rule is the same one
+    // limitEnabled used: absent must mean "keep doing what you were doing",
+    // never "silently turn this off". A fresh install and an old config both
+    // resolve to true.
+    expect(Buddy.DEFAULTS.proactive).toBe(true);
+    expect(Buddy.DEFAULTS.captureEnabled).toBe(true);
+    expect(Buddy.normalizeSettings({}).proactive).toBe(true);
+    expect(Buddy.normalizeSettings({}).captureEnabled).toBe(true);
+    expect(Buddy.normalizeSettings({ dwellSeconds: 10, appToken: 'abc' }).proactive).toBe(true);
+    expect(Buddy.normalizeSettings({ mode: 'server', serverUrl: 'http://127.0.0.1:8787' }).captureEnabled).toBe(true);
+
+    // An explicit false survives — that is the whole point of the switch.
+    expect(Buddy.normalizeSettings({ proactive: false }).proactive).toBe(false);
+    expect(Buddy.normalizeSettings({ captureEnabled: false }).captureEnabled).toBe(false);
+  });
+
+  it('gates proactive talk on the selected mode, not on appToken', () => {
+    // The predicate above only proves core.js exports the right answer. The bug
+    // lived in the caller: onDwell() returned early whenever `appToken` was
+    // empty, which in 'direct' mode is always. Assert on the source so the
+    // wrong check cannot come back without a red test.
+    const content = readFileSync(
+      fileURLToPath(new URL('../../extension/content/buddy.js', import.meta.url)),
+      'utf8',
+    );
+    const onDwell = content.slice(content.indexOf('async function onDwell'));
+    const gate = onDwell.slice(0, onDwell.indexOf('ui.setState'));
+    expect(gate).toContain('Buddy.modeConfigured(settings)');
+    expect(gate).not.toMatch(/!\s*settings\.appToken\s*\)/);
+  });
+
+  it('silences the page-load greeting too when proactive talk is off', () => {
+    // The site tells users 主动搭话 is a switch they can turn off. The greeting
+    // is unsolicited speech like any reaction: if sayOpener() only looked at
+    // `enabled`, turning 主动搭话 off would still leave the cat speaking on
+    // every page load, and the promise on the page would be false. The limiter
+    // is deliberately excluded — it is enforcement, with its own switch.
+    const content = readFileSync(
+      fileURLToPath(new URL('../../extension/content/buddy.js', import.meta.url)),
+      'utf8',
+    );
+    const opener = content.slice(content.indexOf('function sayOpener'));
+    const gate = opener.slice(0, opener.indexOf('openerSaid && !force'));
+    expect(gate).toContain('settings.proactive');
+    expect(gate).toMatch(/!\s*settings\.enabled\s*\|\|\s*!\s*settings\.proactive/);
+  });
+
   it('offers exactly the ranges core.js enforces in the popup', () => {
     // These are two hand-maintained lists and they have drifted before: the
     // popup offered `limitCloseSeconds` up to 30 while core allowed 60, and a
@@ -293,6 +364,26 @@ describe('extension core', () => {
     expect(rangeOf('limitCooldownMinutes')).toEqual({ min: Buddy.LIMIT_COOLDOWN_MIN, max: Buddy.LIMIT_COOLDOWN_MAX });
     expect(rangeOf('limitCloseSeconds')).toEqual({ min: Buddy.LIMIT_CLOSE_MIN, max: Buddy.LIMIT_CLOSE_MAX });
     expect(rangeOf('ballSize')).toEqual({ min: Buddy.BALL_SIZE_MIN, max: Buddy.BALL_SIZE_MAX });
+  });
+
+  it('gives every boolean setting a popup control that reads and writes it', () => {
+    // A switch the site promises but the popup does not expose is a dead
+    // setting: it would only be reachable by hand-editing storage. Check the
+    // three places a control has to appear — the markup, the read, the write —
+    // for each boolean field core.js understands.
+    const html = readFileSync(
+      fileURLToPath(new URL('../../extension/popup/popup.html', import.meta.url)),
+      'utf8',
+    );
+    const popup = readFileSync(
+      fileURLToPath(new URL('../../extension/popup/popup.js', import.meta.url)),
+      'utf8',
+    );
+    for (const id of ['enabled', 'proactive', 'captureEnabled', 'autoOpenPanel', 'limitEnabled']) {
+      expect(html).toContain(`id="${id}"`);
+      expect(popup).toMatch(new RegExp(`fields\\.${id}\\.checked = settings\\.${id}`));
+      expect(popup).toMatch(new RegExp(`${id}: fields\\.${id}\\.checked`));
+    }
   });
 
   it('never lets a zero cooldown retry straight into the 429 it just hit', () => {

@@ -1,18 +1,21 @@
 # UI v3 · BYOK 交接单
 
-> 状态：**网页已按 BYOK 改完，限时演示已移到桌面浏览器窗口；等待验收。Claude Code 的 BYOK 实现仍在进行中。**
+> 状态：**网页已按 BYOK 改完，限时演示已移到桌面浏览器窗口；扩展侧已对齐，见下方「已确认的形状」。**
 > 本仓库只改 `site/` 与 `design/`，不改 `extension/`、`server/`、manifest 或 content scripts。
 
-## UI 假设的接口形状
+## 已确认的形状（2026-10-24 由扩展侧确认）
 
-UI 按现有 `extension/shared/core.js` 里的 BYOK 字段设计，期望 popup 最终提供：
+popup 的字段与文案已经落地，网站文案按这一份写，不要再各写一套：
 
-- `mode: 'direct'`
-- `apiKey`
-- `apiBaseUrl`，默认 `https://api.deepseek.com`
-- 本地服务模式继续使用 `mode: 'server'`、`serverUrl`、`appToken`
+- `mode: 'direct'` / `'server'` — **全新安装默认 `'direct'`**，旧配置留在 `'server'`
+- `apiKey`、`apiBaseUrl`（默认 `https://api.deepseek.com`，只收 https，loopback 例外）
+- 本地服务模式：`serverUrl`、`appToken`，下拉里显示为「连自己的服务（需先启动）」
+- **`proactive`**（复选框「停留后主动搭话」）— 默认勾选；关掉后不再主动开口，包括开页面的招呼；悬浮球和聊天照常
+- **`captureEnabled`**（复选框「把画面截图一起发给模型（关掉只发文案和标签）」）— 默认勾选；关掉后请求体里没有 `images`
+- **`enabled`**（「在抖音页面显示悬浮球」）、**`limitEnabled`**（「到点提醒并关闭网页」，默认未勾选）
+- 「测试连接」在直连模式下会 `GET {apiBaseUrl}/models` 真的验证 Key（免费调用，不花 token）；失败分三类：Key 被拒 / 限流 / 连不上
 
-如果 Claude Code 最终字段名、默认值或文案不同，先同步本文件，再改网站；不要让网页写一套、扩展写另一套。
+如果 Claude Code 的字段名、默认值或文案再变，先同步本文件，再改网站；不要让网页写一套、扩展写另一套。
 
 ## 关键约束
 
@@ -41,6 +44,7 @@ UI 按现有 `extension/shared/core.js` 里的 BYOK 字段设计，期望 popup 
 ## 对接提醒
 
 1. 先确认 popup 的字段名和模式名与 UI 文案一致。
-2. 如果 popup 新增“测试连接”，确认它只请求用户配置的 Base URL，不把 Key 发给第三方诊断服务。
-3. 如果 `apiBaseUrl` 允许自定义，确认强制 https，并在 UI 提示“陌生中转地址等于把 Key 交给对方”。
-4. 如果默认模式改为 `direct`，需要同步说明旧安装的 `server` 配置如何迁移。
+2. 如果 popup 新增“测试连接”，确认它只请求用户配置的 Base URL，不把 Key 发给第三方诊断服务。**已确认**：`background.js` 的 `directPing()` 只 `GET settings.apiBaseUrl + '/models'`，没有第三方诊断服务。
+3. 如果 `apiBaseUrl` 允许自定义，确认强制 https，并在 UI 提示“陌生中转地址等于把 Key 交给对方”。**已确认**：`normalizeApiBaseUrl()` 只收 https，非法值回落到官方地址；`install.html` 的 FAQ 写了中转地址的风险。
+4. 如果默认模式改为 `direct`，需要同步说明旧安装的 `server` 配置如何迁移。**已确认**：`legacyMode()` 让没有 `mode` 键的旧配置留在 `server`，升级不会被改道；网站不需要额外写迁移说明，只需保留「方式」下拉的两种选择。
+5. **下载按钮**：`site/app.js` 用 `HEAD site/download/shangtou-miaomiao-v<version>.zip` 判断安装包在不在，在就给下载、不在就退回说明弹窗。ZIP 是构建产物（被 `.gitignore` 的 `*.zip` 排除），部署时需要先跑 `node extension/tools/pack-extension.mjs --out site/download` 一起上传。

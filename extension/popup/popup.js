@@ -4,6 +4,8 @@
   var Buddy = window.Buddy;
   var fields = {
     enabled: document.getElementById('enabled'),
+    proactive: document.getElementById('proactive'),
+    captureEnabled: document.getElementById('captureEnabled'),
     dwellSeconds: document.getElementById('dwellSeconds'),
     repeatDwellSeconds: document.getElementById('repeatDwellSeconds'),
     cooldownSeconds: document.getElementById('cooldownSeconds'),
@@ -43,6 +45,8 @@
 
   function fill(settings) {
     fields.enabled.checked = settings.enabled;
+    fields.proactive.checked = settings.proactive;
+    fields.captureEnabled.checked = settings.captureEnabled;
     fields.dwellSeconds.value = settings.dwellSeconds;
     fields.repeatDwellSeconds.value = settings.repeatDwellSeconds;
     fields.cooldownSeconds.value = settings.cooldownSeconds;
@@ -70,6 +74,8 @@
   function readForm() {
     return Buddy.normalizeSettings({
       enabled: fields.enabled.checked,
+      proactive: fields.proactive.checked,
+      captureEnabled: fields.captureEnabled.checked,
       dwellSeconds: fields.dwellSeconds.value,
       repeatDwellSeconds: fields.repeatDwellSeconds.value,
       cooldownSeconds: fields.cooldownSeconds.value,
@@ -132,9 +138,14 @@
   }
 
   /**
-   * Direct mode has no local service to ping, so report what can actually be
-   * known without spending the user's tokens: whether a key is present and
-   * whether the endpoint's permission has been granted.
+   * Direct mode has no local service to ping, so the worker asks the provider
+   * whether the key is good: GET /models costs no tokens and answers exactly
+   * that. Checking only local state (key non-empty, origin granted) used to
+   * report ready for a wrong key, which is the one thing this button exists to
+   * catch.
+   *
+   * The permission is still checked first: without it the request fails as a
+   * network error, which would read as "your key is wrong".
    */
   function checkDirect() {
     var key = fields.apiKey.value.trim();
@@ -150,6 +161,7 @@
       setStatus('bad', 'API 地址不合法', 'direct');
       return;
     }
+    setStatus('', '正在连接模型', 'direct');
     chrome.permissions.contains({ origins: [origin] }, function (granted) {
       if (chrome.runtime.lastError) {
         setStatus('bad', '无法检查权限', 'direct');
@@ -159,7 +171,19 @@
         setStatus('', '已填 Key，保存时会请求权限', origin.replace('/*', ''));
         return;
       }
-      setStatus('ok', '直连已就绪', origin.replace('/*', ''));
+      chrome.runtime.sendMessage({ type: 'sm:ping' }, function (response) {
+        if (chrome.runtime.lastError || !response) {
+          setStatus('bad', '插件后台无响应', '重新加载扩展');
+          return;
+        }
+        if (!response.ok) {
+          var code = response.error && response.error.code ? response.error.code : 'ERROR';
+          var message = response.error && response.error.message ? response.error.message : '连不上模型服务';
+          setStatus('bad', message, code);
+          return;
+        }
+        setStatus('ok', '直连已就绪', origin.replace('/*', '') + ' · ' + (response.latencyMs || 0) + 'ms');
+      });
     });
   }
 

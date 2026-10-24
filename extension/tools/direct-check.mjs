@@ -64,6 +64,23 @@ const stub = createServer(async (request, response) => {
   let raw = '';
   for await (const chunk of request) raw += chunk;
 
+  // GET /models is the popup's connection test: it must validate the key
+  // without spending tokens, so it has to be a distinct route here.
+  if (request.url.endsWith('/models')) {
+    const auth = request.headers.authorization || '';
+    seen.push({ route: 'models', auth, body: null });
+    if (mode === 'auth' || auth !== `Bearer ${MODEL_OK}`) {
+      json(response, 401, { error: { message: 'invalid api key' } });
+      return;
+    }
+    if (mode === 'server-error') {
+      json(response, 500, { error: { message: 'upstream exploded' } });
+      return;
+    }
+    json(response, 200, { object: 'list', data: [{ id: 'deepseek-flash' }] });
+    return;
+  }
+
   if (!request.url.endsWith('/chat/completions')) {
     json(response, 404, { error: { message: 'not found' } });
     return;
@@ -496,6 +513,29 @@ try {
     payload: { requestId: 'x4', app: 'douyin', tone: 'maomao', dwellMs: 1000, ocr: { text: '', caption: '', hashtags: [] }, images: [], recentReactions: [], adLabel: false, repeat: false },
   });
   check('missing key fails fast with NO_API_KEY', noKey?.error?.code === 'NO_API_KEY', JSON.stringify(noKey?.error));
+
+  /* --- the popup's 测试连接 --- */
+  // The site tells users to press this button and proceed once it passes, so it
+  // has to actually reach the provider. Local-only checks reported ready for a
+  // wrong key and every later request then failed with 401.
+  await saveSettings(ext, { apiKey: MODEL_OK });
+  mode = 'ok';
+  seen.length = 0;
+  const pingOk = await sendRuntimeMessage(ext, { type: 'sm:ping' });
+  check('connection test reaches the provider', pingOk?.ok === true && seen.some((item) => item.route === 'models'), JSON.stringify(pingOk?.error));
+  check(
+    'connection test sends the key as a bearer token',
+    seen.find((item) => item.route === 'models')?.auth === `Bearer ${MODEL_OK}`,
+    seen.find((item) => item.route === 'models')?.auth,
+  );
+
+  mode = 'auth';
+  const pingBad = await sendRuntimeMessage(ext, { type: 'sm:ping' });
+  check('connection test rejects a bad key as UPSTREAM_AUTH', pingBad?.error?.code === 'UPSTREAM_AUTH', JSON.stringify(pingBad?.error));
+
+  await saveSettings(ext, { apiKey: '' });
+  const pingNoKey = await sendRuntimeMessage(ext, { type: 'sm:ping' });
+  check('connection test without a key says so', pingNoKey?.error?.code === 'NO_API_KEY', JSON.stringify(pingNoKey?.error));
 } catch (error) {
   failures += 1;
   console.error('[direct] FAILED: ' + (error && error.stack ? error.stack : error));

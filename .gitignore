@@ -10,6 +10,10 @@ extension.crx
 server/node_modules/
 server/dist/
 
+# Running a tool from the wrong cwd drops a cache here (vitest does it); the
+# repo root has no package.json, so anything appearing there is stray.
+/node_modules/
+
 # Site build output and dependencies
 site/node_modules/
 site/dist/

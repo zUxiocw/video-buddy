@@ -857,7 +857,12 @@
   }
 
   function sayOpener(force) {
-    if (!settings.enabled) return;
+    // The greeting is unsolicited speech like any reaction, so `proactive`
+    // governs it too. Otherwise turning 主动搭话 off would still let the cat
+    // open its mouth on every page load — the exact thing the switch promises
+    // to stop. The limiter's own warning is not covered by this: that is
+    // enforcement, and it has its own switch (limitEnabled).
+    if (!settings.enabled || !settings.proactive) return;
     if (openerSaid && !force) return;
     openerSaid = true;
     openerDay = todayKey();
@@ -886,8 +891,15 @@
     // `firedBefore` counts earlier reactions to this same viewing; anything
     // above zero means this is a second (or later) thought about one video.
     var isRepeat = firedBefore > 0;
-    if (!settings.enabled || !settings.appToken) {
-      if (!settings.appToken) ui.flash('先在插件设置里填访问令牌');
+    // `proactive` is the user's own switch for unsolicited remarks; it must not
+    // disable the ball or the chat panel, so it is checked here rather than in
+    // applySettings(). Missing on old config resolves to true, so an upgrade
+    // never silences a cat that used to talk.
+    if (!settings.enabled || !settings.proactive) return;
+    if (!Buddy.modeConfigured(settings)) {
+      // 'direct' has no appToken to name, so point at whichever credential this
+      // route actually needs instead of always saying 「访问令牌」.
+      ui.flash(settings.mode === 'direct' ? '先在插件设置里填 API Key' : '先在插件设置里填访问令牌');
       return;
     }
     ui.setState('thinking');
@@ -899,8 +911,12 @@
       (settings.dwellSeconds + firedBefore * settings.repeatDwellSeconds) * 1000,
     );
     // Sampled frames when readable, whole-tab fallback otherwise. Bounded, so
-    // a slow capture never holds up the reaction.
-    var capture = await withTimeout(captureShot(), 4000, { ok: false });
+    // a slow capture never holds up the reaction. Skipped entirely when the
+    // user turned screenshots off — `image: null` below then omits `images`
+    // from the body, and the prompt already handles a text-only request.
+    var capture = settings.captureEnabled
+      ? await withTimeout(captureShot(), 4000, { ok: false })
+      : { ok: false };
     var payload = Buddy.buildAnalyzeBody({
       fingerprint: Buddy.fnv1a(key),
       dwellMs: watchedMs,

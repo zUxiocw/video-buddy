@@ -119,6 +119,52 @@
     }
   }
 
+  // Built by `node extension/tools/pack-extension.mjs --out site/download`. The
+  // name mirrors the packer's output, and the ZIP itself is gitignored: it is a
+  // build artefact, so it must exist in the deployed folder rather than the repo.
+  var DOWNLOAD_URL = 'download/shangtou-miaomiao-v0.1.0.zip';
+
+  /**
+   * Ask the static host whether the package is actually there before offering
+   * it. A bare link that 404s looks like a broken site; a dialog that opens
+   * with the steps to build it is at least actionable. Deployments that ship
+   * the ZIP get the real download, and nothing has to be kept in sync by hand.
+   */
+  function downloadReady(callback) {
+    if (!window.fetch) {
+      callback(false);
+      return;
+    }
+    fetch(DOWNLOAD_URL, { method: 'HEAD', cache: 'no-store' }).then(function (response) {
+      callback(response.ok);
+    }).catch(function () {
+      callback(false);
+    });
+  }
+
+  function downloadBody(ready) {
+    if (ready) {
+      return (
+        '<h2>下载扩展安装包</h2>' +
+        '<p>这是一个 zip。解压到一个固定目录，然后到 <code>chrome://extensions</code> 打开「开发者模式」，点「加载已解压的扩展程序」选它。装好后在扩展设置里填自己的 DeepSeek API Key。</p>' +
+        '<div class="dialog-actions">' +
+          '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
+          '<a class="btn btn-primary" href="' + DOWNLOAD_URL + '" download>下载 zip</a>' +
+        '</div>' +
+        '<p class="micro" style="margin-top:12px">包内没有服务器代码，也没有任何密钥：只包含扩展运行需要的脚本、图标和设置页。</p>'
+      );
+    }
+    return (
+      '<h2>安装包还没放进这个目录</h2>' +
+      '<p>公开版走 BYOK：装扩展，在设置里填你自己的 DeepSeek API Key，不需要本地服务器。这一份网页是静态预览，部署时把安装包放在 <code>download/</code> 下，这个按钮就会直接给出下载；没有安装包时可以先试玩，或照着开通步骤走一遍。</p>' +
+      '<div class="dialog-actions">' +
+        '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
+        '<a class="btn btn-primary" href="setup.html">看开通步骤</a>' +
+      '</div>' +
+      '<p class="micro" style="margin-top:12px">自己构建：<code>node extension/tools/pack-extension.mjs --out site/download</code></p>'
+    );
+  }
+
   function downloadDialog() {
     var dialog = $('#downloadDialog');
     if (dialog) return dialog;
@@ -127,16 +173,6 @@
     dialog.className = 'preview-dialog';
     dialog.id = 'downloadDialog';
     dialog.setAttribute('aria-label', '安装说明');
-    dialog.innerHTML =
-      '<div class="dialog-pad">' +
-        '<span class="kicker">安装说明</span>' +
-        '<h2>安装包正在打包</h2>' +
-        '<p>公开版走 BYOK：装扩展，在设置里填你自己的 DeepSeek API Key，不需要本地服务器。安装包发布前，可以先试玩，或先看开通步骤。</p>' +
-        '<div class="dialog-actions">' +
-          '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
-          '<a class="btn btn-primary" href="setup.html">看开通步骤</a>' +
-        '</div>' +
-      '</div>';
     document.body.appendChild(dialog);
 
     dialog.addEventListener('click', function (event) {
@@ -146,11 +182,29 @@
     return dialog;
   }
 
+  /**
+   * Probe first, then open, so the body never swaps under the reader's cursor.
+   * The probe is a same-origin HEAD against a static file, so it resolves in a
+   * few milliseconds; a cached body would keep claiming "not published" after
+   * the ZIP was deployed, which is the more annoying failure.
+   */
+  function openDownloadDialog() {
+    downloadReady(function (ready) {
+      var dialog = downloadDialog();
+      var pad = document.createElement('div');
+      pad.className = 'dialog-pad';
+      pad.innerHTML = downloadBody(ready);
+      dialog.textContent = '';
+      dialog.appendChild(pad);
+      dialog.showModal();
+    });
+  }
+
   function initDownload() {
     $$('[data-download]').forEach(function (button) {
       button.addEventListener('click', function (event) {
         event.preventDefault();
-        downloadDialog().showModal();
+        openDownloadDialog();
       });
     });
     $$('[data-stage-ball]').forEach(function (button) {

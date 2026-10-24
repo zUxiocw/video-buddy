@@ -3,7 +3,7 @@
 > 最后更新：2026-10-24
 > 项目：抖音网页悬浮球「上头了喵喵」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（234 个）+ 直连端到端 21 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连另需一次真 Key 验证，见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（239 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -56,6 +56,12 @@
    - 只有请求失败才 `backoff()`；成功的下一条视频不应被静音。
 5. 气泡显示时长由 `bubbleSeconds` 控制（默认 20s，4–120）。
 6. 图标**没有红点**。曾经在右上角加过未读红点，噪音大于信息，已彻底删除；不要再加回来。
+7. **三个独立开关（都默认 `true`，缺失键也解析成 `true`，所以升级不改任何现有行为）**，因为网站对用户承诺了「可以单独关闭」：
+   - `enabled` — 悬浮球与聊天面板的**总开关**。关掉后 `applySettings()` 把两个 host 都 `display:none`，并 `closePanel()`。
+   - `proactive` — **主动开口**。只管「它自己先说话」：`onDwell()` 的反应和 `sayOpener()` 的开机招呼都归它管。关掉后悬浮球和聊天面板照常工作，用户发消息它照样回。
+   - `captureEnabled` — 请求里带不带截图。关掉后 `capture` 直接是 `{ ok: false }`，`buildAnalyzeBody` 因此不发 `images` 键，模型只凭文案和标签接话。
+   - **`proactive` 必须同时罩住 `sayOpener()`**：只在 `onDwell()` 里检查的话，关了「主动搭话」猫还是每次开页面都开口，网站那句承诺就是假的。限时关页的台词**不受它影响**——那是执行限制，不是搭话，归 `limitEnabled` 管。`extension-core.test.ts` 有一条读源码的测试守着这两点。
+8. **凭证检查按模式走**：`core.js` 的 `modeConfigured(settings)` 是唯一的判断点——`direct` 看 `apiKey`，`server` 看 `appToken`。曾经的写法是在 `onDwell()` 里直接查 `appToken`，而 `direct` 模式根本不显示、也不会写这个字段，于是**每一台全新 BYOK 安装都不会主动开口**；老机器只是碰巧还留着早年 `server` 模式的 `appToken` 才显得正常。加第三种模式时改这一个函数即可，不要再在调用点各写一遍。
 
 ### 2.1.7 刷视频限时（每日额度 + 关页）
 
@@ -150,7 +156,10 @@
    - `await` 一下也会丢手势，Chrome 直接拒绝弹窗。
    - 不要把模型域名加进 `host_permissions`：那是安装即授予，违背「不多要权限」。
 6. `normalizeApiBaseUrl()` 只接受 `https://`；非法值静默回落到 `https://api.deepseek.com`，避免把 Key 明文发到 `http://` 上。**唯一例外是 loopback**（`http://127.0.0.1` / `http://localhost`），见 §4.7.1。
-7. 直连模式下没有本地服务可 ping，`checkDirect()` 只报「有没有填 Key」和「这个 origin 有没有授权」，不花用户的 token 去试探。
+7. **「测试连接」在直连模式下真的会连**：`popup.js` 的 `checkDirect()` 先查 origin 权限（没授权时提示「保存时会请求权限」，因为请求权限必须由提交按钮那次真实手势发起），然后 `sm:ping` → `background.js` 的 `directPing()` 发 `GET {apiBaseUrl}/models`。这是 OpenAI 兼容接口里的免费调用：能验证 Key 有效，又不消耗任何 token。
+   - 旧实现只查本地状态（Key 非空、origin 已授权），**填了错 Key 也会报「已就绪」**——而这正是这个按钮唯一要抓的东西。`direct-check.mjs` 有 4 条断言，其中一条把 `directPing` 换成本地检查就会红。
+   - 失败信息复用 `directFailure()`：401/403 → 「模型拒绝了访问令牌」，429 → 限流，5xx → 服务不可用。网站 `install.html` 的 FAQ 就按这三类写给用户。
+   - 为什么先查权限：没权限时请求表现为网络错误，会被误读成「Key 不对」。
 8. 错误映射沿用服务端那套：401/403 → `UPSTREAM_AUTH`，400/404 → `MODEL_UNAVAILABLE`，其余 → `UPSTREAM_ERROR` / `UPSTREAM_TIMEOUT`。
 9. **直连没有热点/俚语注入**，`trendCandidates` / `slangCandidates` 恒为空，prompt 里显示「（无）」。这需要 `node:fs` 读词库 + 实时抓热榜，service worker 做不了，是**有意的能力取舍**，不是 bug。给直连补词库会引入第二种数据源，两份词库迟早不同步。
 
@@ -318,7 +327,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 234 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 239 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
@@ -340,6 +349,9 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 - 人工回归（气泡头像）：面板里每条 AI 消息左侧都有 36px 圆形头像（能一眼分出嫌弃和生气）；刷到广告时该条头像是 `angry`、和悬浮球一致；发消息期间先显示当前情绪的头像，回复结束换成识别结果；用户消息没有头像；切到「记录」再切回旧对话，每条头像保持不变
 - 人工回归（回退）：找一条 canvas 取帧失败的视频（或临时在 `frames.grab` 里强制 `blocked = true`），确认截图里**不含**悬浮球和气泡
 - 人工回归（限时默认值）：全新配置（`chrome.storage.local` 里删掉 `settings` 后重开 popup）应显示「到点提醒并关闭网页」**未勾选**；而已经用过限时的旧配置升级后仍是**勾选**状态——这条专门守 §2.1.8 的旧配置兼容
+- 人工回归（主动搭话开关）：在 popup 里取消勾选「停留后主动搭话」→ 刷新抖音页面，**不应出现招呼**，停 10 秒也不开口；点悬浮球仍能打开聊天面板，发消息仍有回复，回复结束仍换表情。重新勾选并刷新，招呼和视频反应都回来
+- 人工回归（截图开关）：取消勾选「把画面截图一起发给模型」→ 刷一条视频，Network 里 `/v1/analyze`（或直连的 `chat/completions`）请求体应**没有 `images` 键**，气泡仍正常出现
+- 人工回归（测试连接真的连）：直连模式下故意把 Key 改错一位，点「测试连接」应报「模型拒绝了访问令牌」而不是「已就绪」；空 Key 应报「还没填 API Key」；改回正确 Key 才显示「直连已就绪」并带延迟毫秒数
 - 人工回归（限时）：把「每日时长」设成 1 分钟、「再打开时」设成 2 分钟，刷视频约 1 分钟后气泡说话且图标变 `angry`，5 秒后标签页自动关闭；2 分钟内重新打开抖音，它说另一句、5 秒后再关一次（点开就被关，不等 1 分钟）；等过 2 分钟再打开，恢复正常且重新给满 1 分钟。暂停视频挂机 5 分钟不应触发
 - 人工回归（限时·切后台）：停在抖音但切到别的标签页放 5 分钟，回来不应触发限时（只算前台播放时间）
 - 人工回归（限时·多标签页）：开两个抖音标签页各刷一段，看 `chrome.storage.local` 的 `smLimit.usedMs` 应是一条累计总额而不是两次独立计数；两个标签页加起来到点只关当前在看的那个，另一个继续开着的也不该说「还敢点开」
@@ -499,8 +511,16 @@ claude.cmd
 6. `extension/tools/e2e.mjs` 可做浏览器回归，但 harness 页面的 manifest 需要补 `web_accessible_resources`（否则图标 404），且前台标签页会节流定时器，计时断言容易假失败。
 7. 抖音没有稳定的公开广告 DOM 契约：`readAdLabel()` 是按常见 class/data-e2e 名猜的选择器集合，页面改版后可能失效（表现为广告不再被识别）。失效时应补选择器，**不要**放宽成「文案里含广告就算」。同一条广告在复聊间隔内可能再次触发（每次按新请求处理）。
 8. 短视频自动循环不会重置 `firedCount`：同一个 15 秒视频连刷十几分钟，会按复聊间隔持续开口。这是当前取舍（循环与「长视频继续看」在页面上无法可靠区分）；如需抑制，可在 `tracker` 里按 `video.duration` 很短时下限流。
+9. **网页的安装包不在仓库里**：`site/app.js` 的下载按钮先 `HEAD site/download/shangtou-miaomiao-v<version>.zip`，文件在才给下载，不在就退回说明弹窗（不会给一个 404 链接）。ZIP 是构建产物，被 `.gitignore` 的 `*.zip` 挡在仓库外，所以 `site/download/` 只提交 `.gitkeep`；发布前要跑 `node extension/tools/pack-extension.mjs --out site/download`，部署时整个目录一起上传。版本号跟 `manifest.json`，改版本要同步 `site/app.js` 里 `DOWNLOAD_URL` 那一个常量。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 与前端网页对接：新增 §2.1 第 7–8 条、§2.1.9 第 7 条、§7.9。网站已经把「悬浮球、截图、主动搭话、限时都能单独关闭」「测试连接」写成对用户的承诺，这一轮把它们补成真的，而不是把文案删掉。
+  **① 两个新开关**：`proactive`（主动搭话）与 `captureEnabled`（截图），都和 `enabled` 一样**默认 `true`、缺失键也解析成 `true`**，所以升级不改变任何现有行为。`proactive` 同时罩住 `onDwell()` 的反应**和 `sayOpener()` 的开机招呼**——只罩前一半的话，关掉开关后猫仍会每次开页面都开口，网站承诺就是假的；限时关页台词不受它影响（那是执行限制，归 `limitEnabled`）。`captureEnabled` 关掉后 `capture` 直接是 `{ ok: false }`，请求体里不再出现 `images` 键。
+  **② 修掉一个会让公开版「永远不主动开口」的 bug**：`onDwell()` 原来只查 `settings.appToken`，而 `direct` 模式既不显示也不写这个字段，于是**每一台全新 BYOK 安装都收不到任何主动反应**；用户自己的机器因为还留着早年 `server` 模式的 `appToken` 才看起来正常。改为 `core.js` 的 `modeConfigured(settings)` 单一判断点（`direct` 看 `apiKey`，`server` 看 `appToken`），加第三种模式时只改这一处。测试直接读 `buddy.js` 源码断言旧写法不能回来。
+  **③ 「测试连接」现在真的连**：`background.js` 新增 `directPing()`，`GET {apiBaseUrl}/models`——OpenAI 兼容接口里的免费调用，能验 Key 又不花 token。旧实现只查本地状态，**错 Key 也报「已就绪」**，正好漏掉这个按钮唯一要抓的东西。`direct-check.mjs` 25 项（新增 4 项），其中一条把 `directPing` 换回本地检查就会红。
+  **④ 网站文案改成指向真实控件名**（`index.html` / `install.html` / `setup.html`），「测试连接」的 FAQ 按 `directFailure()` 的三类错误重写，本地服务模式的选项名改成 popup 里实际的「连自己的服务（需先启动）」。
+  **⑤ 下载按钮接上真实安装包**：`site/app.js` 先 `HEAD` 一下 `site/download/shangtou-miaomiao-v<version>.zip`，在就给下载、不在就给构建说明，不会给 404 链接。ZIP 是构建产物（`.gitignore` 的 `*.zip`），`site/download/` 只提交 `.gitkeep`。239 个测试通过，typecheck / build 退出码 0，全部扩展 JS `node --check` 通过，`direct-check.mjs` 25/25，打包 25 个文件且无敏感文件。
 
 - 2026-10-24 P2 BYOK 直连模式：新增 §2.1.9。`settings.mode` 全新安装默认 `'direct'`、旧配置留在 `'server'`（`legacyMode()`），**升级已装好的用户不会被静默改道**；`'direct'` 时 `background.js` 直接打用户的 `apiBaseUrl`，`Authorization: Bearer <自己的 Key>`，Key 只存 `chrome.storage.local`。`manifest.json` 只加 `optional_host_permissions: ["https://*/*"]`，不往 `host_permissions` 里塞模型域名——那是安装即授予；`popup.js` 在 submit **同步**调 `chrome.permissions.request()` 收窄到那一个 origin。**权限请求不能绕经 service worker**：用户手势过不了 `sendMessage`，原实现（popup → background → request）每次都返回「must be called during a user gesture」，弹窗根本出不来——已改为 popup 直接请求，并加断言守着。`normalizeApiBaseUrl()` 只收 `https://`，**例外是 loopback**（`127.0.0.1` / `localhost` 走 http），这两个 origin 本就在 `host_permissions` 里（pattern 忽略端口），放行不新增权限，也是 `direct-check.mjs` 能用本地假服务免费测试的前提。
 

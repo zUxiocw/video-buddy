@@ -50,4 +50,10 @@ node serve.mjs
 ## 说明
 
 - Demo 回复是本地写死的，不调用模型，也不需要 Key。
-- 下载按钮当前只打开说明弹窗，不发未完成的安装包。
+- 下载按钮会先 `HEAD` 一下 `site/download/shangtou-miaomiao-v<version>.zip`：文件在就直接给下载，不在就退回说明弹窗，不会发一个 404 链接。发布时把安装包放进 `site/download/`：
+
+  ```powershell
+  node extension/tools/pack-extension.mjs --out site/download
+  ```
+
+  ZIP 是构建产物，被 `.gitignore` 的 `*.zip` 规则挡在仓库外，所以 `site/download/` 只保留一个 `.gitkeep`；打包脚本要手动跑，或者在部署流程里跑。

@@ -68,6 +68,14 @@
   var SETTINGS_VERSION = 2;
   var DEFAULTS = {
     enabled: true,
+    // Whether the cat speaks up on its own after a dwell. On for both fresh
+    // installs and existing ones: this switch exists so the site's promise
+    // 「主动搭话可以单独关闭」 is true, not to change anyone's current
+    // behaviour. Off means the ball and the chat panel still work.
+    proactive: true,
+    // Whether the screenshot rides along with the analyze request. On by
+    // default, as before; off sends caption + hashtags only.
+    captureEnabled: true,
     // Which path requests take. 'server' = the local Fastify service (the
     // original, still-supported mode); 'direct' = the service worker calls
     // DeepSeek with the user's own key. Kept as a string rather than a boolean
@@ -246,6 +254,24 @@
     return undefined;
   }
 
+  /**
+   * Whether this route has enough credentials to actually make a call.
+   *
+   * The content script used to gate proactive talk on `settings.appToken`
+   * alone. That was correct when 'server' was the only path, but `appToken` is
+   * hidden and unused in 'direct' mode: a fresh BYOK install has an empty
+   * string forever, so onDwell() returned before it ever sent a request and
+   * the cat never spoke on its own. Existing machines only appeared to work
+   * because they still carried an `appToken` from an earlier server setup.
+   *
+   * One predicate, so a third mode cannot silently re-create the same hole.
+   */
+  function modeConfigured(settings) {
+    if (!settings) return false;
+    if (settings.mode === 'direct') return !!settings.apiKey;
+    return !!settings.appToken;
+  }
+
   function normalizeSettings(raw) {
     var source = raw && typeof raw === 'object' ? raw : {};
     var deviceId = typeof source.deviceId === 'string' ? source.deviceId.trim() : '';
@@ -254,6 +280,10 @@
     var legacyRoute = legacyMode(source);
     return {
       enabled: source.enabled === undefined ? DEFAULTS.enabled : !!source.enabled,
+      // Both default to true for a missing key, so an upgrade keeps exactly the
+      // behaviour it had before these switches existed.
+      proactive: source.proactive === undefined ? DEFAULTS.proactive : !!source.proactive,
+      captureEnabled: source.captureEnabled === undefined ? DEFAULTS.captureEnabled : !!source.captureEnabled,
       // 'server' keeps talking to the local Fastify service; 'direct' calls the
       // model from the service worker with the user's own key. Only the exact
       // string 'direct' selects the new path: an unrecognised value must not
@@ -931,6 +961,7 @@
     MAX_HISTORY_SESSIONS: MAX_HISTORY_SESSIONS,
     MAX_SESSION_MESSAGES: MAX_SESSION_MESSAGES,
     normalizeSettings: normalizeSettings,
+    modeConfigured: modeConfigured,
     normalizeServerUrl: normalizeServerUrl,
     normalizeApiBaseUrl: normalizeApiBaseUrl,
     emotionHoldMs: emotionHoldMs,

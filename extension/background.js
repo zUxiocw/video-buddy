@@ -277,8 +277,60 @@ async function readError(response) {
   return { code: 'ERROR', message: fallback, retryable: response.status >= 500, status: response.status };
 }
 
+/**
+ * Direct-mode connection test.
+ *
+ * The popup used to answer "直连已就绪" from local facts alone — a non-empty
+ * key and a granted origin — which says nothing about whether the key actually
+ * works. The site tells users to press 测试连接 and proceed when it passes, so
+ * a wrong key sailed through and every later request failed with 401.
+ *
+ * GET /models is used rather than a tiny chat completion on purpose: it is the
+ * OpenAI-compatible key check, it returns no billable tokens, and a 401 here is
+ * unambiguously a bad key rather than a bad prompt.
+ */
+async function directPing(settings) {
+  if (!settings.apiKey) {
+    return { ok: false, error: directError('NO_API_KEY', '还没填 API Key，去插件设置里填一下', false) };
+  }
+  var startedAt = Date.now();
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, 12000);
+  try {
+    var response = await fetch(settings.apiBaseUrl + '/models', {
+      method: 'GET',
+      headers: {
+        authorization: 'Bearer ' + settings.apiKey,
+        accept: 'application/json',
+      },
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!response.ok) return { ok: false, error: directFailure(response.status, settings) };
+    var models = [];
+    try {
+      var body = await response.json();
+      models = Array.isArray(body && body.data)
+        ? body.data.map(function (item) { return item && item.id; }).filter(Boolean)
+        : [];
+    } catch (_error) { /* an empty list still means the key was accepted */ }
+    return { ok: true, provider: 'direct', models: models, latencyMs: Date.now() - startedAt };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error && error.name === 'AbortError'
+          ? directError('UPSTREAM_TIMEOUT', '模型服务没有响应，请重试', true)
+          : directError('NETWORK', '连不上模型服务，检查网络和 API 地址', true),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function ping() {
   var settings = await getSettings();
+  if (settings.mode === 'direct') return directPing(settings);
   var startedAt = Date.now();
   try {
     var response = await fetch(settings.serverUrl + '/health', { cache: 'no-store' });
