@@ -64,6 +64,16 @@ describe('site staging', () => {
     expect(files).toContain('app.js');
   });
 
+  it('publishes a top-level 404.html, which is what turns off SPA fallback', () => {
+    // Cloudflare Pages serves index.html with HTTP 200 for every unknown path
+    // unless a 404.html sits at the top of the deployment. That makes /typo and
+    // /admin look like real pages to crawlers and link checkers, and is
+    // invisible from the browser. Depth matters as much as presence: a copy in
+    // a subdirectory is not consulted and the fallback silently returns.
+    expect(files).toContain('404.html');
+    expect(files.filter((file) => file.endsWith('404.html'))).toEqual(['404.html']);
+  });
+
   it('holds back the working files that document internal decisions', () => {
     // Not a tidiness preference: README.md explains which browsers are
     // unsupported and that the store is deliberately not used yet.

@@ -11,6 +11,10 @@
  * Read-only and free: no API key, no model call. The extension is not loaded —
  * this tests the website, not the plugin.
  *
+ * 11 checks: the four pages render, the download literal exists, its HEAD probe
+ * answers, the button offers the ZIP, the two working files are not served, and
+ * unknown paths return a real 404 with the 404 page.
+ *
  *   node tools/check-deploy.mjs
  *   node tools/check-deploy.mjs --url https://example.pages.dev
  */
@@ -136,9 +140,18 @@ try {
   await cdp.send('Network.enable');
 
   // ---- 1. the four pages load, with styles and scripts applied ----
-  const pages = ['/', '/demo', '/install', '/setup'];
-  for (const path of pages) {
-    await cdp.send('Page.navigate', { url: BASE + path });
+  //
+  // "Has an <h1>" is not enough to call a page rendered: the 404 page has one
+  // too, so a broken route that served 404.html instead of its own page would
+  // pass. Each path is therefore also required to show its own title.
+  const pages = [
+    { path: '/', title: '喵喵陪你刷' },
+    { path: '/demo', title: '在线试玩' },
+    { path: '/install', title: '安装说明' },
+    { path: '/setup', title: '开通 API' },
+  ];
+  for (const page of pages) {
+    await cdp.send('Page.navigate', { url: BASE + page.path });
     await sleep(1200);
     const state = await cdp.eval(`(() => ({
       title: document.title,
@@ -147,9 +160,10 @@ try {
       h1: (document.querySelector('h1') || {}).textContent || '',
       broken: [...document.images].filter((img) => img.complete && img.naturalWidth === 0).length,
     }))()`);
+    const rightPage = state.title.includes(page.title) && !state.title.includes('这里没有这一页');
     check(
-      path + ' renders',
-      Boolean(state.title) && state.h1.trim().length > 0 && state.broken === 0,
+      page.path + ' renders its own page',
+      rightPage && state.h1.trim().length > 0 && state.broken === 0,
       'title=' + JSON.stringify(state.title) + ' brokenImages=' + state.broken
     );
   }
@@ -205,24 +219,40 @@ try {
   );
 
   // ---- 3. internal working files are not served ----
-  // Cloudflare's asset handler falls back to index.html for unknown paths, so
-  // a 200 here proves nothing; what matters is that the *body* is the site,
-  // not a README or a dev server script.
+  // Both files are staged out, so these must not resolve to real content. The
+  // body is checked as well as the status: an HTML 404 is fine, a 404 that
+  // still contains the deployment notes would not be.
   for (const path of ['/README.md', '/serve.mjs']) {
-    const body = await cdp.eval(`fetch('${BASE}${path}').then((r) => r.text())`);
-    const leaked = /Cloudflare Pages|node serve\.mjs|发布到/.test(body);
+    const result = await cdp.eval(`(async () => {
+      const res = await fetch('${BASE}${path}', { cache: 'no-store' });
+      return { status: res.status, body: (await res.text()).slice(0, 4000) };
+    })()`);
+    const leaked = /Cloudflare Pages|node serve\.mjs|发布到|BYOK 流程/.test(result.body);
     check(
-      path + ' does not leak the working file',
-      !leaked,
-      leaked ? 'body contains internal deployment notes' : 'served the SPA fallback'
+      path + ' is not served',
+      result.status === 404 && !leaked,
+      'status=' + result.status + (leaked ? ' body contains internal deployment notes' : '')
     );
   }
 
-  // ---- 4. the ENOSPC trap: no page is a soft 404 that looks fine ----
-  const unknown = await cdp.eval(
-    `fetch('${BASE}/no-such-page-xyz').then((r) => r.status)`
-  );
-  check('unknown path falls back to the site (not an error page)', unknown === 200, 'status=' + unknown);
+  // ---- 4. unknown paths are real 404s, not 200s that happen to render ----
+  // Cloudflare Pages serves index.html with HTTP 200 for every unmatched path
+  // unless a top-level 404.html exists ("SPA fallback"). That made /typo and
+  // /admin indistinguishable from real pages to crawlers and link checkers,
+  // and is invisible from the browser. Assert both halves: the status AND that
+  // the body is the 404 page rather than the homepage.
+  for (const path of ['/no-such-page-xyz', '/admin']) {
+    const result = await cdp.eval(`(async () => {
+      const res = await fetch('${BASE}${path}', { cache: 'no-store' });
+      return { status: res.status, body: (await res.text()).slice(0, 4000) };
+    })()`);
+    const isNotFoundPage = /这一页/.test(result.body) && !/刷一会儿/.test(result.body);
+    check(
+      path + ' answers 404 with the 404 page',
+      result.status === 404 && isNotFoundPage,
+      'status=' + result.status + (isNotFoundPage ? '' : ' body is the homepage (soft 404)')
+    );
+  }
 } finally {
   chrome.kill();
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* windows lock */ }

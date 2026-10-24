@@ -31,7 +31,13 @@ const SITE_ROOT = join(REPO_ROOT, 'site');
 
 // Pages and their two shared files. A new page has to be added here; that is
 // deliberate, so nothing lands on the web just by existing in site/.
-const PAGES = ['index.html', 'demo.html', 'install.html', 'setup.html'];
+//
+// 404.html is not decoration. Cloudflare Pages only stops treating the project
+// as a single-page app once a top-level 404.html exists; without it, every
+// mistyped URL returns index.html with HTTP 200, so `/admin` and `/typo` both
+// look like real pages to crawlers and to link checkers. Its presence is
+// asserted below rather than left to whoever remembers.
+const PAGES = ['index.html', 'demo.html', 'install.html', 'setup.html', '404.html'];
 const SHARED = ['styles.css', 'app.js'];
 // Copied whole. PNGs only — anything else in assets/ is not referenced.
 const ASSET_DIRS = ['assets'];
@@ -61,6 +67,25 @@ function stageList() {
 }
 
 /* ---------- guards ---------- */
+
+/**
+ * The 404 page has to exist AND be rooted at the archive top level.
+ *
+ * Cloudflare's rule is about the *top* of the deployment: a 404.html tucked
+ * into a subdirectory is not consulted, and the project silently falls back to
+ * SPA mode, which is the exact soft-404 this page exists to prevent. A staging
+ * change that moved it (a `--prefix`, a re-rooted output dir) would keep the
+ * file present and the behaviour wrong, so check the staged path, not the disk.
+ */
+function assertNotFoundPage(staged) {
+  if (!staged.includes('404.html')) {
+    refuse(
+      '404.html is missing from the staged output.\n' +
+      '         Without a top-level 404.html, Cloudflare Pages answers every unknown path\n' +
+      '         with index.html and HTTP 200 (soft 404).'
+    );
+  }
+}
 
 function refuse(message) {
   console.error('[site] REFUSED: ' + message);
@@ -135,6 +160,7 @@ const staged = files
 assertNothingInternal(staged);
 assertReferencesResolve(staged);
 assertDownloadMatches(staged, zips);
+assertNotFoundPage(staged);
 
 // Clear a previous build, but only one that looks like ours: a stray --out
 // pointing at a real directory should stop, not delete it.

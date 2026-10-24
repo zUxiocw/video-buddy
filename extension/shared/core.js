@@ -711,6 +711,126 @@
     return now - last >= NUDGE_AFTER_MS;
   }
 
+  /**
+   * One step of the silence nudge, as a pure transition.
+   *
+   * The page calls this from its 400ms tick and acts on the result, instead of
+   * owning a second timer. That choice is what makes the behaviour testable:
+   * everything that decides whether the cat speaks lives here and can be run
+   * against a fake clock, while the content script keeps only the three things
+   * that touch the DOM (say the line, set the face, tell the tracker it is
+   * paused).
+   *
+   * `current` = { lastUserAt, active, nextAt }; returns the next state plus
+   * whether to speak now. Every off-switch — either user setting, or a hidden
+   * page — collapses the run to inactive rather than suspending it, so a tab
+   * left in the background never accumulates a backlog of lines to dump when
+   * it is looked at again.
+   *
+   * `lastUserAt` comes back out because one input can move it: a clock that
+   * jumped backwards. The caller stores whatever it is handed instead of
+   * deciding that case itself.
+   */
+  function nudgeStep(current, nowMs, flags) {
+    var state = current && typeof current === 'object' ? current : {};
+    var on = !!(flags && flags.enabled && flags.proactive && flags.visible);
+    var last = Number(state.lastUserAt);
+    var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    var active = !!state.active;
+    var nextAt = Number(state.nextAt);
+    function out(isActive, deadline, speak, lastUserAt) {
+      return { active: isActive, nextAt: deadline, speak: speak, lastUserAt: lastUserAt };
+    }
+    if (!on || !Number.isFinite(last) || last <= 0) {
+      return out(false, 0, false, last);
+    }
+    // The clock went backwards: restart the silence window from here rather
+    // than waiting for a deadline that is now in the past forever.
+    if (last > now) return out(false, now + NUDGE_AFTER_MS, false, now);
+    if (!active) {
+      if (!nudgeDue(last, now)) return out(false, last + NUDGE_AFTER_MS, false, last);
+      return out(true, now + NUDGE_GAP_MS, true, last);
+    }
+    if (!Number.isFinite(nextAt) || nextAt <= 0 || now >= nextAt) {
+      return out(true, now + NUDGE_GAP_MS, true, last);
+    }
+    return out(true, nextAt, false, last);
+  }
+
+  /**
+   * The nudge's whole lifecycle, so the page only has to supply a clock, three
+   * getters and two DOM callbacks.
+   *
+   * Splitting it this way is what makes the brief testable: the tests drive this
+   * object with a fake clock and the exact call order the page uses (`tick()` on
+   * every tracker step, `userSpoke()` from sendMessage), which is the same code
+   * that runs in the browser — not a re-implementation of it.
+   *
+   * It owns no timer on purpose. The page already ticks every 400ms, so a
+   * deadline checked there can be at most one tick late, and a background tab
+   * cannot leave a timer firing at an empty room.
+   */
+  function createNudgeMachine(options) {
+    var opts = options || {};
+    /** Read an injectable dependency, falling back to a fixed answer. */
+    function dep(name, fallback) {
+      return typeof opts[name] === 'function' ? opts[name] : function () { return fallback; };
+    }
+    var now = typeof opts.now === 'function' ? opts.now : function () { return Date.now(); };
+    var isEnabled = dep('enabled', true);
+    var isProactive = dep('proactive', true);
+    var isVisible = dep('visible', true);
+    var onSpeak = dep('onSpeak', undefined);
+    var onStop = dep('onStop', undefined);
+
+    var lastUserAt = Number(opts.lastUserAt);
+    if (!Number.isFinite(lastUserAt) || lastUserAt <= 0) lastUserAt = now();
+    var state = { active: false, nextAt: 0 };
+
+    /** Clear the run; `onStop` fires only when something was actually running. */
+    function settle(active, nextAt) {
+      var wasActive = state.active;
+      state.active = !!active;
+      state.nextAt = Number(nextAt) || 0;
+      if (wasActive && !state.active) onStop();
+    }
+
+    function tick() {
+      var next = nudgeStep({ lastUserAt: lastUserAt, active: state.active, nextAt: state.nextAt }, now(), {
+        enabled: !!isEnabled(),
+        proactive: !!isProactive(),
+        visible: !!isVisible(),
+      });
+      if (Number.isFinite(next.lastUserAt) && next.lastUserAt > 0) lastUserAt = next.lastUserAt;
+      // Speak before the bookkeeping callback: the page's `onStop` puts the
+      // resting face back, and a run that ends on the same tick it speaks would
+      // otherwise be wiped a frame later.
+      if (next.speak && next.active) onSpeak();
+      settle(next.active, next.nextAt);
+    }
+
+    return {
+      isActive: function () { return !!state.active; },
+      nextAt: function () { return state.nextAt; },
+      lastUserAt: function () { return lastUserAt; },
+      tick: tick,
+      /** The user answered: end the run and restart the silence window. */
+      userSpoke: function () {
+        lastUserAt = now();
+        settle(false, 0);
+      },
+      /** Reset the silence window without claiming the user spoke. */
+      restart: function () {
+        lastUserAt = now();
+        settle(false, 0);
+      },
+      /** Page hidden or shutting down: end the run, keep the silence window. */
+      stop: function () {
+        settle(false, 0);
+      },
+    };
+  }
+
   /* ---------------------------------------------------------------- */
   /* chat history                                                      */
   /* ---------------------------------------------------------------- */
@@ -1093,6 +1213,8 @@
     pickBudgetLine: pickBudgetLine,
     pickNudgeLine: pickNudgeLine,
     nudgeDue: nudgeDue,
+    nudgeStep: nudgeStep,
+    createNudgeMachine: createNudgeMachine,
     EMOTION_IDS: EMOTION_IDS,
     normalizeEmotionTally: normalizeEmotionTally,
     buildAnalyzeBody: buildAnalyzeBody,

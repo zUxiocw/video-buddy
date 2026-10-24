@@ -43,11 +43,10 @@
     // Per-conversation emotion counts, reported to the server so it can fill
     // neutral turns with whichever face has been shown least.
     emotionTally: Object.create(null),
-    // When the user last typed something themselves. The silence nudge counts
-    // from here, so openers, video reactions and the nudge itself must never
-    // touch it — otherwise the cat keeps resetting its own clock and never
-    // gets to nag. Seeded at page load: the clock starts when they arrive.
-    lastUserAt: Date.now(),
+    // The silence clock and the nag's run state are owned by the `nudge` module
+    // below (backed by `Buddy.createNudgeMachine`) rather than kept here. Two
+    // copies of "when did the user last speak" is exactly how the cat ends up
+    // resetting its own timer and never nagging.
     // Budget announcement is once per conversation, not per page load: a
     // refresh must not make it say the same thing twice.
     budgetAnnounced: false,
@@ -279,7 +278,6 @@
       if (state.host && ui.needsRemount()) ui.mount();
 
       if (document.visibilityState !== 'visible') {
-        nudge.suspend();
         return;
       }
 
@@ -440,6 +438,10 @@
     function sayAndClose(kind) {
       if (announced) return;
       announced = true;
+      // The tab's last words are the shutdown line. A nudge timer firing during
+      // the close countdown would put "理我一下" on screen seconds before the
+      // page disappears, and a second bubble would cover the real message.
+      nudge.stop();
       var line = Buddy.pickLimitLine(kind, recentLines);
       recentLines = [line].concat(recentLines).slice(0, 4);
       // 生气 fits "you were told to stop"; the tab is going away anyway, so
@@ -559,89 +561,57 @@
    * The accumulator is frozen, not cleared: the user gets back the time they
    * had already watched and the ring resumes where it stopped.
    *
-   * `active` is the single source of truth for the pause. The tracker reads it
-   * on every tick, so there is no second flag to keep in sync.
+   * All of the timing lives in `Buddy.createNudgeMachine`, which the tests drive
+   * with a fake clock; this IIFE is only the part that touches the DOM. Not
+   * owning a second timer is the point: the machine is stepped from the
+   * tracker's existing 400ms tick, so a nag can be at most one tick late and no
+   * timer is left running in a tab nobody is watching.
+   *
+   * `nudge.isActive()` is the single source of truth for the pause. The tracker
+   * reads it on every tick, so there is no second flag to keep in sync.
    */
   var nudge = (function () {
-    var timer = 0;
-    var active = false;
     var recent = [];
 
-    /** Every tick re-checks both switches, so flipping either stops it. */
-    function allowed() {
-      return !!settings.enabled && !!settings.proactive;
-    }
-
-    function stop() {
-      window.clearTimeout(timer);
-      timer = 0;
-      if (!active) return;
-      active = false;
-      // The face the nagging left behind is not the truth any more. Drop back
-      // to the resting greeting without touching the quota (source: 'nudge').
-      if (Emotions) ui.setEmotion(EMOTION_DEFAULT, { force: true, holdMs: 0, source: 'nudge' });
-    }
-
-    function fire() {
-      timer = 0;
-      if (!allowed()) { stop(); return; }
-      // Silence only counts while the page is actually being looked at. A tab
-      // left in the background is not "ignoring the cat", it is not there, and
-      // talking to an empty room at 5-second intervals is pure noise.
-      if (document.visibilityState !== 'visible') { arm(Buddy.NUDGE_GAP_MS); return; }
-
-      var line = Buddy.pickNudgeLine(recent);
-      recent = [line].concat(recent).slice(0, Buddy.NUDGE_LINES.length - 1);
-      // 嫌弃 is the joke: the cat is annoyed, not hurt. holdMs 0 so the face
-      // does not expire back to greet between two nags.
-      if (Emotions) ui.setEmotion('annoyed', { force: true, holdMs: 0, source: 'nudge' });
-      // A real utterance in the transcript, but not `seed`: unlike the opener
-      // it is something that happened in the conversation.
-      ui.appendNotice(line, 'annoyed');
-      ui.showReaction(line);
-      arm(Buddy.NUDGE_GAP_MS);
-    }
-
-    function arm(delayMs) {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(fire, delayMs);
-    }
-
-    /**
-     * Called on the tracker's 400ms tick. Cheap: one comparison when the user
-     * is not quiet, and it is idempotent — `active` guards the arm, so a slow
-     * tick cannot stack timers.
-     */
-    function tick() {
-      if (!allowed()) { stop(); return; }
-      if (active) return;
-      if (!Buddy.nudgeDue(state.lastUserAt, Date.now())) return;
-      active = true;
-      fire();
-    }
+    var machine = Buddy.createNudgeMachine({
+      now: function () { return Date.now(); },
+      // Both switches are read on every tick, so flipping either stops the run
+      // instead of waiting for the next page load.
+      enabled: function () { return !!settings.enabled; },
+      proactive: function () { return !!settings.proactive; },
+      // Silence only counts while the page is being looked at. A tab in the
+      // background is not "ignoring the cat", it is not there, and talking to
+      // an empty room every five seconds is pure noise.
+      visible: function () { return document.visibilityState === 'visible'; },
+      onSpeak: function () {
+        var line = Buddy.pickNudgeLine(recent);
+        recent = [line].concat(recent).slice(0, Buddy.NUDGE_LINES.length - 1);
+        // 嫌弃 is the joke: the cat is annoyed, not hurt. holdMs 0 so the face
+        // does not expire back to greet between two nags.
+        if (Emotions) ui.setEmotion('annoyed', { force: true, holdMs: 0, source: 'nudge' });
+        // A real utterance in the transcript, but not `seed`: unlike the opener
+        // it is something that happened in the conversation.
+        ui.appendNotice(line, 'annoyed');
+        ui.showReaction(line);
+      },
+      onStop: function () {
+        // The face the nagging left behind is not the truth any more. Drop back
+        // to the resting greeting without touching the quota (source: 'nudge').
+        if (Emotions) ui.setEmotion(EMOTION_DEFAULT, { force: true, holdMs: 0, source: 'nudge' });
+      },
+    });
 
     return {
-      /** True while the nag timer is the reason dwell time is frozen. */
-      isActive: function () { return active; },
-      tick: tick,
-      /** The user said something: end the nag, including any pending timer. */
-      resolve: function () {
-        state.lastUserAt = Date.now();
-        stop();
-      },
-      /** Wall-clock reset without claiming the user spoke (new session, etc). */
-      restart: function () {
-        state.lastUserAt = Date.now();
-        stop();
-      },
-      /** Page hidden or shutting down: silence, and no timer left behind. */
-      suspend: function () {
-        window.clearTimeout(timer);
-        timer = 0;
-      },
-      /** Resume after `suspend()`; the silence clock keeps running. */
-      resume: tick,
-      stop: stop,
+      /** True while the nag is the reason dwell time is frozen. */
+      isActive: function () { return machine.isActive(); },
+      /** Called on the tracker's 400ms tick, after the visibility gate. */
+      tick: function () { machine.tick(); },
+      /** The user said something: end the nag and restart the silence clock. */
+      resolve: function () { machine.userSpoke(); },
+      /** Reset the silence clock without claiming the user spoke. */
+      restart: function () { machine.restart(); },
+      /** Page hidden or shutting down: end the run. */
+      stop: function () { machine.stop(); },
     };
   })();
 
@@ -1002,6 +972,30 @@
     ui.showReaction(line);
   }
 
+  /**
+   * Say the budget out loud, once per conversation.
+   *
+   * Two paths can reach this — the user's first message and the first
+   * dwell-triggered reaction — and whichever comes first does the announcing.
+   * Announcing on both would mean the user hears the same number twice in the
+   * first half-minute, which is the opposite of a heads-up.
+   *
+   * Not gated on `proactive`: this is the limiter explaining a rule that is
+   * already in force, the same category as the shutdown line. Turning off
+   * unsolicited reactions must not make a closing tab arrive unexplained.
+   * It IS gated on `limitEnabled`: with no budget there is nothing to report.
+   */
+  function announceBudget() {
+    if (state.budgetAnnounced) return;
+    if (Buddy.limitBudgetMs(settings) <= 0) return;
+    state.budgetAnnounced = true;
+    var line = Buddy.pickBudgetLine(settings.limitMinutes);
+    // Announce says what the rule is; it is not annoyance at the user, so it
+    // keeps the resting face rather than borrowing the shutdown's 生气.
+    ui.appendNotice(line, EMOTION_DEFAULT);
+    ui.showReaction(line);
+  }
+
   /** Back off only after a failure, so a slow server cannot mute the next video. */
   function backoff() {
     if (settings.cooldownSeconds > 0) {
@@ -1024,6 +1018,9 @@
       ui.flash(settings.mode === 'direct' ? '先在插件设置里填 API Key' : '先在插件设置里填访问令牌');
       return;
     }
+    // Before the request, so the budget is known even if the model call fails
+    // — the number is the user's own setting, not something to wait on.
+    announceBudget();
     ui.setState('thinking');
 
     var screen = readScreenText(video);
@@ -2106,6 +2103,10 @@
       state.messages = [];
       // A fresh conversation starts from a clean palette.
       state.emotionTally = Object.create(null);
+      // The budget notice is once per conversation, so a new conversation earns
+      // a new one. The silence clock restarts too: the panel was just used.
+      state.budgetAnnounced = false;
+      nudge.restart();
 
       closeHistory();
       paintMessages();
@@ -2185,9 +2186,17 @@
       var text = Buddy.cleanText(els.input ? els.input.value : '', 1000);
       if (!text || state.streaming) return;
 
+      // The one place the user counts as having spoken. Reset the silence
+      // clock before anything else can throw, so a failed request still ends
+      // the nagging — they did their part by answering.
+      nudge.resolve();
+
       pushMessage('user', text);
       els.input.value = '';
       autosize();
+      // First thing the user says this conversation: tell them the budget
+      // before the reply, so the number is not buried after the model's line.
+      announceBudget();
       startStream(text);
     }
 
@@ -2336,6 +2345,10 @@
     if (document.visibilityState === 'hidden') {
       ui.persistSession();
       limiter.flush();
+      // Talking to a tab nobody is looking at is noise, and a background tab
+      // gets its timers throttled anyway; the silence clock keeps running, so
+      // `tick()` restarts the nudge on the next visit if it is still due.
+      nudge.stop();
     }
   });
 

@@ -3,7 +3,7 @@
 > 最后更新：2026-10-25
 > 项目：抖音网页悬浮球「喵喵陪你刷」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（245 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（268 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -41,7 +41,7 @@
 - `tools/`
   - `pack-site.mjs` — **网站发布目录打包**（白名单）→ `site-dist/`；`--zip` 同时产出 `site-dist.zip`，见 §4.8
   - `zip-writer.mjs` — **ZIP 写入唯一副本**（无依赖），`pack-extension.mjs` 与 `pack-site.mjs` 共用
-  - `check-deploy.mjs` — **线上站点检查**：headless Chrome 打开真实 URL，10 项断言，不需要 Key，见 §4.8
+  - `check-deploy.mjs` — **线上站点检查**：headless Chrome 打开真实 URL，11 项断言，不需要 Key，见 §4.8
 - `site/` — 公开网页（4 页 + `app.js` / `styles.css` / 情绪图 / `download/*.zip`），`site/README.md` 是内部说明、不进发布目录
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
 - `.claude/commands/` — Claude Code 斜杠命令
@@ -176,7 +176,7 @@
 - **另一 Agent 负责**：`site/`、`submission/demo/`、`README.md`、`submission/one-pager/` 的文案与功能展示（以及品牌改名）。Claude Code 不要改这些文件，避免网页文案与实现两边同时变。
 - **共同底线**：不改 `manifest.json` 权限，不加新权限，不破坏 server / direct 两条链路，不改变 9 情绪链路和原有已确认的开关行为。
 
-**当前状态（2026-10-25）**：品牌名、默认值 `limitEnabled: true`、popup 文案、网页/README/一页介绍/截图已完成；**首次报总时长、5 分钟沉默催促、催促期间暂停停留计时尚未接入**，由 Claude Code 从下面第 2 条开始实现。网页和 Demo 已经按目标状态写好，接完代码即可联调。
+**当前状态（2026-10-25）**：品牌名、默认值 `limitEnabled: true`、popup 文案、网页/README/一页介绍/截图已完成；Claude Code 已接入首次报总时长、5 分钟沉默催促、催促期间暂停停留/额度计时。`nudge.test.ts` 22 项、服务端共 268 项测试与 `typecheck` 通过。接完代码后仍需真实抖音页面回归。
 
 功能契约：
 
@@ -186,6 +186,23 @@
 4. **催促期间暂停停留计时**：催促的 5 秒计时器运行期间，`tracker` 不累加本视频停留时长，`limiter.add()` 也不计每日额度；累计值冻结而不是清零。用户主动发消息后立刻恢复，从冻结值继续，不吐掉已经看了的时间，也不因催促触发新的 `onDwell()`。
 5. **线程安全**：催促定时器与关页定时器互斥。`sayAndClose()` / 页面隐藏 / 新会话 / 关闭面板时要清掉催促定时器，不能出现关页后继续弹话、或两条催促重叠。所有台词以「喵」结尾，符合现有文风。
 6. **测试**：新增/更新测试要覆盖默认值、提醒只出现一次、5 分钟触发、5 秒间隔、用户回话停止、暂停期间不计停留/额度、关闭 `proactive` 不催。不要只测纯函数，至少用 fake timer 跑一遍 `buddy.js` 的状态转换。
+
+### 2.1.11 首次报额度 + 沉默催促（2026-10-25）
+
+1. **首次报额度**：开启限时时，本会话第一次开口会先用 `appendNotice()` 说一句「今天设的是 N 分钟」。
+   - 两个入口都算「第一次开口」：`onDwell()`（停留触发的反应）与 `sendMessage()`（用户自己发的第一句），谁先到谁报，`state.budgetAnnounced` 保证**只报一次**。`newSession()` 把它清回 `false`——新对话该重新说一遍。
+   - **不受 `proactive` 管**：这是限时器在解释一条已经在生效的规则，和关页台词同类。关掉「主动搭话」不能让标签页在毫无说明的情况下被关掉。
+   - **受 `limitEnabled` 管**（经 `limitBudgetMs() <= 0` 判断）：没有额度就没有可报的东西。
+   - 在发请求**之前**说，因为这个数字是用户自己的设置，不该等一次可能失败或很慢的模型调用。
+   - 台词在 `core.js` 的 `BUDGET_LINES`（5 条，含 `{minutes}` 占位符，全部以「喵」结尾）。这是**唯一**允许出现时长的本地台词：它读回的是用户自己设的额度，不是 CLAUDE.md §2.1.5 禁止模型谈论的观看时长。
+2. **沉默催促**：5 分钟（`NUDGE_AFTER_MS`，固定）没有**主动发消息**，就每 5 秒（`NUDGE_GAP_MS`，固定）说一句，直到用户发消息为止。两个数字都不提供设置项。
+   - **只有 `sendMessage()` 算「主动」**：开机招呼、视频反应、额度提醒、催促本身都不能重置这个时钟，否则猫一直给自己续命、永远催不出来。
+   - **状态机在 `core.js`，不在 `buddy.js`**：`Buddy.createNudgeMachine({ now, enabled, proactive, visible, onSpeak, onStop })`。页面只提供时钟、三个开关的读取函数和两个 DOM 回调。这样测试能用假时钟驱动**浏览器里真正跑的那份代码**，而不是一份重新实现的版本（CLAUDE.md §2.1.10 第 6 条要求）。
+   - **不额外开定时器**：`tracker.tick()`（每 400ms）调 `nudge.tick()`，所以最多晚一个 tick，而且后台标签页不会留一个对着空房间说话的 timer。
+   - **任一开关关掉就整个结束这次运行**（不是挂起）：`enabled` / `proactive` / 页面不可见三者任一为假都返回 inactive。挂起会让后台待久了攒一批台词，回来看的那一刻一次性倒出来。
+   - **催促期间冻结停留计时与每日额度**：`tracker.tick()` 里 `if (!playing || delta <= 0 || nudge.isActive())` 一个 early return 同时挡住 `limiter.add()` 和 `accumulated +=`。催的时候还在给视频计时，等于一边骂一边算你上头，而且进度环会声称它在量注意力。**冻结不是清零**：用户回来接着看，从原来的进度继续。
+   - `sayAndClose()` / 页面隐藏 / `newSession()` 都清掉运行状态；关页之后不能再冒出一句催促。
+   - 台词在 `core.js` 的 `NUDGE_LINES`（8 条，全部以「喵」结尾，不含任何时长数字）。
 
 ### 2.2 聊天与表情链路（重点）
 
@@ -351,13 +368,17 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 245 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 268 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
 - `/health` 的 provider 符合预期
 - 打包：`node extension/tools/pack-extension.mjs` 后 ZIP 里有 `shared/persona.js`、`shared/text-core.js`、`shared/guards-core.js`、`shared/voice-filter.js`、`shared/zh-prompt.js`，且没有 `tools/`、`server/`、`.pem`、`.env*`
 - 直连：`node extension/tools/direct-check.mjs` 21 项全过（不需要 Key，见 §4.7.1）
+- 网站：`node tools/pack-site.mjs --zip` 后 `site-dist.zip` 的条目里有**位于归档根部**的 `404.html`（`unzip -l` 或 `pack-site.test.ts`），且用 `cd site-dist && node ../site/serve.mjs` 起本地预览后 `node tools/check-deploy.mjs --url http://127.0.0.1:4173` 11/11（见 §4.8）
+- 人工回归（报额度）：全新配置、限时开启，刷视频等到第一次开口，气泡里先出现「今天设的是 N 分钟」再出视频反应；再聊几句不会重复报；点「新对话」后会再报一次
+- 人工回归（催促）：打开抖音，面板里什么都别发，等 5 分钟——每 5 秒冒一句以「喵」结尾的催促；期间悬浮球进度环**停住不动**；随便发一句，催促立刻停、进度环从原处继续走
+- 人工回归（催促·开关）：popup 里取消「停留后主动搭话」，等 5 分钟不应有任何催促；切到别的标签页等 5 分钟也不应有（回来看见的是重新开始，不是攒了一批）
 - 人工回归：发“生气”时图标不立刻变；AI 回复结束后才变；中性回复靠 `done.emotion` 兜底
 - 人工回归（会话）：点「新对话」后旧对话出现在「记录」里；继续聊旧对话，它在列表中的位置不变
 - 人工回归（喵）：发一句普通消息，回复结尾有且只有一个「喵」；发「就这」确认图标仍是 `annoyed`（后缀不影响识别）
@@ -482,21 +503,24 @@ node tools/pack-site.mjs --zip                                 # site-dist/ + si
 
 Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload assets**，上传 **`site-dist` 文件夹本身**或 **`site-dist.zip`**。它的提示是「The contents of your zip file or folder will be used to deploy your project」——取的是**内容**作为站点根目录，所以拖文件夹本身是对的，**不需要进去全选再拖**（曾把这条写反过）。
 
-1. **`tools/pack-site.mjs` 是白名单**：只复制 4 个页面、`styles.css`、`app.js`、`assets/**/*.png`、`download/*.zip`。`site/README.md`（含内部决策：为什么不上 Firefox、为什么暂不上架）和 `site/serve.mjs`（本地预览服务）不进发布目录。新增页面必须显式加进 `PAGES`。
-2. **三条守卫，直接 `exit 1`**：`download/` 里没有 ZIP；`app.js` 的 `DOWNLOAD_URL` 与磁盘上的 ZIP 名不一致（改 `manifest.json` 版本却没同步时会发生）；页面引用了没被复制的文件。这三件事单独看都不会报错，只会让站点「看着正常但下不到扩展」。
+1. **`tools/pack-site.mjs` 是白名单**：只复制 5 个页面（含 `404.html`）、`styles.css`、`app.js`、`assets/**/*.png`、`download/*.zip`。`site/README.md`（含内部决策：为什么不上 Firefox、为什么暂不上架）和 `site/serve.mjs`（本地预览服务）不进发布目录。新增页面必须显式加进 `PAGES`。
+2. **四条守卫，直接 `exit 1`**：`download/` 里没有 ZIP；`app.js` 的 `DOWNLOAD_URL` 与磁盘上的 ZIP 名不一致（改 `manifest.json` 版本却没同步时会发生）；页面引用了没被复制的文件；**`404.html` 没被 staged 到归档根部**。这四件事单独看都不会报错，只会让站点「看着正常但下不到扩展」或「看着正常但每个错链接都返回 200」。
 3. **ZIP 条目位于归档根部，不带 `site-dist/` 前缀**。多一层前缀不报错，但整站会被部署到下一级目录，`/` 上什么都没有。`pack-site.test.ts` 解析中央目录断言这一点（已回退验证会红）。
 4. **ZIP 写入逻辑只有一份**：`tools/zip-writer.mjs`，`pack-extension.mjs` 和 `pack-site.mjs` 都 import 它。两个发布路径各写一份的话，修好一处、另一处仍是旧的。
-5. `site-dist/` 与 `*.zip` 都在 `.gitignore` 里，是构建产物，不要提交。
-6. **部署后跑一次线上检查**（免费、不用 Key）：
+5. **`site/404.html` 不是装饰，它决定未知路径的状态码**。Cloudflare Pages 只有在**部署根目录**存在 `404.html` 时才不再把项目当成单页应用；否则任何拼错的地址都返回 `index.html` + **200**，`/typo` 和 `/admin` 对爬虫和链接检查器都与真页面无异（软 404），而浏览器里完全看不出来。所以：① packer 把 `404.html` 放进 `PAGES` 且断言它落在归档根部（放进子目录不生效，行为会静默回退）；② `site/serve.mjs` 的未知路径也返回它并带 404 状态，否则这个页面只能在部署后看到、它自己的链接在那之前完全没被点过；③ `serve.mjs` 同时补了 `/demo` → `/demo.html` 的映射与 `.zip` 的 `application/zip`，否则本地预览和生产行为不一致，检查脚本会为错误的理由失败。
+6. `site-dist/` 与 `*.zip` 都在 `.gitignore` 里，是构建产物，不要提交。
+7. **部署后跑一次线上检查**（免费、不用 Key）：
 
    ```powershell
    node tools/check-deploy.mjs                                   # 默认打 https://shangtou-meowmeow.pages.dev
    node tools/check-deploy.mjs --url https://预览域名.pages.dev   # 换 URL
    ```
 
-   它用 headless Chrome 打开真实站点，而不是 curl：`site/app.js` 的下载按钮是「HEAD 探测 → 换弹窗内容」，路径写错、方法写错、CORS 挡掉都会让页面**看着完全正常**但每个访客拿到的都是回退说明弹窗——纯 HTTP 状态码检查发现不了这一段。10 项覆盖四个页面渲染、从**线上** `app.js` 里读出 `DOWNLOAD_URL` 再拿它去探测、点真实按钮确认弹窗里有 `.zip` 链接、`README.md` / `serve.mjs` 没有泄露、未知路径回落到站点（不是错误页）。
-   - 判断「没有泄露」看的是**响应体**而不是状态码：Cloudflare 对未知路径回落到 `index.html` 并返回 200，所以 `200` 本身不证明任何事。
-   - 已用 `--url https://example.com` 验证它会红（10 项里 8 项失败，退出码 1）。
+   它用 headless Chrome 打开真实站点，而不是 curl：`site/app.js` 的下载按钮是「HEAD 探测 → 换弹窗内容」，路径写错、方法写错、CORS 挡掉都会让页面**看着完全正常**但每个访客拿到的都是回退说明弹窗——纯 HTTP 状态码检查发现不了这一段。11 项覆盖四个页面各自渲染出自己的内容、从**线上** `app.js` 里读出 `DOWNLOAD_URL` 再拿它去探测、点真实按钮确认弹窗里有 `.zip` 链接、`README.md` / `serve.mjs` 返回 404 且不泄露、未知路径返回 **404 且响应体是 404 页**。
+   - 「四个页面渲染」还要求 `document.title` 是**这一页自己的**标题：只看有没有 `<h1>` 的话，路由坏掉时返回的 `404.html` 同样有标题和标语，检查会绿。
+   - 「没有泄露」同时看**响应体**和状态码：正文里不能出现内部部署说明，状态也不能是 200。历史原因记一笔——在 `404.html` 之前，Cloudflare 对未知路径回落 `index.html` 并返回 200，那时只能靠响应体区分。
+   - 已用 `--url https://example.com` 验证它会红（退出码 1）；也在本地 `site-dist/` 上跑过 11/11（`serve.mjs`），并确认把 `404.html` 移出白名单时 packer 会 `exit 1`。
+   - **部署是人工步骤**：直接上传由人在 Cloudflare Dashboard 完成，脚本只负责「产出」和「验证线上」。不要用命令行代替这一步。
 
 ## 5. 环境与密钥
 
