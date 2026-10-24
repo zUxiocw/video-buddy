@@ -117,10 +117,7 @@ describe('limit settings', () => {
     expect(fresh.budgetMs).toBe(30 * 60 * 1000);
   });
 
-  it('keeps the limiter on for settings saved before the field existed', () => {
-    // An instalment that predates limitEnabled has other keys but no such key.
-    // Falling through to the new default would silently switch off a feature
-    // the user was already relying on.
+  it('forces the limiter on for every stored shape', () => {
     const legacy = Buddy.normalizeSettings({
       serverUrl: 'http://127.0.0.1:8787',
       dwellSeconds: 10,
@@ -128,8 +125,9 @@ describe('limit settings', () => {
     });
     expect(legacy.limitEnabled).toBe(true);
 
-    // An explicit value always wins, in both directions.
-    expect(Buddy.normalizeSettings({ dwellSeconds: 10, limitEnabled: false }).limitEnabled).toBe(false);
+    // 到点关视频 is a product boundary now: even an explicit old `false` is
+    // normalized back to on. The numeric settings still pass through.
+    expect(Buddy.normalizeSettings({ dwellSeconds: 10, limitEnabled: false }).limitEnabled).toBe(true);
     expect(Buddy.normalizeSettings({ limitEnabled: true }).limitEnabled).toBe(true);
   });
 
@@ -144,10 +142,13 @@ describe('limit settings', () => {
     expect(Buddy.normalizeSettings({ settingsVersion: 'abc' }).settingsVersion).toBe(Buddy.SETTINGS_VERSION);
   });
 
-  it('treats the limiter as off when disabled or the budget is zero', () => {
-    const off = Buddy.normalizeSettings({ limitEnabled: false });
+  it('keeps the defensive off path for raw legacy settings', () => {
+    // normalizeSettings can no longer produce this shape, but a hand-written
+    // old object must still not charge or close anything.
+    const off = { limitEnabled: false, limitMinutes: 30 };
     expect(Buddy.limitBudgetMs(off)).toBe(0);
     expect(Buddy.limitSnapshot(null, Date.now(), off).disabled).toBe(true);
+    expect(Buddy.normalizeSettings(off).limitEnabled).toBe(true);
   });
 });
 
@@ -270,8 +271,8 @@ describe('limitCredit (shared across tabs)', () => {
     }
   });
 
-  it('does nothing at all when the limiter is off', () => {
-    const off = Buddy.normalizeSettings({ limitEnabled: false });
+  it('does nothing at all for a raw legacy off object', () => {
+    const off = { limitEnabled: false, limitMinutes: 30 };
     const r = Buddy.limitCredit({ day: Buddy.dayKey(now), usedMs: 1000 }, 60_000, now, off);
     expect(r.disabled).toBe(true);
     expect(r.over).toBe(false);

@@ -148,14 +148,11 @@
       <fieldset>
         <legend>到点关视频</legend>
         <label class="check">
-          <input id="limitEnabled" type="checkbox" />
-          <span>到点先说话，再关闭网页</span>
+          <input id="limitEnabled" type="checkbox" checked disabled />
+          <span>始终开启，不可关闭</span>
         </label>
         <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
-          默认开启。第一次对话会先报当次总时长；到点说一句，再把标签页关掉。
-        </p>
-        <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
-          另有固定的沉默计时：5 分钟没主动发消息，会每 5 秒催一次，直到你回话；催促时视频停留计时暂停。两个时长都不可改。
+          这是产品的硬边界，不能关闭。第一次对话会先报当次总时长；到点说一句，再把标签页关掉。
         </p>
         <div class="row">
           <label>
@@ -174,12 +171,23 @@
         <p class="hint" style="margin-top: -4px">
           只统计视频正在播放、且页面在前台的时间；暂停、切到别的标签页都不算。关页后这段时间内再次打开，它会说一句就再关一次，不会重新计时。
         </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>沉默催促</legend>
         <label>
-          <span>催促最多 <b id="nudgeLimitCountLabel">10</b> 次，之后关页</span>
+          <span>沉默 <b id="nudgeAfterMinutesLabel">5</b> 分钟后开始催</span>
+          <input id="nudgeAfterMinutes" type="range" min="1" max="10" step="1" />
+        </label>
+        <p class="hint" style="margin-top: -4px">
+          1–10 分钟可调，默认 5 分钟；开始后每 5 秒一句，直到你回话。
+        </p>
+        <label>
+          <span>催满 <b id="nudgeLimitCountLabel">10</b> 次，之后关页</span>
           <input id="nudgeLimitCount" type="range" min="3" max="60" step="1" />
         </label>
         <p class="hint" style="margin-top: -4px">
-          5 分钟没主动说话开始催，每 5 秒一次，一直催到你回话；催满这个次数还没回，就关页进冷却。范围和每日时长一样可改（3–60 次，默认 10 次）。关掉上面的开关后只催不关页。
+          3–60 次可调，默认 10 次；催满后关页，进入上面的冷静期。催的时候视频停留计时暂停。
         </p>
       </fieldset>
 

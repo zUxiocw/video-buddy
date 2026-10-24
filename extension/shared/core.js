@@ -62,10 +62,11 @@
   var LIMIT_MINUTES_MAX = 600;
   var LIMIT_COOLDOWN_MIN = 0;
   var LIMIT_COOLDOWN_MAX = 720;
-  // Silence nudge. Both numbers are deliberately NOT settings and have no
-  // MIN/MAX pair: the site tells users 「5 分钟与 5 秒间隔固定，不提供修改」,
-  // and a configurable version would need its own validation, migration and
-  // popup row for no benefit. Exported so the tests and the page agree.
+  // Silence nudge. The wait before the first line is a setting (1–10 minutes);
+  // the gap between lines stays fixed at 5 seconds, because that is the rhythm
+  // of the bit, not a preference. Exported so popup/tests/site agree.
+  var NUDGE_AFTER_MIN = 1;
+  var NUDGE_AFTER_MAX = 10;
   var NUDGE_AFTER_MS = 5 * 60 * 1000;
   var NUDGE_GAP_MS = 5 * 1000;
   // How many unanswered nags before the cat stops talking and shuts the tab.
@@ -133,6 +134,9 @@
     limitCooldownMinutes: 10,
     // How long the line stays readable before the tab goes away.
     limitCloseSeconds: 5,
+    // Minutes of silence before the first nudge. The gap between nudge lines
+    // remains fixed at NUDGE_GAP_MS.
+    nudgeAfterMinutes: 5,
     // How many utterances the silence nudge gets before the cat stops talking
     // and shuts the tab instead. 10 nags is 50 seconds of being ignored, which
     // is already well past 「一直骚扰」; the cap exists so the nagging cannot go
@@ -297,7 +301,6 @@
     var source = raw && typeof raw === 'object' ? raw : {};
     var deviceId = typeof source.deviceId === 'string' ? source.deviceId.trim() : '';
     if (!DEVICE_ID_RE.test(deviceId)) deviceId = makeDeviceId();
-    var legacyLimit = legacyLimitEnabled(source);
     var legacyRoute = legacyMode(source);
     return {
       enabled: source.enabled === undefined ? DEFAULTS.enabled : !!source.enabled,
@@ -332,9 +335,9 @@
         EMOTION_HOLD_MAX,
       ),
       ballSize: clampInt(source.ballSize, DEFAULTS.ballSize, BALL_SIZE_MIN, BALL_SIZE_MAX),
-      limitEnabled: source.limitEnabled !== undefined
-        ? !!source.limitEnabled
-        : (legacyLimit !== undefined ? legacyLimit : DEFAULTS.limitEnabled),
+      // 到点关视频 is a product boundary, not a preference: it is always on.
+      // The numeric budget/cooldown/close-delay remain adjustable.
+      limitEnabled: true,
       limitMinutes: clampInt(source.limitMinutes, DEFAULTS.limitMinutes, LIMIT_MINUTES_MIN, LIMIT_MINUTES_MAX),
       limitCooldownMinutes: clampInt(
         source.limitCooldownMinutes,
@@ -351,6 +354,12 @@
       // Only ever used when the limiter is on, so it needs no migration of its
       // own: a machine that predates it simply gets the default, which is what
       // the site promises.
+      nudgeAfterMinutes: clampInt(
+        source.nudgeAfterMinutes,
+        DEFAULTS.nudgeAfterMinutes,
+        NUDGE_AFTER_MIN,
+        NUDGE_AFTER_MAX,
+      ),
       nudgeLimitCount: clampInt(
         source.nudgeLimitCount,
         DEFAULTS.nudgeLimitCount,
@@ -757,6 +766,14 @@
     return pool[index];
   }
 
+  /** How long the page must sit silent before the first nudge. */
+  function nudgeAfterMs(settings) {
+    var minutes = Number(settings && settings.nudgeAfterMinutes);
+    if (!Number.isFinite(minutes)) minutes = DEFAULTS.nudgeAfterMinutes;
+    minutes = Math.min(NUDGE_AFTER_MAX, Math.max(NUDGE_AFTER_MIN, Math.round(minutes)));
+    return minutes * 60 * 1000;
+  }
+
   /**
    * Whether the user has been quiet long enough for the nudge to start.
    *
@@ -764,14 +781,19 @@
    * other kind of utterance (opener, video reaction, budget notice, the nudge
    * itself) deliberately does not count: if they did, the cat would keep
    * resetting its own silence clock and never nudge anyone.
+   *
+   * `afterMs` is optional so existing callers/tests keep the historical 5-minute
+   * default; the page passes `nudgeAfterMs(settings)`.
    */
-  function nudgeDue(lastUserAt, nowMs) {
+  function nudgeDue(lastUserAt, nowMs, afterMs) {
     var last = Number(lastUserAt);
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    var wait = Number(afterMs);
+    if (!Number.isFinite(wait) || wait <= 0) wait = NUDGE_AFTER_MS;
     if (!Number.isFinite(last) || last <= 0) return false;
     // A clock that jumped backwards must not park the user in "quiet forever".
     if (last > now) return false;
-    return now - last >= NUDGE_AFTER_MS;
+    return now - last >= wait;
   }
 
   /**
@@ -801,6 +823,8 @@
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     var active = !!state.active;
     var nextAt = Number(state.nextAt);
+    var wait = Number(flags && flags.afterMs);
+    if (!Number.isFinite(wait) || wait <= 0) wait = NUDGE_AFTER_MS;
     function out(isActive, deadline, speak, lastUserAt) {
       return { active: isActive, nextAt: deadline, speak: speak, lastUserAt: lastUserAt };
     }
@@ -809,9 +833,9 @@
     }
     // The clock went backwards: restart the silence window from here rather
     // than waiting for a deadline that is now in the past forever.
-    if (last > now) return out(false, now + NUDGE_AFTER_MS, false, now);
+    if (last > now) return out(false, now + wait, false, now);
     if (!active) {
-      if (!nudgeDue(last, now)) return out(false, last + NUDGE_AFTER_MS, false, last);
+      if (!nudgeDue(last, now, wait)) return out(false, last + wait, false, last);
       return out(true, now + NUDGE_GAP_MS, true, last);
     }
     if (!Number.isFinite(nextAt) || nextAt <= 0 || now >= nextAt) {
@@ -854,6 +878,7 @@
     var isEnabled = dep('enabled', true);
     var isProactive = dep('proactive', true);
     var isVisible = dep('visible', true);
+    var afterMsOf = dep('afterMs', NUDGE_AFTER_MS);
     var capOf = dep('cap', 0);
     var onSpeak = dep('onSpeak', undefined);
     var onStop = dep('onStop', undefined);
@@ -886,6 +911,7 @@
         enabled: !!isEnabled(),
         proactive: !!isProactive(),
         visible: !!isVisible(),
+        afterMs: Number(afterMsOf()) || NUDGE_AFTER_MS,
       });
       if (Number.isFinite(next.lastUserAt) && next.lastUserAt > 0) lastUserAt = next.lastUserAt;
       // Speak before the bookkeeping callback: the page's `onStop` puts the
@@ -1345,6 +1371,9 @@
     // documented as fixed) so the page, the tests and the site copy cannot
     // drift apart on what "5 minutes" and "5 seconds" mean.
     NUDGE_AFTER_MS: NUDGE_AFTER_MS,
+    NUDGE_AFTER_MIN: NUDGE_AFTER_MIN,
+    NUDGE_AFTER_MAX: NUDGE_AFTER_MAX,
+    nudgeAfterMs: nudgeAfterMs,
     NUDGE_GAP_MS: NUDGE_GAP_MS,
     NUDGE_LIMIT_MIN: NUDGE_LIMIT_MIN,
     NUDGE_LIMIT_MAX: NUDGE_LIMIT_MAX,

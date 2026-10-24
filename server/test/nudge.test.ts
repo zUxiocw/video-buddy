@@ -15,6 +15,7 @@ interface NudgeFlags {
   enabled?: boolean;
   proactive?: boolean;
   visible?: boolean;
+  afterMs?: number;
 }
 
 interface NudgeState {
@@ -41,6 +42,7 @@ interface MachineOptions {
   enabled?(): boolean;
   proactive?(): boolean;
   visible?(): boolean;
+  afterMs?(): number;
   cap?(): number;
   onSpeak?(): void;
   onStop?(): void;
@@ -49,8 +51,11 @@ interface MachineOptions {
 }
 
 interface NudgeApi {
-  DEFAULTS: { limitMinutes: number; nudgeLimitCount: number };
+  DEFAULTS: { limitMinutes: number; nudgeLimitCount: number; nudgeAfterMinutes: number };
   NUDGE_AFTER_MS: number;
+  NUDGE_AFTER_MIN: number;
+  NUDGE_AFTER_MAX: number;
+  nudgeAfterMs(settings: unknown): number;
   NUDGE_GAP_MS: number;
   NUDGE_LIMIT_MIN: number;
   NUDGE_LIMIT_MAX: number;
@@ -60,7 +65,7 @@ interface NudgeApi {
   pickNudgeLine(recent?: unknown): string;
   pickBudgetLine(minutes: unknown, recent?: unknown): string;
   pickLimitLine(kind: string, recent?: unknown): string;
-  nudgeDue(lastUserAt: unknown, nowMs: unknown): boolean;
+  nudgeDue(lastUserAt: unknown, nowMs: unknown, afterMs?: number): boolean;
   nudgeStep(
     current: NudgeState,
     nowMs: number,
@@ -173,6 +178,30 @@ describe('nudgeDue', () => {
     expect(Buddy.nudgeDue(0, 10 * MINUTE)).toBe(false);
     expect(Buddy.nudgeDue(20 * MINUTE, 10 * MINUTE)).toBe(false);
     expect(Buddy.nudgeDue('garbage', 10 * MINUTE)).toBe(false);
+  });
+});
+
+describe('nudge timing setting', () => {
+  it('defaults to five minutes and clamps to one through ten', () => {
+    expect(Buddy.normalizeSettings({}).nudgeAfterMinutes).toBe(5);
+    expect(Buddy.normalizeSettings({ nudgeAfterMinutes: 0 }).nudgeAfterMinutes).toBe(1);
+    expect(Buddy.normalizeSettings({ nudgeAfterMinutes: 99 }).nudgeAfterMinutes).toBe(10);
+    expect(Buddy.normalizeSettings({ nudgeAfterMinutes: 'abc' }).nudgeAfterMinutes).toBe(5);
+    expect(Buddy.NUDGE_AFTER_MIN).toBe(1);
+    expect(Buddy.NUDGE_AFTER_MAX).toBe(10);
+    expect(Buddy.nudgeAfterMs({ nudgeAfterMinutes: 1 })).toBe(1 * MINUTE);
+    expect(Buddy.nudgeAfterMs({ nudgeAfterMinutes: 10 })).toBe(10 * MINUTE);
+  });
+
+  it('honours a custom wait in nudgeDue and the machine', () => {
+    expect(Buddy.nudgeDue(1000, 1000 + 2 * MINUTE - 1, 2 * MINUTE)).toBe(false);
+    expect(Buddy.nudgeDue(1000, 1000 + 2 * MINUTE, 2 * MINUTE)).toBe(true);
+
+    const h = harness({ afterMs: () => 2 * MINUTE });
+    h.advance(2 * MINUTE - 1000);
+    expect(h.speaks()).toBe(0);
+    h.advance(1000);
+    expect(h.speaks()).toBe(1);
   });
 });
 

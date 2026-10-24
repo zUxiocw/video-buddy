@@ -96,7 +96,7 @@
   // compresses the first wait so it can be tried without sitting through five
   // minutes, but keeps the every-5-seconds rhythm and the pause/resume rule.
   var NUDGE_LINES = [
-    '喂，五分钟没理我了喵。',
+    '喂，这么久没理我了喵。',
     '视频比我好看是吧喵？',
     '你再不回，我就一直说喵。',
     '看我一眼，就一眼喵。',
@@ -396,7 +396,7 @@
         if (silenceNote) silenceNote.textContent = '正在催：每 5 秒一句，直到你主动回话。视频停留计时从触发时冻结。';
         if (startSilenceButton) {
           startSilenceButton.hidden = true;
-          startSilenceButton.textContent = '模拟 5 分钟没说话';
+          startSilenceButton.textContent = '模拟沉默没说话';
         }
         if (stopSilenceButton) stopSilenceButton.hidden = false;
         return;
@@ -431,10 +431,10 @@
       silenceStatus.textContent = '沉默计时 · 未触发';
       if (silenceClock) silenceClock.textContent = '05:00';
       if (silenceClockNote) silenceClockNote.textContent = '距下一次催促';
-      if (silenceNote) silenceNote.textContent = '真实值：5 分钟触发、每 5 秒一次，两项固定；催满次数默认 10，可调 3–60。这里把等待加速成 2 秒，方便试玩。';
+      if (silenceNote) silenceNote.textContent = '真实值：默认沉默 5 分钟（可调 1–10 分钟），之后每 5 秒一次；催满次数默认 10，可调 3–60。这里把等待加速成 2 秒，方便试玩。';
       if (startSilenceButton) {
         startSilenceButton.hidden = false;
-        startSilenceButton.textContent = '模拟 5 分钟没说话';
+        startSilenceButton.textContent = '模拟沉默没说话';
       }
       if (stopSilenceButton) stopSilenceButton.hidden = true;
     }

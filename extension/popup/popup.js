@@ -23,12 +23,14 @@
     limitMinutes: document.getElementById('limitMinutes'),
     limitCooldownMinutes: document.getElementById('limitCooldownMinutes'),
     limitCloseSeconds: document.getElementById('limitCloseSeconds'),
+    nudgeAfterMinutes: document.getElementById('nudgeAfterMinutes'),
     nudgeLimitCount: document.getElementById('nudgeLimitCount'),
   };
   var ballSizeLabel = document.getElementById('ballSizeLabel');
   var bubbleSecondsLabel = document.getElementById('bubbleSecondsLabel');
   var emotionHoldSecondsLabel = document.getElementById('emotionHoldSecondsLabel');
   var limitCloseSecondsLabel = document.getElementById('limitCloseSecondsLabel');
+  var nudgeAfterMinutesLabel = document.getElementById('nudgeAfterMinutesLabel');
   var nudgeLimitCountLabel = document.getElementById('nudgeLimitCountLabel');
   var dot = document.getElementById('dot');
   var statusText = document.getElementById('statusText');
@@ -71,6 +73,8 @@
     fields.limitCooldownMinutes.value = settings.limitCooldownMinutes;
     fields.limitCloseSeconds.value = settings.limitCloseSeconds;
     limitCloseSecondsLabel.textContent = settings.limitCloseSeconds;
+    fields.nudgeAfterMinutes.value = settings.nudgeAfterMinutes;
+    nudgeAfterMinutesLabel.textContent = settings.nudgeAfterMinutes;
     fields.nudgeLimitCount.value = settings.nudgeLimitCount;
     nudgeLimitCountLabel.textContent = settings.nudgeLimitCount;
   }
@@ -97,6 +101,7 @@
       limitMinutes: fields.limitMinutes.value,
       limitCooldownMinutes: fields.limitCooldownMinutes.value,
       limitCloseSeconds: fields.limitCloseSeconds.value,
+      nudgeAfterMinutes: fields.nudgeAfterMinutes.value,
       nudgeLimitCount: fields.nudgeLimitCount.value,
     });
   }
@@ -260,6 +265,10 @@
 
   fields.limitCloseSeconds.addEventListener('input', function () {
     limitCloseSecondsLabel.textContent = fields.limitCloseSeconds.value;
+  });
+
+  fields.nudgeAfterMinutes.addEventListener('input', function () {
+    nudgeAfterMinutesLabel.textContent = fields.nudgeAfterMinutes.value;
   });
 
   fields.nudgeLimitCount.addEventListener('input', function () {

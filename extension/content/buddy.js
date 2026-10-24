@@ -612,10 +612,11 @@
       // background is not "ignoring the cat", it is not there, and talking to
       // an empty room every five seconds is pure noise.
       visible: function () { return document.visibilityState === 'visible'; },
+      // Minutes of silence before the first line. A getter so a popup change
+      // applies without a reload; the 5s gap between lines stays fixed.
+      afterMs: function () { return Buddy.nudgeAfterMs(settings); },
       // How many utterances this streak gets before the page is shut down. A
-      // getter, so a popup change applies without a reload and switching
-      // 到点关视频 off drops the cap immediately: closing pages is that switch's
-      // permission, and the nudge must not acquire it on its own.
+      // getter, so a popup change applies without a reload.
       cap: function () { return settings.limitEnabled ? settings.nudgeLimitCount : 0; },
       onSpeak: function () {
         var line = Buddy.pickNudgeLine(recent);
