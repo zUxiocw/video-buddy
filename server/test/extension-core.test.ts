@@ -32,6 +32,8 @@ interface BuddyApi {
   LIMIT_COOLDOWN_MAX: number;
   LIMIT_CLOSE_MIN: number;
   LIMIT_CLOSE_MAX: number;
+  NUDGE_AFTER_MIN: number;
+  NUDGE_AFTER_MAX: number;
   NUDGE_LIMIT_MIN: number;
   NUDGE_LIMIT_MAX: number;
   normalizeRepeatDwell(value: unknown): number;
@@ -119,6 +121,10 @@ describe('extension core', () => {
     expect(Buddy.DEFAULTS.limitCooldownMinutes).toBeLessThanOrEqual(Buddy.LIMIT_COOLDOWN_MAX);
     expect(Buddy.DEFAULTS.limitCloseSeconds).toBeGreaterThanOrEqual(Buddy.LIMIT_CLOSE_MIN);
     expect(Buddy.DEFAULTS.limitCloseSeconds).toBeLessThanOrEqual(Buddy.LIMIT_CLOSE_MAX);
+    expect(Buddy.DEFAULTS.nudgeAfterMinutes).toBeGreaterThanOrEqual(Buddy.NUDGE_AFTER_MIN);
+    expect(Buddy.DEFAULTS.nudgeAfterMinutes).toBeLessThanOrEqual(Buddy.NUDGE_AFTER_MAX);
+    expect(Buddy.DEFAULTS.nudgeLimitCount).toBeGreaterThanOrEqual(Buddy.NUDGE_LIMIT_MIN);
+    expect(Buddy.DEFAULTS.nudgeLimitCount).toBeLessThanOrEqual(Buddy.NUDGE_LIMIT_MAX);
   });
 
   it('gives fresh installs direct mode, but never reroutes an existing one', () => {
@@ -365,6 +371,7 @@ describe('extension core', () => {
     expect(rangeOf('limitMinutes')).toEqual({ min: Buddy.LIMIT_MINUTES_MIN, max: Buddy.LIMIT_MINUTES_MAX });
     expect(rangeOf('limitCooldownMinutes')).toEqual({ min: Buddy.LIMIT_COOLDOWN_MIN, max: Buddy.LIMIT_COOLDOWN_MAX });
     expect(rangeOf('limitCloseSeconds')).toEqual({ min: Buddy.LIMIT_CLOSE_MIN, max: Buddy.LIMIT_CLOSE_MAX });
+    expect(rangeOf('nudgeAfterMinutes')).toEqual({ min: Buddy.NUDGE_AFTER_MIN, max: Buddy.NUDGE_AFTER_MAX });
     expect(rangeOf('nudgeLimitCount')).toEqual({ min: Buddy.NUDGE_LIMIT_MIN, max: Buddy.NUDGE_LIMIT_MAX });
     expect(rangeOf('ballSize')).toEqual({ min: Buddy.BALL_SIZE_MIN, max: Buddy.BALL_SIZE_MAX });
   });

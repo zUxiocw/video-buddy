@@ -558,9 +558,10 @@
        * `limitAfterNag`), so ignoring the cat cannot be used to farm a fresh
        * daily budget — the cap adds a limit, it does not replace one.
        *
-       * Gated on `limitEnabled` deliberately: that switch is the user's
-       * permission for this extension to close tabs. With it off the nudge keeps
-       * talking instead of silently acquiring a new power.
+       * Gated on `limitEnabled` deliberately, and that gate is now always open
+       * for stored settings (normalizeSettings forces it on). It stays as a
+       * guard against a hand-written `false` object reaching the page: closing
+       * tabs is the limiter's power, and the nudge must never invent it.
        */
       closeForNudge: function () {
         if (announced || !settings.limitEnabled) return;
@@ -617,6 +618,12 @@
       afterMs: function () { return Buddy.nudgeAfterMs(settings); },
       // How many utterances this streak gets before the page is shut down. A
       // getter, so a popup change applies without a reload.
+      //
+      // `limitEnabled` is forced on by normalizeSettings, so the ternary is
+      // always true for anything this page can be holding. It stays because a
+      // hand-written `{ limitEnabled: false }` must still not close tabs: the
+      // cap is a power to shut pages down, and that power belongs to the
+      // limiter, not to the nudge. Do not simplify this to the bare count.
       cap: function () { return settings.limitEnabled ? settings.nudgeLimitCount : 0; },
       onSpeak: function () {
         var line = Buddy.pickNudgeLine(recent);

@@ -3,7 +3,7 @@
 > 最后更新：2026-10-25
 > 项目：抖音网页悬浮球「喵喵陪你刷」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（293 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促与催满关页（§2.1.11 / §2.1.12）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（294 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促与催满关页（§2.1.11 / §2.1.12）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -86,8 +86,8 @@
 ### 2.1.8 设置迁移与全新安装默认值
 
 1. **`limitEnabled` 固定 `true`**（产品边界：到点关视频始终开启、不可关闭）。`normalizeSettings` 不再保留 `false`；旧配置里的 `false` 会被归一为 `true`。数字参数（额度/冷静期/关页延迟）仍可调。
-2. **旧配置迁移**：`legacyLimitEnabled()` 仍保留给历史/防御用途，但新逻辑不再根据它决定开关；显式 `false` 也归一为 `true`，这是有意的产品决定，不是遗漏。
-3. `normalizeSettings()` 仍是 popup / background / content 的**唯一汇合点**；旧的 `legacyLimitEnabled()` / `legacyMode()` 只作为历史迁移辅助保留，不要新增第二个设置归一入口。
+2. **旧配置迁移不再需要**：开关锁死后 `legacyLimitEnabled()` 已删除——一个永远返回 `true` 的迁移谓词只是噪音，留着会让下一个人以为还有第二条路径。显式 `false` 也归一为 `true`，这是有意的产品决定，不是遗漏。
+3. `normalizeSettings()` 仍是 popup / background / content 的**唯一汇合点**；`legacyMode()` 只作为历史迁移辅助保留（`mode` 仍需要它），不要新增第二个设置归一入口。
 4. `settingsVersion` 随设置在存储里落盘（当前 `SETTINGS_VERSION = 2`，缺失视为 1），给将来的形状迁移留挂点。**未来版本号要保留原值，不能用 `clampInt` 压回当前值**：降级运行时把「数据比代码新」这个信息抹掉，会造成二次迁移。
 5. 改默认值必须同步测试：`limit.test.ts` 的共享 `settings` 常量显式写 `{ limitEnabled: true }`，因为它测的是限时器本身，不该依赖默认值。
 
@@ -148,7 +148,7 @@
 ### 2.1.9 两种接入方式（server / direct）
 
 1. `settings.mode` 只有 `'server'` 和 `'direct'` 两个值。**全新安装默认 `'direct'`**（公开版就是 BYOK，陌生人没有本地服务可指）；**旧配置必须留在 `'server'`**，见下条。
-   - 判断在 `legacyMode()`：**有别的键但没有 `mode`** → 旧配置，`'server'`；**空对象** → 全新安装，用 `DEFAULTS.mode`；显式写入的 `'server'` / `'direct'` 永远优先。和 §2.1.8 的 `legacyLimitEnabled()` 是同一套形状。
+   - 判断在 `legacyMode()`：**有别的键但没有 `mode`** → 旧配置，`'server'`；**空对象** → 全新安装，用 `DEFAULTS.mode`；显式写入的 `'server'` / `'direct'` 永远优先。
    - 少了这条，升级用户会被静默改道到他没有 Key 的通道，猫直接哑掉。
    - 无法识别的值（`'DIRECT'` / `'byok'`）**不算旧配置**（键存在），按默认值处理，与 `enabled` 等字段一致。
 2. `background.js` 是唯一出口，两条路径在 `analyze()` 和 `streamChat()` 开头分叉：
@@ -176,7 +176,7 @@
 - **另一 Agent 负责**：`site/`、`submission/demo/`、`README.md`、`submission/one-pager/` 的文案与功能展示（以及品牌改名）。Claude Code 不要改这些文件，避免网页文案与实现两边同时变。
 - **共同底线**：不改 `manifest.json` 权限，不加新权限，不破坏 server / direct 两条链路，不改变 9 情绪链路和原有已确认的开关行为。
 
-**当前状态（2026-10-25）**：品牌名、`limitEnabled` 固定开启、popup 文案、网页/README/一页介绍/截图已完成；到点关视频不可关闭，沉默开始 1–10 分钟可调，催满次数 3–60 可调。`nudge.test.ts` 39 项、服务端共 293 项测试与 `typecheck` / `build` 通过。接完代码后仍需真实抖音页面回归。
+**当前状态（2026-10-25）**：品牌名、`limitEnabled` 固定开启、popup 文案、网页/README/一页介绍/截图已完成；到点关视频不可关闭，沉默开始 1–10 分钟可调，催满次数 3–60 可调。`nudge.test.ts` 40 项、服务端共 294 项测试与 `typecheck` / `build` 通过。接完代码后仍需真实抖音页面回归。
 
 功能契约：
 
@@ -381,7 +381,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 293 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 294 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）

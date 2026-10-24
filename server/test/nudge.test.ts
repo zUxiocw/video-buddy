@@ -439,9 +439,23 @@ describe('nudge cap (沉默催促 → 关页)', () => {
     expect(h.exhausted()).toBe(0);
   });
 
-  it('has no cap at all when the limiter switch is off', () => {
-    // 到点关视频 off means "this extension does not close my tabs". The nudge
-    // has to keep nagging forever rather than quietly acquiring that power.
+  it('keeps the cap reachable for every stored settings shape', () => {
+    // 到点关视频 is locked on, so the cap must exist no matter what an older
+    // build (or a hand-edited storage object) says. If normalizeSettings ever
+    // starts honouring an explicit `false` again, the cap silently disappears
+    // and 「催满关页」 stops happening — the exact bug this lock was added for.
+    for (const raw of [{}, { limitEnabled: false }, { limitEnabled: true }, { dwellSeconds: 10 }]) {
+      const settings = Buddy.normalizeSettings(raw);
+      expect(settings.limitEnabled, JSON.stringify(raw)).toBe(true);
+      expect(settings.nudgeLimitCount, JSON.stringify(raw)).toBeGreaterThan(0);
+    }
+  });
+
+  it('has no cap from a raw off object that bypassed normalization', () => {
+    // The page can only hold normalized settings, but `cap` still has to be
+    // conservative: closing tabs is the limiter's power, and a hand-written
+    // `false` must never give the nudge that power. Driven through the real
+    // machine so the getter — not a re-implementation — is what gets checked.
     const h = harness();
     h.cap.enabled = false;
     h.advance(Buddy.NUDGE_AFTER_MS + Buddy.NUDGE_GAP_MS * 40);

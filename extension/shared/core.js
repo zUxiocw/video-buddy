@@ -70,8 +70,8 @@
   var NUDGE_AFTER_MS = 5 * 60 * 1000;
   var NUDGE_GAP_MS = 5 * 1000;
   // How many unanswered nags before the cat stops talking and shuts the tab.
-  // The count IS a setting (unlike the two intervals above), because "how long
-  // do I tolerate being ignored" is a matter of taste, not of mechanism.
+  // The count IS a setting (unlike the 5s gap above), because "how long do I
+  // tolerate being ignored" is a matter of taste, not of mechanism.
   //
   // The floor is 3 rather than 1: at one nag the cat would go from "your video
   // is more interesting than me" straight to closing the tab, with no chance to
@@ -124,9 +124,10 @@
     ballSize: 60,
     // Watch-time budget. Time only accrues while a video plays on a visible
     // page; when the budget runs out the cat says so, then the tab is closed.
-    // On for a fresh install: watching time is the product's core boundary,
-    // and the site promises this default. An explicit `false` still wins, so
-    // anyone who turns it off keeps it off.
+    // Always on: this is a product boundary (the "到点关视频" promise), not a
+    // preference, so normalizeSettings forces it to true for every stored
+    // shape — including an explicit legacy `false`. The numbers below it stay
+    // adjustable; only the switch is locked.
     limitEnabled: true,
     limitMinutes: 30,
     // After a shutdown, every fresh page gets one warning and is closed again
@@ -247,29 +248,18 @@
   }
 
   /**
-   * Settings saved by a build that predates `limitEnabled` carry no value for
-   * it, so they would fall through to the (now off) default and silently lose
-   * a feature the user was already relying on. A saved object that has other
-   * keys but no `limitEnabled` is such an instalment: keep it on. An empty
-   * object is a fresh install and gets the new default.
-   */
-  function legacyLimitEnabled(source) {
-    if (Object.prototype.hasOwnProperty.call(source, 'limitEnabled')) return undefined;
-    for (var key in source) {
-      if (Object.prototype.hasOwnProperty.call(source, key)) return true;
-    }
-    return undefined;
-  }
-
-  /**
-   * Same problem as legacyLimitEnabled, one field over: `mode` now defaults to
-   * 'direct' for fresh installs, but every machine that saved settings before
-   * this field existed is talking to a local service that does work. Letting
-   * those fall through to the new default would reroute their requests to a
-   * provider they never configured a key for — the cat goes silent on upgrade.
+   * `mode` now defaults to 'direct' for fresh installs, but every machine that
+   * saved settings before this field existed is talking to a local service that
+   * does work. Letting those fall through to the new default would reroute
+   * their requests to a provider they never configured a key for — the cat goes
+   * silent on upgrade.
    *
    * A saved object with other keys but no `mode` is such an instalment: keep it
    * on 'server'. An explicit value always wins.
+   *
+   * `limitEnabled` used to need the same treatment; it is now forced on for
+   * every stored shape (see normalizeSettings), so there is nothing left to
+   * migrate and no sibling predicate here.
    */
   function legacyMode(source) {
     if (Object.prototype.hasOwnProperty.call(source, 'mode')) return undefined;
