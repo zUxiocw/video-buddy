@@ -1,62 +1,54 @@
+/*
+ * Thin wrapper over extension/shared/text-core.js, plus the few helpers that
+ * genuinely need Node.
+ *
+ * The clamping and sanitising helpers moved to the shared file because the
+ * BYOK prompt path needs them in the browser. Keeping a second copy here would
+ * let the client and server send subtly different prompts.
+ *
+ * Server-only: hashShort (node:crypto, for device/idempotency keys that never
+ * leave this process), isAbortError and delay.
+ */
 import { createHash } from 'node:crypto';
+import '../../../extension/shared/text-core.js';
 
-/** Collapse control characters and whitespace, then hard-truncate. */
-export function clampText(value: unknown, maxLength: number): string {
-  if (typeof value !== 'string') return '';
-  const cleaned = value
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (cleaned.length <= maxLength) return cleaned;
-  return cleaned.slice(0, maxLength).trimEnd();
+interface TextCoreApi {
+  clampText(value: unknown, maxLength: number): string;
+  sanitizeUntrusted(value: unknown, maxLength: number): string;
+  dedupeStrings(values: unknown[], maxItems: number): string[];
+  normalizeForMatch(value: string): string;
+  bigrams(value: string): Set<string>;
+  overlapCount(a: Set<string>, b: Set<string>): number;
+  seed(value: string): number;
 }
 
-/**
- * Screen text is untrusted data. Strip angle brackets so it cannot escape the
- * <ocr> delimiters in prompts, and cap the length.
- */
+const core = (globalThis as unknown as { SmText: TextCoreApi }).SmText;
+if (!core) {
+  throw new Error('extension/shared/text-core.js did not install globalThis.SmText');
+}
+
+export function clampText(value: unknown, maxLength: number): string {
+  return core.clampText(value, maxLength);
+}
+
 export function sanitizeUntrusted(value: unknown, maxLength: number): string {
-  return clampText(value, maxLength).replace(/</g, '‹').replace(/>/g, '›');
+  return core.sanitizeUntrusted(value, maxLength);
 }
 
 export function dedupeStrings(values: unknown[], maxItems: number): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const value of values) {
-    const text = clampText(value, 40);
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(text);
-    if (out.length >= maxItems) break;
-  }
-  return out;
+  return core.dedupeStrings(values, maxItems);
 }
 
-/** Lowercase, keep CJK + letters + digits only. */
 export function normalizeForMatch(value: string): string {
-  return value.toLocaleLowerCase('zh-CN').replace(/[^\p{L}\p{N}]/gu, '');
+  return core.normalizeForMatch(value);
 }
 
-/** Character bigrams over normalized CJK/alphanumeric text. */
 export function bigrams(value: string): Set<string> {
-  const normalized = normalizeForMatch(value);
-  const grams = new Set<string>();
-  const chars = Array.from(normalized);
-  for (let i = 0; i < chars.length - 1; i += 1) {
-    grams.add(`${chars[i]}${chars[i + 1]}`);
-  }
-  return grams;
+  return core.bigrams(value);
 }
 
 export function overlapCount(a: Set<string>, b: Set<string>): number {
-  let count = 0;
-  const [small, large] = a.size <= b.size ? [a, b] : [b, a];
-  for (const gram of small) {
-    if (large.has(gram)) count += 1;
-  }
-  return count;
+  return core.overlapCount(a, b);
 }
 
 export function hashShort(value: string, length = 24): string {

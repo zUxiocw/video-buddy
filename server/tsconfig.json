@@ -28,7 +28,9 @@
     "test/**/*.ts",
     "vitest.config.ts",
     "../extension/shared/persona.js",
+    "../extension/shared/text-core.js",
     "../extension/shared/guards-core.js",
-    "../extension/shared/voice-filter.js"
+    "../extension/shared/voice-filter.js",
+    "../extension/shared/zh-prompt.js"
   ]
 }

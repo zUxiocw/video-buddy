@@ -3,7 +3,7 @@
 > 最后更新：2026-10-24
 > 项目：抖音网页悬浮球「上头了喵喵」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（198 个）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）与键盘守卫只做过 headless 浏览器验证，真实抖音页面回归待做**——见 §4.4。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（226 个）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）与键盘守卫只做过 headless 浏览器验证，真实抖音页面回归待做**——见 §4.4。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -15,10 +15,12 @@
   - `shared/core.js` — 设置、请求体、SSE parser、历史记录、限时额度状态机
   - `shared/emotions.js` — 9 情绪、别名、关键词/语气识别、图标路径
   - `shared/persona.js` — **人设规则唯一副本**（`globalThis.SmPersona`）；服务端 `prompts/persona.ts` 只是薄封装
-  - `shared/guards-core.js` — **喵后缀 / maomao 文风 / 广告台词 / 中性兜底唯一副本**（`globalThis.SmGuards`）；服务端 `safety/guards.ts` 只保留扩展用不到的部分
+  - `shared/text-core.js` — **纯文本工具唯一副本**（`globalThis.SmText`）：`clampText` / `sanitizeUntrusted` / `dedupeStrings` / `normalizeForMatch` / `bigrams` / `overlapCount` / `seed`。`seed` 是 FNV-1a，替代服务端的 `node:crypto` 版本，service worker 里也能用
+  - `shared/guards-core.js` — **喵后缀 / maomao 文风 / 广告台词 / 中性兜底 / 黑名单 / 广告判定 / analyze 收尾唯一副本**（`globalThis.SmGuards`）；依赖 `text-core.js` 先加载
   - `shared/voice-filter.js` — **流式过滤唯一副本**（`globalThis.SmVoiceFilter`），依赖 `guards-core.js` 先加载
+  - `shared/zh-prompt.js` — **system prompt / 视频锚点 / 情绪底色 / 表情配额 / 角度去重 / BUCKET_HINT 唯一副本**（`globalThis.SmPrompt`），依赖 `text-core.js`
   - `background.js` — 唯一访问本地服务的 service worker；代理 SSE，转发 `done.emotion`
-  - `popup/` — 设置页（服务地址、令牌、停留/复聊间隔/气泡/图标时长等）
+  - `popup/` — 设置页（接入方式、服务地址/令牌或 API Key、停留/复聊间隔/气泡/图标时长等）
   - `assets/emotions/{id}-128.png` — 9 个运行时图标
   - `icons/icon{16,48,128}.png` — 工具栏图标，由 `assets/emotions/greet-128.png`（默认态立绘）缩放生成；换角色时同步重生成
   - `tools/e2e.mjs` — 扩展 e2e harness（可选）
@@ -28,10 +30,11 @@
   - `src/routes/chat.ts` — `/v1/chat` SSE
   - `src/routes/analyze.ts` — `/v1/analyze`
   - `src/prompts/persona.ts` — 人设**薄封装**，实现是 `extension/shared/persona.js`
-  - `src/prompts/zh.ts` — system prompt、视频锚点、每轮情绪底色、`pickChatEmotion()`。**留在服务端**：依赖 `node:fs`（`SlangLexicon`）与 `node:crypto`（`hashShort`），搬进 `extension/` 会让扩展加载即崩
+  - `src/prompts/zh.ts` — **薄封装**，实现在 `extension/shared/zh-prompt.js`。`SlangLexicon` 的 result 由 `formatSlangForPrompt(entry)` 传进去，`node:fs` 留在 `trends/`
   - `src/providers/` — `DeepSeekProvider` / `MockProvider`
-  - `src/safety/guards.ts` — **部分封装**：喵后缀 / 文风 / 广告台词 / 中性兜底来自 `extension/shared/guards-core.js`；`BLOCKED_TERMS`、`AD_MARKERS`、`isAdvertisement()`、`containsBlockedTerm()`、`finalizeAnalyzeResult()`、`normalizeMeme()` 只在服务端
+  - `src/safety/guards.ts` — **薄封装**，实现在 `extension/shared/guards-core.js`
   - `src/safety/voiceFilter.ts` — **薄封装**，实现是 `extension/shared/voice-filter.js`
+  - `src/lib/text.ts` — **薄封装**，实现在 `extension/shared/text-core.js`；只保留服务端独有的 `hashShort`（`node:crypto`）、`isAbortError`、`delay`
   - `src/lib/dataPath.ts` — 从 `import.meta.url` 逐级上溯定位 `server/data/*.json`（见 §4.6）
   - `test/` — Vitest
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
@@ -250,11 +253,17 @@ node --check extension/content/buddy.js
 node --check extension/background.js
 node --check extension/shared/emotions.js
 node --check extension/shared/core.js
-# 共享规则的三个文件服务端也 import，改完一并检查
+# 共享规则的五个文件服务端也 import，改完一并检查
 node --check extension/shared/persona.js
+node --check extension/shared/text-core.js
 node --check extension/shared/guards-core.js
 node --check extension/shared/voice-filter.js
+node --check extension/shared/zh-prompt.js
+# 打包脚本本身
+node --check extension/tools/pack-extension.mjs
 ```
+
+> 共享文件里**不要写含 `*/` 的 JSDoc**：`background.js` 的注释里写过 `` `https://*/*` ``，其中的 `*/` 提前闭合了块注释，`node --check` 报 `Unexpected token '*'` 而报错行号完全指不到真凶。
 
 ### 4.2.1 设置项取值区间（改区间前必读）
 
@@ -288,10 +297,10 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 198 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 234 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
-- 四个扩展 JS 的 `node --check` 退出码 0
+- 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
 - `/health` 的 provider 符合预期
 - 人工回归：发“生气”时图标不立刻变；AI 回复结束后才变；中性回复靠 `done.emotion` 兜底
 - 人工回归（会话）：点「新对话」后旧对话出现在「记录」里；继续聊旧对话，它在列表中的位置不变
@@ -312,6 +321,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 - 人工回归（限时·切后台）：停在抖音但切到别的标签页放 5 分钟，回来不应触发限时（只算前台播放时间）
 - 人工回归（限时·多标签页）：开两个抖音标签页各刷一段，看 `chrome.storage.local` 的 `smLimit.usedMs` 应是一条累计总额而不是两次独立计数；两个标签页加起来到点只关当前在看的那个，另一个继续开着的也不该说「还敢点开」
 - 人工回归（键盘）：面板输入框里打字，抖音的快捷键（`J` / `K` / 空格等）不应被触发；Enter 正常发消息、Shift+Enter 换行、Escape 关面板
+- 人工回归（升级不改道）：已经配置好服务端地址的老用户，升级后 popup 仍是「连自己的服务」，不需要重新填任何东西
 
 ### 4.5 公开分发打包
 
@@ -328,12 +338,13 @@ node extension/tools/pack-extension.mjs
 
 ### 4.6 共享规则文件（`extension/shared/*.js`）与服务端构建布局
 
-1. **为什么是 classic script 而不是 ESM**：MV3 content script 没有模块加载器，只能按顺序当普通脚本执行；项目也禁止给扩展加构建步骤（§6.3）。所以这三个文件是 IIFE —— 既给浏览器挂 `globalThis.Sm{X}`，也给 Node `module.exports` 留口子（Node ESM 里 `import '...js'` 只求副作用，`globalThis` 上就有了）。
-2. **服务端只做薄封装**：`persona.ts` / `guards.ts` / `voiceFilter.ts` 读 `globalThis` 再导出，规则本体只有一份。改规则改 `extension/shared/*.js`，不要在两处各写一遍。
-3. **`voice-filter.js` 依赖 `guards-core.js` 先加载**（它在 `flush()` 里才取 `globalThis.SmGuards`）。`voiceFilter.ts` 因此**显式**先 import `guards-core.js`——少这一行，`voiceFilter.test.ts` 会报「requires guards-core.js to be loaded first」。
-4. **`rootDir` 是 `..`，emit 比原来深一层**：入口变成 `dist/server/src/index.js`，共享脚本落在 `dist/extension/shared/`，`package.json` 的 `start` 已跟着改。两份 tsconfig 的 `include` **逐个列出**这三个 js，不用 `../extension/shared/*.js` 通配——通配会把 `core.js` / `emotions.js` / `keyboard-guard.js` 也拷进 dist。
+1. **为什么是 classic script 而不是 ESM**：MV3 content script 没有模块加载器，只能按顺序当普通脚本执行；项目也禁止给扩展加构建步骤（§6.3）。所以这些文件是 IIFE —— 既给浏览器挂 `globalThis.Sm{X}`，也给 Node `module.exports` 留口子（Node ESM 里 `import '...js'` 只求副作用，`globalThis` 上就有了）。
+2. **服务端只做薄封装**：`persona.ts` / `zh.ts` / `guards.ts` / `voiceFilter.ts` / `lib/text.ts` 读 `globalThis` 再导出，规则本体只有一份。改规则改 `extension/shared/*.js`，不要在两处各写一遍。包装层里**不许再长出实现**——一旦有人图省事在 TS 里补一段，两份规则就开始漂移，而漂移是静默的。
+3. **加载顺序有依赖**：`text-core.js` 是最底层；`guards-core.js` 依赖它；`voice-filter.js` 依赖 `guards-core.js`；`zh-prompt.js` 依赖 `text-core.js`。依赖是**惰性取值**（用的时候才读 `globalThis`），所以只 import 下游模块**不会**自动把上游拽进来——包装层必须显式逐个 import。少一行，测试会报「requires X to be loaded first」。
+4. **`rootDir` 是 `..`，emit 比原来深一层**：入口变成 `dist/server/src/index.js`，共享脚本落在 `dist/extension/shared/`，`package.json` 的 `start` 已跟着改。两份 tsconfig 的 `include` **逐个列出**这五个 js，不用 `../extension/shared/*.js` 通配——通配会把 `core.js` / `emotions.js` / `keyboard-guard.js` 也拷进 dist。
 5. **数据文件的相对路径不能写死**：`../../data/*.json` 在 emit 深一层后就指错地方，启动时只打一行 `failed to load lexicon` 然后带空词库继续跑（静默降级，很难发现）。改走 `src/lib/dataPath.ts` 的 `dataFile(name, import.meta.url)`，从模块位置逐级上溯找 `data/`，`tsx` 跑 `src/` 与 `node dist/...` 两种布局都能命中；找不到直接抛错。
-6. **刻意留在服务端的**：`zh.ts`（prompt 组装）和 `trends/*`。它们 `import` `node:fs` / `node:crypto`，放进 `extension/` 会让 content script 一加载就崩——直接违反原则 1。
+6. **`node:crypto` 换成 FNV-1a**：`text.ts` 的 `hashShort` 用 sha256，service worker 里没有这个模块。共享层改用 `SmText.seed()`（FNV-1a，32 位）。副作用是表情配额的平局轮转换了种子——输出仍然确定，只是和 sha256 版本选的不是同一个表情。
+7. **刻意留在服务端的**：`trends/*`（`node:fs` 读词库）和 `lib/text.ts` 里的 `hashShort` / `isAbortError` / `delay`。放进 `extension/` 会让 content script 一加载就崩——直接违反原则 1。
 
 ## 5. 环境与密钥
 
@@ -380,8 +391,8 @@ claude.cmd
 - 改 `server/` 后至少跑 `npm.cmd test` + `typecheck`；改扩展跑 `node --check`。
 - 改情绪识别/映射必须补测试（`server/test/extension-core.test.ts` 或新增）。
 - 不改 `manifest.json` 里 buddy 那条 content script 的顺序（`core.js` → `emotions.js` → `buddy.js`），也不改它 `document_idle` 的时机；`keyboard-guard.js` 必须留在 `document_start` 那条。图标路径保持 `assets/emotions/{id}-128.png`。
-- 不引入扩展构建步骤或框架；扩展是原生 JS。`extension/shared/persona.js` / `guards-core.js` / `voice-filter.js` 是**共享规则**，服务端 import 它们，改完两边一起验（§4.6）。
-- 服务端那三个同名模块（`prompts/persona.ts`、`safety/guards.ts`、`safety/voiceFilter.ts`）**不允许再长出实现**。要改规则改 `extension/shared/*.js`；要加服务端专用逻辑（denylist、analyze 管线），加在 `guards.ts` 的共享段之外。
+- 不引入扩展构建步骤或框架；扩展是原生 JS。`extension/shared/` 下的 `persona.js` / `text-core.js` / `guards-core.js` / `voice-filter.js` / `zh-prompt.js` 是**共享规则**，服务端 import 它们，改完两边一起验（§4.6）。
+- 服务端那五个 wrapper（`prompts/persona.ts`、`prompts/zh.ts`、`safety/guards.ts`、`safety/voiceFilter.ts`、`lib/text.ts`）**不允许再长出实现**。要改规则改 `extension/shared/*.js`。加新规则时先问一句「扩展要不要用」：要，就进共享文件；不要，才留服务端。
 - 不读/写 `.env`、`.env.local`、`extension.pem`；不把 token 写进代码、日志或回复。
 - 不把服务端情绪提示改成权威结果；客户端正文优先是有意设计。
 - 改完更新本文件相关段落和命令。
@@ -398,6 +409,10 @@ claude.cmd
 8. 短视频自动循环不会重置 `firedCount`：同一个 15 秒视频连刷十几分钟，会按复聊间隔持续开口。这是当前取舍（循环与「长视频继续看」在页面上无法可靠区分）；如需抑制，可在 `tracker` 里按 `video.duration` 很短时下限流。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 P2a 共享层扩到全量：把最后两块「服务端和扩展都要用」的规则也提到 `extension/shared/`。新增 `zh-prompt.js`（system prompt / 视频锚点 / 情绪底色 / 表情配额 / 角度去重 / BUCKET_HINT / `buildAnalyzeMessages` / `buildChatMessages`）与 `text-core.js`（`clampText` / `sanitizeUntrusted` / `dedupeStrings` / `normalizeForMatch` / `bigrams` / `overlapCount` / `seed`）；`guards-core.js` 再吸收 `BLOCKED_TERMS` / `ALLOWED_MOODS` / `AD_MARKERS` / `isAdvertisement` / `containsBlockedTerm` / `finalizeAnalyzeResult` / `normalizeMeme`。`zh.ts`、`guards.ts`、`lib/text.ts` 全部退成薄封装，规则只剩一份。
+  **`node:crypto` 换成 FNV-1a**：`text.ts` 的 `hashShort` 用 sha256，service worker 里没有这个模块。共享层改用 `SmText.seed()`（FNV-1a，32 位）。副作用是表情配额的平局轮转换了种子——输出仍然确定，只是和 sha256 版本选的不是同一个表情。
+  **加载顺序**：`text-core.js` 最底层，`guards-core.js` 依赖它，`voice-filter.js` 依赖 `guards-core.js`，`zh-prompt.js` 依赖 `text-core.js`。依赖是惰性取值，所以包装层必须显式逐个 import，少一行测试就报「requires X to be loaded first」。新增 `shared-rules.test.ts` 14 项守住这些行为契约。226 个测试通过。
 
 - 2026-10-24 P1 共享规则去重：新增 §4.6。把「服务端和扩展都要用」的规则从 TypeScript 提到 `extension/shared/`，服务端改成薄封装，规则只留一份。**已搬走**：`persona.js`（人设，4 个 tone 的全部规则串）、`guards-core.js`（`withMaoSuffix` / `applyMaomaoStyle` / `NEUTRAL_BY_TONE` / `AD_REACTIONS` / `adReaction` / `neutralReaction`）、`voice-filter.js`（`createMaomaoStreamFilter`）。**刻意没搬**：`zh.ts` 与 `trends/*`，因为它们 `import` `node:fs` / `node:crypto`，进 `extension/` 会让 content script 加载即崩。形状是 IIFE 而不是 ESM——MV3 content script 无模块加载器且禁止构建步骤，文件同时挂 `globalThis` 和 `module.exports`，Node 里 `import '...js'` 求副作用即可。
 

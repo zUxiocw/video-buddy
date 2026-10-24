@@ -1,10 +1,18 @@
 import { readFileSync } from 'node:fs';
+import '../../../extension/shared/zh-prompt.js';
 import type { SlangEntry } from '../types.js';
 import { dataFile } from '../lib/dataPath.js';
 import { clampText, normalizeForMatch } from '../lib/text.js';
 import { containsBlockedTerm } from '../safety/guards.js';
 
 const DEFAULT_SLANG_PATH = dataFile('slang.json', import.meta.url);
+
+const promptApi = (globalThis as unknown as {
+  SmPrompt: { formatSlangForPrompt(entry: SlangEntry): string };
+}).SmPrompt;
+if (!promptApi) {
+  throw new Error('extension/shared/zh-prompt.js did not install globalThis.SmPrompt');
+}
 
 /**
  * Curated, hand-maintained slang. Kept small and safe on purpose.
@@ -70,6 +78,11 @@ export class SlangLexicon {
   }
 }
 
+/**
+ * Delegates to the shared prompt module so the server and the BYOK path format
+ * slang identically. Re-exported from here because callers import it from the
+ * lexicon, which is where the entries come from.
+ */
 export function formatSlangForPrompt(entry: SlangEntry): string {
-  return `${entry.term}（${entry.meaning}；例：${entry.usageExample}）`;
+  return promptApi.formatSlangForPrompt(entry);
 }

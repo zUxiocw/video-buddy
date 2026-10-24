@@ -13,8 +13,10 @@
   "include": [
     "src/**/*.ts",
     "../extension/shared/persona.js",
+    "../extension/shared/text-core.js",
     "../extension/shared/guards-core.js",
-    "../extension/shared/voice-filter.js"
+    "../extension/shared/voice-filter.js",
+    "../extension/shared/zh-prompt.js"
   ],
   "exclude": ["test", "dist", "node_modules"]
 }
