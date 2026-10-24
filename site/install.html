@@ -56,6 +56,20 @@
           <div><b>02</b><span>用 Chrome / Edge 的开发者模式加载。</span></div>
           <div><b>03</b><span>在扩展设置的「方式」里选「直接用 API Key」，填自己的 Key。</span></div>
         </div>
+        <div class="form-note" style="margin-top:16px">
+          <b>关于「开发者模式」</b>
+          <span>
+            目前还没有上架浏览器商店，安装走的是开发者模式加载，这是正常现象，不影响功能。代价是 Chrome 每次启动时会提示一次「请停用开发者模式扩展程序」，点「取消」或关掉提示即可，扩展会继续正常工作。
+            <br><br>
+            这种安装方式没有自动更新：想看新版本要重新下载 zip 并替换目录。上架后会改成商店一键安装。
+          </span>
+        </div>
+        <div class="form-note" style="margin-top:12px">
+          <b>哪些浏览器能用</b>
+          <span>
+            只支持 Chromium 内核的桌面浏览器：Chrome 116+、Edge 116+，以及 Brave、Opera、Vivaldi 等。Firefox 和 Safari 不支持——Firefox 的 Manifest V3 还没有后台 service worker，这个插件的请求和截图都依赖它。用不支持的浏览器打开抖音网页，不会出现悬浮球。
+          </span>
+        </div>
         <div class="control-actions" style="margin-top:18px">
           <a class="btn btn-primary btn-sm" href="setup.html">先开通 API</a>
           <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
@@ -147,6 +161,14 @@
         <details>
           <summary>为什么 Chrome 提示“无法加载扩展”？</summary>
           <div class="answer">通常是没有选择解压后的文件夹，或者文件夹里缺少 <code>manifest.json</code>。重新解压，确认选择的目录里能直接看到 <code>manifest.json</code>，再加载一次。</div>
+        </details>
+        <details>
+          <summary>支持 Firefox / Safari 吗？</summary>
+          <div class="answer">不支持。插件依赖 Manifest V3 的后台 service worker，而 Firefox 目前还没有实现它；Safari 需要另行封装，暂时没有计划。在 Firefox 或 Safari 里装不上，也没有替代的安装方式。请用 Chromium 内核的桌面浏览器：Chrome 116+、Edge 116+，或 Brave、Opera、Vivaldi 等。</div>
+        </details>
+        <details>
+          <summary>每次启动 Chrome 都提示“请停用开发者模式扩展程序”？</summary>
+          <div class="answer">这是用开发者模式加载未上架扩展的正常提示，不是你装错了。点掉提示即可，扩展会继续工作。想彻底消掉它只能等扩展上架浏览器商店；目前暂时没有上架计划。另外这种安装方式不会自动更新，换版本需要重新下载 zip 并替换目录。</div>
         </details>
         <details>
           <summary>装完后抖音页面没有悬浮球？</summary>

@@ -155,13 +155,12 @@
       );
     }
     return (
-      '<h2>安装包还没放进这个目录</h2>' +
-      '<p>公开版走 BYOK：装扩展，在设置里填你自己的 DeepSeek API Key，不需要本地服务器。这一份网页是静态预览，部署时把安装包放在 <code>download/</code> 下，这个按钮就会直接给出下载；没有安装包时可以先试玩，或照着开通步骤走一遍。</p>' +
+      '<h2>安装包暂时拿不到</h2>' +
+      '<p>公开版走 BYOK：装扩展，在设置里填你自己的 DeepSeek API Key，不需要本地服务器。可以先试玩 Demo，或照着开通步骤走一遍；安装说明里有手动加载扩展的完整步骤。</p>' +
       '<div class="dialog-actions">' +
         '<button class="btn btn-ghost" type="button" data-dialog-close>关闭</button>' +
         '<a class="btn btn-primary" href="setup.html">看开通步骤</a>' +
-      '</div>' +
-      '<p class="micro" style="margin-top:12px">自己构建：<code>node extension/tools/pack-extension.mjs --out site/download</code></p>'
+      '</div>'
     );
   }
 

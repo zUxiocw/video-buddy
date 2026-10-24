@@ -41,7 +41,7 @@
             <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
           </div>
           <a class="hero-feature" href="#limits"><span>新</span>刷视频限时：到点先开口，再关页</a>
-          <p class="micro">Chrome / Edge 116+ · 自带 DeepSeek API Key · 不经过我们的服务器</p>
+          <p class="micro">Chrome / Edge 116+ 等 Chromium 浏览器 · 不支持 Firefox / Safari · 自带 DeepSeek API Key · 不经过我们的服务器</p>
           <div class="hero-meta">
             <span>自带 API Key</span>
             <span>停留 10 秒主动搭话</span>
@@ -350,8 +350,18 @@
             <div class="answer">可以，但会进入冷却（默认 10 分钟）。冷却期内再打开，它会说一句再关一次，不会重新给你一整份额度。冷却结束后重新计时。</div>
           </details>
           <details>
+            <summary>支持哪些浏览器？</summary>
+            <div class="answer">
+              只支持 Chromium 内核的桌面浏览器：Chrome 116+、Edge 116+，以及 Brave、Opera、Vivaldi 等同样基于 Chromium 的浏览器。
+              <br><br>
+              <b>Firefox 和 Safari 目前不支持。</b>Firefox 的 Manifest V3 还没有后台 service worker，这个插件依赖它；Safari 需要另行封装，暂时没有计划。用这两者打开抖音网页，不会出现悬浮球。
+              <br><br>
+              浏览器版本可以在地址栏输入 <code>chrome://version</code>（Edge 是 <code>edge://version</code>）查看。
+            </div>
+          </details>
+          <details>
             <summary>手机能用吗？</summary>
-            <div class="answer">目前只做桌面浏览器的抖音网页版（Chrome / Edge 116+）。手机 App 不在范围内。</div>
+            <div class="answer">不能。扩展只装在桌面浏览器的抖音网页版，手机 App 和移动浏览器都不在范围内。</div>
           </details>
         </div>
       </div>
