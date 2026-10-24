@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>在线试玩 · 上头了喵喵</title>
+  <meta name="description" content="不用安装扩展，直接试玩上头了喵喵：换视频、打字聊天、切换 9 种情绪，感受抖音网页里的 AI 陪刷搭子。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#how">怎么用</a>
+        <a href="index.html#emotions">9 种情绪</a>
+        <a href="demo.html" aria-current="page">在线试玩</a>
+        <a href="install.html">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="setup.html">接入我的 API</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap demo-page">
+    <div class="demo-intro">
+      <div>
+        <span class="kicker">交互 Demo</span>
+        <h1>先玩一下，再决定装不装。</h1>
+        <p>这是一个假的抖音页面。点悬浮球打开聊天，换一条视频看它主动搭话，或者直接点下面的情绪按钮看它变脸。所有回复都是本地演示，不会调用真实模型。</p>
+      </div>
+      <span class="demo-badge">演示模式 · 未连接 API</span>
+    </div>
+
+    <div class="demo-grid">
+      <div class="phone" aria-label="抖音网页模拟器">
+        <div class="phone-video">
+          <img id="videoStill" src="assets/emotions/laugh-128.png" alt="">
+        </div>
+        <div class="phone-status" aria-hidden="true">
+          <span>9:41</span>
+          <span>▮▮▮ ⌁</span>
+        </div>
+        <div class="phone-tabs" aria-hidden="true">
+          <span>推荐</span>
+          <span>关注</span>
+        </div>
+        <div class="phone-caption">
+          <span id="videoCaption">猫主子又开始拆家了 #萌宠 #猫猫</span>
+          <small id="videoMeta">视频 1 · 萌宠</small>
+        </div>
+        <div class="phone-actions" aria-hidden="true">
+          <span><b>♡</b>2.4w</span>
+          <span><b>◌</b>861</span>
+          <span><b>↗</b>分享</span>
+        </div>
+        <div class="phone-progress" aria-hidden="true"><i></i></div>
+
+        <div class="chat-bubble" id="chatBubble" role="status" aria-live="polite"></div>
+
+        <button class="floating-ball" id="floatingBall" type="button" aria-expanded="false" aria-controls="chatPanel" aria-label="打开上头了喵喵聊天面板">
+          <img id="ballFace" src="assets/emotions/annoyed-128.png" alt="">
+        </button>
+
+        <section class="chat-panel" id="chatPanel" role="dialog" aria-label="与上头了喵喵聊天" aria-hidden="true" inert>
+          <header class="chat-head">
+            <img id="chatAvatar" src="assets/emotions/greet-128.png" alt="">
+            <div>
+              <b>上头了喵喵</b>
+              <small>刷视频成瘾，说话直</small>
+            </div>
+            <button class="chat-close" id="chatClose" type="button" aria-label="关闭聊天面板">×</button>
+          </header>
+          <div class="chat-msgs" id="chatMessages" aria-live="polite"></div>
+          <div class="chat-composer">
+            <textarea id="chatInput" rows="1" placeholder="问它一句，或者直接吐槽…" aria-label="输入消息"></textarea>
+            <button id="chatSend" type="button">发送</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="demo-controls">
+        <section class="control-card">
+          <div class="demo-status">本地演示 · 不会发送任何密钥</div>
+          <h2 style="margin-top:14px" aria-live="polite">当前情绪：<span id="currentEmotionLabel">嫌弃</span></h2>
+          <p id="emotionSample" aria-live="polite">就这？你还能再刷三条喵。</p>
+          <div class="emotion-picker" aria-label="切换 9 种情绪">
+            <button class="emotion-btn" type="button" data-emotion="greet" aria-pressed="false"><img src="assets/emotions/greet-128.png" alt=""><span>打招呼</span></button>
+            <button class="emotion-btn" type="button" data-emotion="happy" aria-pressed="false"><img src="assets/emotions/happy-128.png" alt=""><span>开心</span></button>
+            <button class="emotion-btn" type="button" data-emotion="annoyed" aria-pressed="true"><img src="assets/emotions/annoyed-128.png" alt=""><span>嫌弃</span></button>
+            <button class="emotion-btn" type="button" data-emotion="angry" aria-pressed="false"><img src="assets/emotions/angry-128.png" alt=""><span>生气</span></button>
+            <button class="emotion-btn" type="button" data-emotion="laugh" aria-pressed="false"><img src="assets/emotions/laugh-128.png" alt=""><span>大笑</span></button>
+            <button class="emotion-btn" type="button" data-emotion="excited" aria-pressed="false"><img src="assets/emotions/excited-128.png" alt=""><span>兴奋</span></button>
+            <button class="emotion-btn" type="button" data-emotion="sad" aria-pressed="false"><img src="assets/emotions/sad-128.png" alt=""><span>委屈</span></button>
+            <button class="emotion-btn" type="button" data-emotion="confused" aria-pressed="false"><img src="assets/emotions/confused-128.png" alt=""><span>疑惑</span></button>
+            <button class="emotion-btn" type="button" data-emotion="shocked" aria-pressed="false"><img src="assets/emotions/shocked-128.png" alt=""><span>震惊</span></button>
+          </div>
+        </section>
+
+        <section class="control-card">
+          <h2>试一句话</h2>
+          <p>点一下就会发进聊天框，看它怎么接。</p>
+          <div class="prompt-list">
+            <button class="prompt-chip" type="button" data-prompt="这视频讲了啥">这视频讲了啥</button>
+            <button class="prompt-chip" type="button" data-prompt="笑死我了">笑死我了</button>
+            <button class="prompt-chip" type="button" data-prompt="今天好烦">今天好烦</button>
+            <button class="prompt-chip" type="button" data-prompt="推荐点别的">推荐点别的</button>
+          </div>
+          <div class="toggle-row">
+            <div><b>换视频时自动搭话</b><small>模拟真实插件的主动开口</small></div>
+            <label class="switch"><input id="autoComment" type="checkbox" checked aria-label="换视频时自动搭话"><span></span></label>
+          </div>
+          <div class="control-actions">
+            <button class="btn btn-lav btn-sm" id="changeVideo" type="button">换一条视频</button>
+            <button class="btn btn-ghost btn-sm" id="resetDemo" type="button">重置对话</button>
+          </div>
+        </section>
+
+        <section class="control-card">
+          <h2>想接真的模型？</h2>
+          <p>Demo 里的回复是写死的。正式扩展里，你会填自己的 Base URL、API Key 和模型名。</p>
+          <div class="control-actions">
+            <a class="btn btn-primary btn-sm" href="setup.html">去配置 API</a>
+            <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
+          </div>
+          <p class="demo-note" style="margin-top:12px">小提示：按 Tab 可以走完整个面板；Esc 关闭聊天。</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a>
+        <p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p>
+      </div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">接入 API</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
+      <div><h3>说明</h3><p>当前为 UI 预览版，安装包会在“自带 API Key”接入完成后开放下载。不是抖音官方产品。</p></div>
+    </div>
+    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

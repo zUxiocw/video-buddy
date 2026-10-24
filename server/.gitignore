@@ -1,0 +1,8 @@
+# Secrets — never commit
+.env
+.env.local
+*.pem
+
+# Build / deps
+node_modules/
+dist/

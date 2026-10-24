@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>上头了喵喵</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #17131f;
+        --card: #201a2c;
+        --line: rgba(255, 255, 255, 0.09);
+        --text: #efeaf7;
+        --muted: #a99cc0;
+        --accent: #8a63ff;
+        --danger: #ff6b7f;
+        --ok: #62d29b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 14px;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      header { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+      .avatar {
+        width: 34px; height: 34px; border-radius: 50%;
+        background: linear-gradient(150deg, #4a3570, #241b38);
+        display: grid; place-items: center; flex: none;
+      }
+      .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+      h1 { font-size: 14px; margin: 0; font-weight: 600; }
+      header p { margin: 1px 0 0; font-size: 11px; color: var(--muted); }
+      .status {
+        display: flex; align-items: center; gap: 6px;
+        padding: 7px 10px; border-radius: 9px; background: var(--card);
+        border: 1px solid var(--line); margin-bottom: 12px; font-size: 12px;
+      }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+      .dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+      .dot.bad { background: var(--danger); }
+      .status span:last-child { color: var(--muted); margin-left: auto; font-size: 11px; }
+      fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+      legend {
+        font-size: 11px; color: var(--muted); text-transform: uppercase;
+        letter-spacing: 0.04em; padding: 0; margin-bottom: 6px;
+      }
+      label { display: block; margin-bottom: 9px; }
+      label > span { display: block; font-size: 12px; margin-bottom: 4px; color: #cec4e0; }
+      input[type="text"], input[type="password"], input[type="number"] {
+        width: 100%; padding: 7px 9px; border-radius: 8px;
+        border: 1px solid var(--line); background: #120f19; color: var(--text);
+        font: inherit; outline: none;
+      }
+      input:focus { border-color: var(--accent); }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      #ballSizeLabel { color: var(--accent); font-weight: 600; }
+      .row { display: flex; gap: 9px; }
+      .row label { flex: 1; }
+      .check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 12px; }
+      .check input { accent-color: var(--accent); }
+      .actions { display: flex; gap: 8px; margin-top: 4px; }
+      button {
+        flex: 1; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line);
+        background: var(--card); color: var(--text); font: inherit; cursor: pointer;
+      }
+      button:hover { border-color: rgba(255, 255, 255, 0.2); }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+      button.primary:hover { filter: brightness(1.08); }
+      .hint { font-size: 11px; color: var(--muted); margin: 9px 0 0; line-height: 1.6; }
+      .toast {
+        position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
+        background: #2b2340; border: 1px solid var(--line); color: var(--text);
+        padding: 6px 12px; border-radius: 8px; font-size: 12px; opacity: 0;
+        transition: opacity 0.2s; pointer-events: none; white-space: nowrap;
+      }
+      .toast.on { opacity: 1; }
+      details summary { cursor: pointer; font-size: 11px; color: var(--muted); }
+      code { color: #c9b6ff; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="avatar" aria-hidden="true">
+        <!-- The same art as the toolbar icon, so the popup and the button read
+             as one character. -->
+        <img src="../assets/emotions/greet-128.png" alt="" />
+      </span>
+      <div>
+        <h1>上头了喵喵</h1>
+        <p>刷视频成瘾，说话直</p>
+      </div>
+    </header>
+
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">检查服务中</span>
+      <span id="statusMeta"></span>
+    </div>
+
+    <form id="form">
+      <fieldset>
+        <legend>触发</legend>
+        <div class="row">
+          <label>
+            <span>停留秒数</span>
+            <input id="dwellSeconds" type="number" min="10" max="120" step="1" />
+          </label>
+          <label>
+            <span>冷却秒数（失败后才等）</span>
+            <input id="cooldownSeconds" type="number" min="10" max="300" step="5" />
+          </label>
+        </div>
+        <label>
+          <span>长视频复聊间隔（秒，0 = 不重复）</span>
+          <input id="repeatDwellSeconds" type="number" min="0" max="600" step="5" />
+        </label>
+        <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
+          复聊要填 0 或至少 20 秒；填 1–19 会按 20 秒算，免得请求太密把对话打断。
+        </p>
+        <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
+          同一个长视频第一次停留「停留秒数」后开口，之后每隔这么久再说一句；刷走再刷回来会重新读秒。
+        </p>
+        <label class="check">
+          <input id="enabled" type="checkbox" />
+          <span>在抖音页面显示悬浮球</span>
+        </label>
+        <label class="check">
+          <input id="autoOpenPanel" type="checkbox" />
+          <span>它开口时自动打开聊天框</span>
+        </label>
+        <label>
+          <span>悬浮球大小 <b id="ballSizeLabel">60</b> px</span>
+          <input id="ballSize" type="range" min="40" max="96" step="2" />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>刷视频限时</legend>
+        <label class="check">
+          <input id="limitEnabled" type="checkbox" />
+          <span>到点提醒并关闭网页</span>
+        </label>
+        <p class="hint" style="margin-top: -4px; margin-bottom: 9px">
+          默认关闭。打开后，它会自己盯着你刷了多久，到点说一句话再把标签页关掉。
+        </p>
+        <div class="row">
+          <label>
+            <span>每日时长（分钟）</span>
+            <input id="limitMinutes" type="number" min="1" max="600" step="1" />
+          </label>
+          <label>
+            <span>再打开时（分钟）</span>
+            <input id="limitCooldownMinutes" type="number" min="0" max="720" step="10" />
+          </label>
+        </div>
+        <label>
+          <span>说完后 <b id="limitCloseSecondsLabel">5</b> 秒关页</span>
+          <input id="limitCloseSeconds" type="range" min="0" max="30" step="1" />
+        </label>
+        <p class="hint" style="margin-top: -4px">
+          只统计视频正在播放、且页面在前台的时间；暂停、切到别的标签页都不算。关页后这段时间内再次打开，它会说一句就再关一次，不会重新计时。
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>停留时间</legend>
+        <label>
+          <span>聊天气泡显示 <b id="bubbleSecondsLabel">20</b> 秒</span>
+          <input id="bubbleSeconds" type="range" min="6" max="120" step="1" />
+        </label>
+        <label>
+          <span>图标保持 <b id="emotionHoldSecondsLabel">6</b> 秒（0 = 保持到下次变化）</span>
+          <input id="emotionHoldSeconds" type="range" min="0" max="60" step="1" />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>接入</legend>
+        <label>
+          <span>服务地址</span>
+          <input id="serverUrl" type="text" spellcheck="false" placeholder="http://127.0.0.1:8787" />
+        </label>
+        <label>
+          <span>访问令牌</span>
+          <input id="appToken" type="password" spellcheck="false" autocomplete="off" />
+        </label>
+        <details>
+          <summary>设备 ID</summary>
+          <label style="margin-top: 6px">
+            <input id="deviceId" type="text" spellcheck="false" />
+          </label>
+        </details>
+      </fieldset>
+
+      <div class="actions">
+        <button class="primary" type="submit">保存</button>
+        <button type="button" id="ping">测试连接</button>
+      </div>
+    </form>
+
+    <p class="hint">
+      悬浮球默认在右下角。拖动换位置，拖右下角小圆点或在上面调大小（一个抖音头像约 48px）。<br />
+      聊天面板右上角「记录」可以回看或删除之前的对话；本次会话在页面关闭后自动存档。<br />
+      本插件只把你正在看的这条视频的文案和一张压缩截图，发到上面填的服务地址；除此之外不采集任何内容。
+    </p>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="../shared/core.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+# Secrets — never committed, never packaged.
+extension.pem
+extension.crx
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Server build output and dependencies
+server/node_modules/
+server/dist/
+
+# Site build output and dependencies
+site/node_modules/
+site/dist/
+
+# Local release artefacts (regenerate with tools/pack-extension.mjs)
+releases/
+*.zip
+# ...except the frozen design archive, which is a deliberate record with a
+# checksum beside it, not a build product.
+!design/*.zip
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Ad-hoc scratch files at the repo root
+test2.c
+output/
+previews/

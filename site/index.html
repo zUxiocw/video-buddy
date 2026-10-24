@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>上头了喵喵 · 抖音网页里的 AI 陪刷搭子</title>
+  <meta name="description" content="上头了喵喵是一只住在抖音网页里的猫娘。刷到好笑的、离谱的、气人的，它会主动开口；你也能随时接话。自带 API Key，数据只在本机。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#how">怎么用</a>
+        <a href="#emotions">9 种情绪</a>
+        <a href="demo.html">在线试玩</a>
+        <a href="install.html">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="setup.html">接入我的 API</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow kicker">抖音网页 · AI 陪刷搭子</span>
+          <h1 class="display">刷到上头，<br><span class="accent">它陪你接一句。</span></h1>
+          <p class="lede">不是视频总结，也不是客服。是一只住在抖音网页里的猫娘：看到好笑的、离谱的、气人的，会主动开口；你也能随时接话。</p>
+          <div class="hero-actions">
+            <button class="btn btn-lav" type="button" data-download>免费下载扩展</button>
+            <a class="btn btn-ghost" href="demo.html">先玩 30 秒</a>
+          </div>
+          <p class="micro">Chrome / Edge 116+ · 自带 API Key · 截图只发给你的模型服务</p>
+          <div class="hero-meta">
+            <span>停留 8 秒主动搭话</span>
+            <span>AI 回复结束才换脸</span>
+            <span>不训练、不上传我们的服务器</span>
+          </div>
+        </div>
+
+        <div class="hero-stage" aria-label="插件效果预览">
+          <div class="stage-phone">
+            <div class="stage-video">
+              <img src="assets/emotions/laugh-128.png" alt="">
+            </div>
+            <div class="stage-top">
+              <span>推荐</span>
+              <span class="stage-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+            </div>
+            <div class="stage-caption">
+              猫主子又开始拆家了
+              <small>#萌宠 #猫猫 · 视频 1</small>
+            </div>
+            <div class="stage-actions" aria-hidden="true">
+              <span><b>♡</b>2.4w</span>
+              <span><b>◌</b>861</span>
+              <span><b>↗</b>分享</span>
+            </div>
+          </div>
+          <div class="stage-emotions" aria-hidden="true">
+            <img src="assets/emotions/sad-128.png" alt="">
+            <img src="assets/emotions/happy-128.png" alt="">
+            <img src="assets/emotions/annoyed-128.png" alt="">
+            <img src="assets/emotions/angry-128.png" alt="">
+            <img src="assets/emotions/laugh-128.png" alt="">
+          </div>
+          <div class="stage-bubble">这猫又在拆家，你还看得挺起劲喵？</div>
+          <button class="stage-ball" type="button" data-stage-ball aria-label="打开聊天面板预览">
+            <img src="assets/emotions/annoyed-128.png" alt="">
+          </button>
+          <span class="stage-note">9 种情绪 · 会接话 · 不抢戏</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">它不是工具</span>
+            <h2 class="section-title">不是又一个 AI 总结。</h2>
+          </div>
+          <p class="lede">总结工具替你省时间；它相反，是在你本来就要刷的那几分钟里，让屏幕里多一个会接话的人。</p>
+        </div>
+        <div class="bento">
+          <article class="card card-lav">
+            <span class="num">01</span>
+            <h3>它先开口</h3>
+            <p>同一个视频停留 8 秒，它看一眼画面和文案，主动说一句。不用先想问题，也不用打开另一个聊天窗。</p>
+          </article>
+          <article class="card card-pink">
+            <span class="num">02</span>
+            <h3>9 种情绪，真的会变脸</h3>
+            <p>回复结束才切图标。先看 AI 说了什么，再看它是什么表情；不是用户一开口就抢着换脸。</p>
+          </article>
+          <article class="card card-mint">
+            <span class="num">03</span>
+            <h3>接得住话，不像客服</h3>
+            <p>短句、直白、偶尔拆台。它会记住上一句说过什么，不每轮都问“你想聊什么”。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap">
+        <div class="steps" aria-label="使用流程">
+          <article class="step">
+            <h3>你停在一条视频上</h3>
+            <p>刷到想看的，停 8 秒。它开始读画面、文案和标签。</p>
+          </article>
+          <article class="step">
+            <h3>它先接一句</h3>
+            <p>不是“这视频讲了什么”，而是像熟人一样，挑一个具体细节开口。</p>
+          </article>
+          <article class="step">
+            <h3>你想接就接</h3>
+            <p>点悬浮球打开聊天框。问视频、吐槽、说今天好烦，都行。</p>
+          </article>
+          <article class="step">
+            <h3>表情跟着回复走</h3>
+            <p>AI 回复完整结束后，猫娘才换脸。开心、嫌弃、震惊，写在头像上。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="emotions">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">9 种情绪</span>
+            <h2 class="section-title">一张脸，九种态度。</h2>
+          </div>
+          <p class="lede">表情不是装饰，是它这一轮的态度。你甚至可以从图标看出，它是在陪你难过，还是在拆你的台。</p>
+        </div>
+        <div class="emotion-grid">
+          <article class="emotion-card" style="--tone:#b9d7ff">
+            <img src="assets/emotions/sad-128.png" alt="委屈表情">
+            <div><b>委屈</b><span>别硬撑，视频先放一边，我在喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#ffe6a8">
+            <img src="assets/emotions/happy-128.png" alt="开心表情">
+            <div><b>开心</b><span>算你有眼光，这波我认喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#d9c8ff">
+            <img src="assets/emotions/annoyed-128.png" alt="嫌弃表情">
+            <div><b>嫌弃</b><span>就这？你还能再刷三条喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#ffb7a5">
+            <img src="assets/emotions/angry-128.png" alt="生气表情">
+            <div><b>生气</b><span>这广告过分了，别惯着它喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#ffd9e4">
+            <img src="assets/emotions/laugh-128.png" alt="大笑表情">
+            <div><b>大笑</b><span>不行，这猫真把自己当回事了喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#b9f5d1">
+            <img src="assets/emotions/excited-128.png" alt="兴奋表情">
+            <div><b>兴奋</b><span>这个我想看，往下刷喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#b9d7ff">
+            <img src="assets/emotions/greet-128.png" alt="打招呼表情">
+            <div><b>打招呼</b><span>在，球都给你留好位置了喵。</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#e6ddff">
+            <img src="assets/emotions/confused-128.png" alt="疑惑表情">
+            <div><b>疑惑</b><span>等会儿，这剧情是不是少了一段喵？</span></div>
+          </article>
+          <article class="emotion-card" style="--tone:#ffb7a5">
+            <img src="assets/emotions/shocked-128.png" alt="震惊表情">
+            <div><b>震惊</b><span>不是吧，它真敢这么干喵？</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap">
+        <div class="quote-band">
+          <div>
+            <p>“它不是来替你省时间的，是来陪你浪费一点时间的。”</p>
+            <small>上头了喵喵 · 产品原则</small>
+          </div>
+          <div class="avatar-stack" aria-hidden="true">
+            <img src="assets/emotions/greet-128.png" alt="">
+            <img src="assets/emotions/laugh-128.png" alt="">
+            <img src="assets/emotions/annoyed-128.png" alt="">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="api-band">
+          <div>
+            <span class="kicker">自带模型</span>
+            <h2>30 秒接上你自己的 API。</h2>
+            <p>不绑我们的模型账号。填 Base URL、API Key、模型名，扩展通过 background service worker 直接请求你的模型服务。</p>
+            <div class="api-list">
+              <div><span class="check">✓</span><span><b>兼容 OpenAI Chat Completions</b><br>DeepSeek、OpenAI、Ollama、LM Studio 等都能接。</span></div>
+              <div><span class="check">✓</span><span><b>Key 只存在本机</b><br>不上传我们的服务器，也不进对话记录。</span></div>
+              <div><span class="check">✓</span><span><b>截图只发给你的模型</b><br>关掉截图也能只用文案和标签。</span></div>
+            </div>
+            <a class="btn btn-lav" href="setup.html">配置我的 API</a>
+          </div>
+          <div class="code-card" aria-label="API 配置示例">
+            <div><span class="c"># 你的模型服务</span></div>
+            <div><span class="k">provider</span>: <span class="s">deepseek</span></div>
+            <div><span class="k">base_url</span>: <span class="s">https://api.deepseek.com</span></div>
+            <div><span class="k">model</span>: <span class="s">deepseek-chat</span></div>
+            <div><span class="k">api_key</span>: <span class="s">sk-••••••••••••</span></div>
+            <div>&nbsp;</div>
+            <div><span class="c"># 扩展会用它生成</span></div>
+            <div><span class="s">“这猫又在拆家，你还看得挺起劲喵？”</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap privacy-grid">
+        <div>
+          <span class="kicker">隐私</span>
+          <h2 class="section-title">它看视频，但不偷看你的生活。</h2>
+          <p class="lede" style="margin-top:14px">只读当前视频的画面、文案和标签；不读聊天记录、不读其他标签页、不自动点赞评论。</p>
+        </div>
+        <div class="privacy-list">
+          <div class="privacy-item">
+            <span class="privacy-mark">◐</span>
+            <div><b>API Key 留在本机</b><p>存在浏览器扩展存储里，不经过我们的服务器。你随时可以清空。</p></div>
+          </div>
+          <div class="privacy-item">
+            <span class="privacy-mark">▣</span>
+            <div><b>画面只发给你的模型</b><p>截图会压缩后发给配置的模型服务；不发给我们，也不用于训练。</p></div>
+          </div>
+          <div class="privacy-item">
+            <span class="privacy-mark">↺</span>
+            <div><b>不做自动化互动</b><p>不自动点赞、不自动评论、不刷数据。它只负责陪你说话。</p></div>
+          </div>
+          <div class="privacy-item">
+            <span class="privacy-mark">⌁</span>
+            <div><b>随时可以关掉</b><p>悬浮球、截图、主动搭话都能在设置里单独关闭。</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">FAQ</span>
+            <h2 class="section-title">你可能想问。</h2>
+          </div>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>它和 BibiGPT、视频总结插件有什么区别？</summary>
+            <div class="answer">总结工具回答“这视频讲了什么”；上头了喵喵回答“你现在是什么感觉”。它不替你省时间，也不生成学习笔记，重点是在你刷视频的当下，主动接一句话、陪你聊两句。</div>
+          </details>
+          <details>
+            <summary>必须用 DeepSeek 吗？</summary>
+            <div class="answer">不必须。只要你的模型服务兼容 OpenAI Chat Completions，就可以填自己的 Base URL、API Key 和模型名。DeepSeek 只是默认推荐，便宜、中文顺、延迟低。</div>
+          </details>
+          <details>
+            <summary>截图会不会上传到你们服务器？</summary>
+            <div class="answer">不会。扩展只把压缩后的画面发给你配置的模型服务。你也可以在设置里关闭截图，只让它在文案和标签上接话。</div>
+          </details>
+          <details>
+            <summary>会不会自动点赞、评论，导致账号风险？</summary>
+            <div class="answer">不会。这个插件坚持只读：不点赞、不评论、不关注、不刷数据。它只读取当前视频的公开信息和页面文案。</div>
+          </details>
+          <details>
+            <summary>手机能用吗？</summary>
+            <div class="answer">目前只做桌面浏览器的抖音网页版（Chrome / Edge 116+）。手机 App 不在范围内。</div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-tight">
+      <div class="wrap">
+        <div class="cta-band">
+          <span class="kicker">UI 预览版</span>
+          <h2>先看看它在抖音里长什么样。</h2>
+          <p>不用装扩展，不用填 Key。试玩页里可以直接换视频、打字、切 9 种情绪，感受一下它接话的节奏。</p>
+          <div class="hero-actions">
+            <a class="btn btn-lav" href="demo.html">打开在线试玩</a>
+            <a class="btn btn-ghost" href="setup.html">先配置 API</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <a class="brand" href="index.html">
+          <img src="assets/icon128.png" alt="">
+          <span>上头了喵喵</span>
+        </a>
+        <p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p>
+      </div>
+      <div>
+        <h3>产品</h3>
+        <div class="footer-links">
+          <a href="demo.html">在线试玩</a>
+          <a href="setup.html">接入 API</a>
+          <a href="install.html">安装说明</a>
+        </div>
+      </div>
+      <div>
+        <h3>了解</h3>
+        <div class="footer-links">
+          <a href="#how">怎么用</a>
+          <a href="#emotions">9 种情绪</a>
+          <a href="#faq">常见问题</a>
+        </div>
+      </div>
+      <div>
+        <h3>说明</h3>
+        <p>当前为 UI 预览版，安装包会在“自带 API Key”接入完成后开放下载。不是抖音官方产品。</p>
+      </div>
+    </div>
+    <div class="wrap footer-bottom">
+      <span>© 2026 上头了喵喵</span>
+      <span>非官方产品 · 请遵守平台规则</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

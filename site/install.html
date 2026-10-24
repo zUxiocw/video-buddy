@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>安装说明 · 上头了喵喵</title>
+  <meta name="description" content="上头了喵喵的 Chrome / Edge 安装说明：下载、解压、加载扩展、填写自己的 API。">
+  <meta name="theme-color" content="#f7f1e8">
+  <link rel="icon" href="assets/icon128.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="index.html" aria-label="上头了喵喵首页">
+        <img src="assets/icon128.png" alt="">
+        <span>上头了喵喵</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html#how">怎么用</a>
+        <a href="index.html#emotions">9 种情绪</a>
+        <a href="demo.html">在线试玩</a>
+        <a href="install.html" aria-current="page">安装</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="setup.html">接入我的 API</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap install-page">
+    <div class="install-hero">
+      <div>
+        <span class="install-badge">UI 预览版 · 安装包即将开放</span>
+        <h1 style="margin-top:14px">装进浏览器，<br>然后把它忘在角落。</h1>
+        <p>它不需要你每天打开一个 App。装好后，悬浮球就在抖音网页右下角；你刷你的，它偶尔接一句。想聊就点开，不想聊就继续刷。</p>
+        <div class="hero-actions">
+          <button class="btn btn-lav" type="button" data-download>获取安装包</button>
+          <a class="btn btn-ghost" href="demo.html">先试玩</a>
+        </div>
+        <p class="micro" style="margin-top:12px">当前是公开版 UI 预览。正式包会在“自带 API Key”接入完成后发布。</p>
+      </div>
+
+      <div class="download-card">
+        <h2>安装前，先确认三件事</h2>
+        <p>不需要服务器，不需要我们的账号。你只需要一个能用的模型 API。</p>
+        <div class="download-meta">
+          <span>Chrome / Edge 116+</span>
+          <span>约 1 MB</span>
+          <span>自带 API Key</span>
+          <span>本地存储</span>
+        </div>
+        <div class="setup-install-steps">
+          <div><b>01</b><span>一个兼容 OpenAI Chat Completions 的 API</span></div>
+          <div><b>02</b><span>一个 DeepSeek / OpenAI / Ollama 的 Key 或本地地址</span></div>
+          <div><b>03</b><span>两分钟，装完就能在抖音网页看到它</span></div>
+        </div>
+        <div class="control-actions" style="margin-top:18px">
+          <a class="btn btn-primary btn-sm" href="setup.html">先配置 API</a>
+          <button class="btn btn-ghost btn-sm" type="button" data-download>下载说明</button>
+        </div>
+      </div>
+    </div>
+
+    <section aria-labelledby="install-steps-title">
+      <span class="kicker">安装步骤</span>
+      <h2 class="section-title" id="install-steps-title" style="margin-top:8px">四步，装进抖音网页。</h2>
+
+      <div class="install-steps">
+        <article class="install-step">
+          <span class="n">01</span>
+          <div>
+            <h3>下载并解压</h3>
+            <p>拿到 <code>shangtou-meowmeow.zip</code> 后解压到一个固定目录。不要放在下载临时目录里，Chrome 会在下次启动时找不到它。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">02</span>
+          <div>
+            <h3>打开扩展管理页</h3>
+            <p>地址栏输入 <code>chrome://extensions</code>（Edge 是 <code>edge://extensions</code>），打开右上角「开发者模式」。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">03</span>
+          <div>
+            <h3>加载已解压的扩展</h3>
+            <p>点「加载已解压的扩展程序」，选择解压后的文件夹。看到「上头了喵喵」出现就成功了。</p>
+          </div>
+        </article>
+        <article class="install-step">
+          <span class="n">04</span>
+          <div>
+            <h3>填自己的 API</h3>
+            <p>打开抖音网页，点悬浮球右上角的设置，填 Base URL、API Key、模型名。先点「测试连接」，再开始刷。</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="install-grid">
+      <div class="browser-mock" aria-label="Chrome 扩展管理页示意">
+        <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i><span class="browser-url">chrome://extensions</span></div>
+        <div class="browser-body">
+          <div class="ext-row">
+            <span class="ext-icon"><img src="assets/icon128.png" alt=""></span>
+            <div><b>上头了喵喵</b><small>刷抖音停留 8 秒后，主动跟你搭话</small></div>
+            <span class="ext-toggle" aria-hidden="true"></span>
+          </div>
+          <div class="ext-row">
+            <span class="ext-icon" style="background:#efe6d8"></span>
+            <div><b>其他扩展</b><small>不会影响本插件</small></div>
+            <span class="ext-toggle" style="background:#d8d0c4" aria-hidden="true"></span>
+          </div>
+          <p class="micro" style="margin:6px 0 0">示意图。正式安装包发布后，这里会出现「上头了喵喵」。</p>
+        </div>
+      </div>
+
+      <div class="download-card">
+        <span class="install-badge">为什么还没有下载按钮？</span>
+        <h2 style="margin-top:12px">我们在把“本地服务器”拆掉。</h2>
+        <p>现在这个版本还需要在本机跑一个 Fastify 服务，再填 <code>APP_TOKEN</code>。公开版要改成“用户自己填 API Key，扩展直接请求模型服务”，否则普通人装完也跑不起来。</p>
+        <div class="form-note">
+          <b>下一步</b>
+          <span>先把 API 配置、模型测试、错误提示做进扩展；再打包 zip / 上架 Chrome 商店。当前页面先把安装体验和 UI 定下来。</span>
+        </div>
+        <div class="control-actions" style="margin-top:16px">
+          <a class="btn btn-primary btn-sm" href="setup.html">先走一遍配置</a>
+          <a class="btn btn-ghost btn-sm" href="demo.html">试玩 Demo</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="install-faq">
+      <span class="kicker">安装问题</span>
+      <h2 class="section-title" style="margin-top:8px">常见卡点。</h2>
+      <div class="faq" style="margin-top:18px">
+        <details>
+          <summary>为什么 Chrome 提示“无法加载扩展”？</summary>
+          <div class="answer">通常是没有选择解压后的文件夹，或者文件夹里缺少 <code>manifest.json</code>。重新解压，确认选择的目录里能直接看到 <code>manifest.json</code>，再加载一次。</div>
+        </details>
+        <details>
+          <summary>装完后抖音页面没有悬浮球？</summary>
+          <div class="answer">先在扩展管理页确认「上头了喵喵」是开启状态，然后刷新抖音页面。悬浮球默认在右下角，可能被页面其他按钮挡住，拖动一下就能看到。</div>
+        </details>
+        <details>
+          <summary>API 测试一直失败？</summary>
+          <div class="answer">先检查 Base URL 是否以 <code>http://</code> 或 <code>https://</code> 开头，模型名是否和服务商一致。DeepSeek 默认是 <code>https://api.deepseek.com</code> + <code>deepseek-chat</code>。本地 Ollama 则填 <code>http://127.0.0.1:11434/v1</code>。</div>
+        </details>
+        <details>
+          <summary>会不会影响抖音账号？</summary>
+          <div class="answer">插件只读当前视频的公开信息和页面文案，不点赞、不评论、不关注、不刷数据。它不绕过登录、不自动操作账号。仍建议遵守抖音的用户协议。</div>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div><a class="brand" href="index.html"><img src="assets/icon128.png" alt=""><span>上头了喵喵</span></a><p>抖音网页里的 AI 陪刷搭子。刷到上头，喵一句。</p></div>
+      <div><h3>产品</h3><div class="footer-links"><a href="demo.html">在线试玩</a><a href="setup.html">接入 API</a><a href="install.html">安装说明</a></div></div>
+      <div><h3>了解</h3><div class="footer-links"><a href="index.html#how">怎么用</a><a href="index.html#emotions">9 种情绪</a><a href="index.html#faq">常见问题</a></div></div>
+      <div><h3>说明</h3><p>当前为 UI 预览版，安装包会在“自带 API Key”接入完成后开放下载。不是抖音官方产品。</p></div>
+    </div>
+    <div class="wrap footer-bottom"><span>© 2026 上头了喵喵</span><span>非官方产品 · 请遵守平台规则</span></div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

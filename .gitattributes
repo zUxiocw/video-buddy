@@ -1,0 +1,16 @@
+# Normalise line endings in the repository. The project is edited on Windows
+# but the server and site are plain text; storing LF keeps diffs honest and
+# stops Git warning about CRLF on every single file.
+* text=auto eol=lf
+
+# Windows scripts, if any are ever added, keep their own endings.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.crx binary
+*.pem binary
+*.zip binary

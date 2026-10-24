@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "上头了喵喵",
+  "version": "0.1.0",
+  "description": "刷抖音时，猫娘「上头了喵喵」会在你停下来看某条视频时主动搭话，还能陪你聊。",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "https://www.douyin.com/*",
+    "https://douyin.com/*",
+    "https://www.iesdouyin.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "上头了喵喵",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.douyin.com/*",
+        "https://douyin.com/*",
+        "https://www.iesdouyin.com/*"
+      ],
+      "js": ["shared/keyboard-guard.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://www.douyin.com/*",
+        "https://douyin.com/*",
+        "https://www.iesdouyin.com/*"
+      ],
+      "js": ["shared/core.js", "shared/emotions.js", "content/buddy.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/emotions/*.png"],
+      "matches": [
+        "https://www.douyin.com/*",
+        "https://douyin.com/*",
+        "https://www.iesdouyin.com/*"
+      ]
+    }
+  ]
+}

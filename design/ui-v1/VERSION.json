@@ -1,0 +1,17 @@
+{
+  "name": "上头了喵喵 UI",
+  "version": "1.0.0",
+  "status": "approved-frozen",
+  "date": "2026-10-24",
+  "source": "D:\\code\\video-buddy\\site",
+  "pages": [
+    "index.html",
+    "demo.html",
+    "setup.html",
+    "install.html"
+  ],
+  "assets": "assets/emotions/*.png (copied from extension)",
+  "boundary": "independent static UI; no changes to extension/ or server/",
+  "claudeCodeIntegration": "pending explicit user consent",
+  "notes": "UI effect approved by user. Do not edit this frozen snapshot; use site/ for future changes."
+}
