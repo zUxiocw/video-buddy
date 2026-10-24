@@ -3,7 +3,7 @@
 > 最后更新：2026-10-24
 > 项目：抖音网页悬浮球「上头了喵喵」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（226 个）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）与键盘守卫只做过 headless 浏览器验证，真实抖音页面回归待做**——见 §4.4。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（234 个）+ 直连端到端 21 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连另需一次真 Key 验证，见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -19,11 +19,12 @@
   - `shared/guards-core.js` — **喵后缀 / maomao 文风 / 广告台词 / 中性兜底 / 黑名单 / 广告判定 / analyze 收尾唯一副本**（`globalThis.SmGuards`）；依赖 `text-core.js` 先加载
   - `shared/voice-filter.js` — **流式过滤唯一副本**（`globalThis.SmVoiceFilter`），依赖 `guards-core.js` 先加载
   - `shared/zh-prompt.js` — **system prompt / 视频锚点 / 情绪底色 / 表情配额 / 角度去重 / BUCKET_HINT 唯一副本**（`globalThis.SmPrompt`），依赖 `text-core.js`
-  - `background.js` — 唯一访问本地服务的 service worker；代理 SSE，转发 `done.emotion`
+  - `background.js` — 唯一访问模型的 service worker（服务端或直连两种模式）；代理 SSE，转发 `done.emotion`。**开头 `importScripts()` 的 6 个文件不进 `manifest.json`**，打包时由 §4.5 的脚本从源码解析出来
   - `popup/` — 设置页（接入方式、服务地址/令牌或 API Key、停留/复聊间隔/气泡/图标时长等）
   - `assets/emotions/{id}-128.png` — 9 个运行时图标
   - `icons/icon{16,48,128}.png` — 工具栏图标，由 `assets/emotions/greet-128.png`（默认态立绘）缩放生成；换角色时同步重生成
   - `tools/e2e.mjs` — 扩展 e2e harness（可选）
+  - `tools/direct-check.mjs` — **直连模式端到端检查**：headless Chrome + 本地假模型服务，不需要 API Key、不花 token，21 项断言，见 §4.7
   - `tools/pack-extension.mjs` — 公开分发打包脚本；**白名单**产出 ZIP，见 §4.5
 - `server/`
   - `src/index.ts` — Fastify 启动
@@ -132,6 +133,26 @@
 4. 判定为广告：`reaction` 换成 `adReaction(tone)` 固定文案（每条都含「过分」/「气人」，供客户端识别），`memeUsed` 置空，`isAd` 回填到响应；置信度兜底被跳过（「这是广告」不是猜测）。
 5. 客户端只要 `data.isAd` 就切 `angry`，不依赖正文识别。
 6. 识别顺序：先判广告，再判 `blocked`。`blocked` 的结果 `isAd` 保留但 `reaction` 仍为空。
+
+### 2.1.9 两种接入方式（server / direct）
+
+1. `settings.mode` 只有 `'server'` 和 `'direct'` 两个值。**全新安装默认 `'direct'`**（公开版就是 BYOK，陌生人没有本地服务可指）；**旧配置必须留在 `'server'`**，见下条。
+   - 判断在 `legacyMode()`：**有别的键但没有 `mode`** → 旧配置，`'server'`；**空对象** → 全新安装，用 `DEFAULTS.mode`；显式写入的 `'server'` / `'direct'` 永远优先。和 §2.1.8 的 `legacyLimitEnabled()` 是同一套形状。
+   - 少了这条，升级用户会被静默改道到他没有 Key 的通道，猫直接哑掉。
+   - 无法识别的值（`'DIRECT'` / `'byok'`）**不算旧配置**（键存在），按默认值处理，与 `enabled` 等字段一致。
+2. `background.js` 是唯一出口，两条路径在 `analyze()` 和 `streamChat()` 开头分叉：
+   - `server`：POST 到 `settings.serverUrl`，带 `appToken`。
+   - `direct`：POST 到 `settings.apiBaseUrl` + `/chat/completions`，带用户自己的 `Authorization: Bearer`。
+3. **两条路径必须喂给模型同样的东西**（`server/test/direct-parity.test.ts` 守着）：都调 `SmPrompt.buildAnalyzeMessages` / `buildChatMessages`，都跑 `SmGuards.finalizeAnalyzeResult`、`SmVoiceFilter.createMaomaoStreamFilter`、`SmPrompt.pickChatEmotion`，采样参数也一致（analyze `temperature 0.7` / `max_tokens 700` / `json_object` / `thinking.disabled`，chat `temperature 0.92` / `max_tokens 220` / 流式）。规则抄第二份就等于埋下「换个模式说话就变了」的坑。
+4. **Key 只存 `chrome.storage.local`**，不写进代码、日志、URL。content script 读得到，页面脚本读不到（隔离世界）。
+5. **权限按需申请，且必须由 popup 自己发起**：`manifest.json` 只声明 `optional_host_permissions: ["https://*/*"]`，装的时候不授予任何模型域名。`popup.js` 在提交处理里**同步**调 `chrome.permissions.request()`，收窄到配置的那一个 origin。
+   - **不能绕经 service worker**：用户手势过不了 `sendMessage` 那一跳。曾经的写法是 popup 发 `sm:requestOrigin` 给 background 再请求，实测每次都返回「This function must be called during a user gesture」——弹窗永远出不来。`direct-check.mjs` 有一条断言守着请求方是 popup。
+   - `await` 一下也会丢手势，Chrome 直接拒绝弹窗。
+   - 不要把模型域名加进 `host_permissions`：那是安装即授予，违背「不多要权限」。
+6. `normalizeApiBaseUrl()` 只接受 `https://`；非法值静默回落到 `https://api.deepseek.com`，避免把 Key 明文发到 `http://` 上。**唯一例外是 loopback**（`http://127.0.0.1` / `http://localhost`），见 §4.7.1。
+7. 直连模式下没有本地服务可 ping，`checkDirect()` 只报「有没有填 Key」和「这个 origin 有没有授权」，不花用户的 token 去试探。
+8. 错误映射沿用服务端那套：401/403 → `UPSTREAM_AUTH`，400/404 → `MODEL_UNAVAILABLE`，其余 → `UPSTREAM_ERROR` / `UPSTREAM_TIMEOUT`。
+9. **直连没有热点/俚语注入**，`trendCandidates` / `slangCandidates` 恒为空，prompt 里显示「（无）」。这需要 `node:fs` 读词库 + 实时抓热榜，service worker 做不了，是**有意的能力取舍**，不是 bug。给直连补词库会引入第二种数据源，两份词库迟早不同步。
 
 ### 2.2 聊天与表情链路（重点）
 
@@ -302,6 +323,8 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
 - `/health` 的 provider 符合预期
+- 打包：`node extension/tools/pack-extension.mjs` 后 ZIP 里有 `shared/persona.js`、`shared/text-core.js`、`shared/guards-core.js`、`shared/voice-filter.js`、`shared/zh-prompt.js`，且没有 `tools/`、`server/`、`.pem`、`.env*`
+- 直连：`node extension/tools/direct-check.mjs` 21 项全过（不需要 Key，见 §4.7.1）
 - 人工回归：发“生气”时图标不立刻变；AI 回复结束后才变；中性回复靠 `done.emotion` 兜底
 - 人工回归（会话）：点「新对话」后旧对话出现在「记录」里；继续聊旧对话，它在列表中的位置不变
 - 人工回归（喵）：发一句普通消息，回复结尾有且只有一个「喵」；发「就这」确认图标仍是 `annoyed`（后缀不影响识别）
@@ -321,6 +344,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 - 人工回归（限时·切后台）：停在抖音但切到别的标签页放 5 分钟，回来不应触发限时（只算前台播放时间）
 - 人工回归（限时·多标签页）：开两个抖音标签页各刷一段，看 `chrome.storage.local` 的 `smLimit.usedMs` 应是一条累计总额而不是两次独立计数；两个标签页加起来到点只关当前在看的那个，另一个继续开着的也不该说「还敢点开」
 - 人工回归（键盘）：面板输入框里打字，抖音的快捷键（`J` / `K` / 空格等）不应被触发；Enter 正常发消息、Shift+Enter 换行、Escape 关面板
+- 人工回归（直连）：先跑 `node extension/tools/direct-check.mjs`（§4.7.1，免费）；发布前再用真 Key 走一遍 §4.7.2——重点是保存时**必须弹出授权请求**，不弹就是权限请求又被挪进 service worker 了
 - 人工回归（升级不改道）：已经配置好服务端地址的老用户，升级后 popup 仍是「连自己的服务」，不需要重新填任何东西
 
 ### 4.5 公开分发打包
@@ -331,10 +355,13 @@ node extension/tools/pack-extension.mjs
 ```
 
 1. **白名单打包，不是排除法**。文件清单从 `manifest.json` 反推（content scripts / service worker / popup / icons / `web_accessible_resources`），所以新增文件默认**不进包**，要显式加。排除法会失败开放：漏一条规则就发出一个密钥。
-2. **`extension/tools/` 不进包**（里面有 47KB e2e harness 和图标生成脚本）。脚本会拒绝任何 `tools/`、`test/`、`.backup-` 前缀以及 `.pem` / `.env*` 条目。
-3. ZIP 条目名一律正斜杠。Windows 上 `path.join()` 产出反斜杠，严格读取器会把 `popup\popup.js` 当成一个文件名。
-4. 发布前必须确认解压后**不含** `extension.pem`、`server/`、`.env*`。`extension.pem` 在仓库根目录，永远不要从仓库根执行打包或部署类命令。
-5. 版本号改 `manifest.json` 的 `version`，ZIP 文件名自动跟随。
+2. **service worker 的依赖不在 manifest 里**：`background.js` 用 `importScripts()` 拉 `persona.js` / `text-core.js` / `guards-core.js` / `voice-filter.js` / `zh-prompt.js` / `core.js`，manifest 一个字都没提（MV3 没有模块加载器，这是唯一写法）。打包脚本因此**从 `background.js` 源码里解析 `importScripts()` 的字面量**补进白名单。
+   - 这里曾经真的漏过：共享层搬完之后，包里有 20 个文件、manifest 看着完整，实际这 5 个全缺，service worker 装在用户机器上第一行就报错。**不要再手维护第二份清单**——手维护的清单正是漏掉的原因。
+   - `server/test/pack-extension.test.ts` 解析 ZIP 中央目录逐个比对，证明它在 bug 存在时会红（已手动回退验证）。
+3. **`extension/tools/` 不进包**（里面有 47KB e2e harness 和图标生成脚本）。脚本会拒绝任何 `tools/`、`test/`、`.backup-` 前缀以及 `.pem` / `.env*` 条目。
+4. ZIP 条目名一律正斜杠。Windows 上 `path.join()` 产出反斜杠，严格读取器会把 `popup\popup.js` 当成一个文件名。
+5. 发布前必须确认解压后**不含** `extension.pem`、`server/`、`.env*`。`extension.pem` 在仓库根目录，永远不要从仓库根执行打包或部署类命令。
+6. 版本号改 `manifest.json` 的 `version`，ZIP 文件名自动跟随。
 
 ### 4.6 共享规则文件（`extension/shared/*.js`）与服务端构建布局
 
@@ -343,8 +370,71 @@ node extension/tools/pack-extension.mjs
 3. **加载顺序有依赖**：`text-core.js` 是最底层；`guards-core.js` 依赖它；`voice-filter.js` 依赖 `guards-core.js`；`zh-prompt.js` 依赖 `text-core.js`。依赖是**惰性取值**（用的时候才读 `globalThis`），所以只 import 下游模块**不会**自动把上游拽进来——包装层必须显式逐个 import。少一行，测试会报「requires X to be loaded first」。
 4. **`rootDir` 是 `..`，emit 比原来深一层**：入口变成 `dist/server/src/index.js`，共享脚本落在 `dist/extension/shared/`，`package.json` 的 `start` 已跟着改。两份 tsconfig 的 `include` **逐个列出**这五个 js，不用 `../extension/shared/*.js` 通配——通配会把 `core.js` / `emotions.js` / `keyboard-guard.js` 也拷进 dist。
 5. **数据文件的相对路径不能写死**：`../../data/*.json` 在 emit 深一层后就指错地方，启动时只打一行 `failed to load lexicon` 然后带空词库继续跑（静默降级，很难发现）。改走 `src/lib/dataPath.ts` 的 `dataFile(name, import.meta.url)`，从模块位置逐级上溯找 `data/`，`tsx` 跑 `src/` 与 `node dist/...` 两种布局都能命中；找不到直接抛错。
-6. **`node:crypto` 换成 FNV-1a**：`text.ts` 的 `hashShort` 用 sha256，service worker 里没有这个模块。共享层改用 `SmText.seed()`（FNV-1a，32 位）。副作用是表情配额的平局轮转换了种子——输出仍然确定，只是和 sha256 版本选的不是同一个表情。
+6. **`node:crypto` 换成 FNV-1a**：`text.ts` 的 `hashShort` 用 sha256，service worker 里没有这个模块。共享层改用 `SmText.seed()`（FNV-1a，32 位）。副作用是表情配额的平局轮转换了种子，所以 `buildChatMessages` 的轮转那一行在跨实现对比里要屏蔽掉，其余内容必须逐字节相同（`direct-parity.test.ts`）。
 7. **刻意留在服务端的**：`trends/*`（`node:fs` 读词库）和 `lib/text.ts` 里的 `hashShort` / `isAbortError` / `delay`。放进 `extension/` 会让 content script 一加载就崩——直接违反原则 1。
+
+### 4.7 直连模式测试
+
+直连模式有两条独立的验证路径，**先用脚本，再上真 Key**。
+
+#### 4.7.1 脚本验证（免费，每次改完都跑）
+
+```powershell
+node extension/tools/direct-check.mjs          # 21 项
+node extension/tools/direct-check.mjs --keep   # 保留临时 profile 排查
+```
+
+headless Chrome 加载真实扩展，指向本地假模型服务。**不需要 API Key、不花 token。**
+
+覆盖：service worker 的 `importScripts()` 链完整（打包漏文件时这里最先红）、`normalizeSettings` 保住 direct、loopback 免授权、权限请求在 popup 而非 SW、analyze 成功且 `reaction` 只有一个「喵」、`Authorization` 用的是用户 Key、`stream:false` + `json_object`、广告侧标签强制 `isAd`、聊天多片流式且结尾一个「喵」、`done.emotion` 存在、401→`UPSTREAM_AUTH` 不可重试、5xx→可重试、非 JSON→`UPSTREAM_PROTOCOL`、空 Key→`NO_API_KEY`。
+
+**为什么用本地 stub 而不是真 Key**：真 Key 跑一次要花钱、要联网、会因为上游改动而 flaky，没法在每次改动后跑。stub 只能证明扩展这一侧正确，不能证明 DeepSeek 的行为——所以还有 4.7.2。
+
+**loopback 例外是测试的前提**：`normalizeApiBaseUrl()` 只接受 https，**唯一例外是 `http://127.0.0.1` / `http://localhost`**。这两个 origin 本来就在 `host_permissions` 里（host pattern 忽略端口，server 模式要用），所以放行不新增任何权限，且流量不出本机。
+
+#### 4.7.2 真 Key 验证（发布前至少一次）
+
+1. `chrome://extensions` 加载 `extension/`，打开 popup。
+2. 「方式」选「直接用 API Key」，填真实 Key，「API 地址」保持 `https://api.deepseek.com`。
+3. 点保存 —— **必须弹出授权请求**。没弹出来就说明权限请求又被挪进 service worker 了（手势过不了 `sendMessage`）。
+4. 用 DevTools 的 Network 面板过滤 `chat/completions`，确认：请求头 `Authorization: Bearer sk-...`、`model` 是 `deepseek-flash`。
+5. 刷抖音，等一条视频开口；聊 3 轮，确认回复末尾有且只有一个「喵」、表情在回复结束后才变。
+6. 故意把 Key 改成错的，确认气泡提示的是「模型拒绝了访问令牌」而不是卡住。
+
+**用真 Key 时最容易踩的两件事**：
+- **`MODEL_VISION` / `MODEL_CHAT`**：`DIRECT_CONFIG` 写死 `deepseek-flash`。换模型要改 `background.js` 的 `DIRECT_CONFIG`，同时改 `direct-parity.test.ts` 的断言。
+- **模型不支持 `response_format: json_object`** 时会返回 400 → `MODEL_UNAVAILABLE`。这不是 Key 的问题，别去反复换 Key。
+- 直连模式**没有热点/俚语注入**（那需要 `node:fs` 和实时抓取），`trendCandidates` / `slangCandidates` 恒为空，prompt 会显示「（无）」。这是有意的取舍，不是 bug。
+
+#### 4.7.3 判断模型能力（拿真 Key 之后第一件事）
+
+`deepseek-flash` 能不能用于直连，取决于三件事，**必须分别验证**，不要一次全改再看结果：
+
+**① 视觉能力（analyze 路径）**
+
+DevTools → Network 过滤 `chat/completions`，刷一条视频触发 analyze，看响应：
+
+| 现象 | 结论 |
+|---|---|
+| 200 + `choices[0].message.content` 是 JSON | 视觉可用，什么都不用改 |
+| 400，`error.message` 提到 image / vision / content type | 该模型不吃图片。**改 `DIRECT_CONFIG.visionModel` 为支持视觉的模型** |
+| 200 但 content 是「我看不到图片」这类话 | 同上，模型在忽略图片 |
+| 200 但 content 不是 JSON | `json_object` 被忽略了，见 ③ |
+
+**② `response_format: json_object` 支持（analyze 路径）**
+
+- 返回 400 且 `error.message` 提到 `response_format` / `json` → 不支持。
+- 改法：删掉 `background.js` 里 analyze 请求体的 `response_format: { type: 'json_object' }` 那一行。`directParseJson()` 已经能从 ```json 围栏和散文里捞出 JSON，所以去掉后大概率仍能用，只是偶尔要多解析一次。
+- 删了之后 `direct-parity.test.ts` 里那条断言也要同步改——两边不同步会红。这是有意的：让「能力探测的结论」在代码里留痕。
+
+**③ 流式（chat 路径）**
+
+聊一句，看 Network 里那个请求：
+
+- 响应头 `content-type: text/event-stream` 且面板里能看到多帧 `data:` → 正常。
+- 200 但 `content-type: application/json`、只有一整块 → 模型不支持流式。气泡会一次性蹦出整句。可接受但体验差；要修就得在 `directStreamChat` 里加「非 SSE 时整体当一片」的分支。
+
+**判断完的落地方式**：把结论写进 `DIRECT_CONFIG` 上方的注释（模型名 + 已验证的能力），改 `direct-parity.test.ts` 对应断言，然后重跑 `direct-check.mjs` 确认 loopback 路径没被连带改坏。**不要**为了「以后可能换模型」加一层能力探测的运行时逻辑——那会让每次请求多一次失败重试，而模型是发布时定好的。
 
 ## 5. 环境与密钥
 
@@ -393,6 +483,8 @@ claude.cmd
 - 不改 `manifest.json` 里 buddy 那条 content script 的顺序（`core.js` → `emotions.js` → `buddy.js`），也不改它 `document_idle` 的时机；`keyboard-guard.js` 必须留在 `document_start` 那条。图标路径保持 `assets/emotions/{id}-128.png`。
 - 不引入扩展构建步骤或框架；扩展是原生 JS。`extension/shared/` 下的 `persona.js` / `text-core.js` / `guards-core.js` / `voice-filter.js` / `zh-prompt.js` 是**共享规则**，服务端 import 它们，改完两边一起验（§4.6）。
 - 服务端那五个 wrapper（`prompts/persona.ts`、`prompts/zh.ts`、`safety/guards.ts`、`safety/voiceFilter.ts`、`lib/text.ts`）**不允许再长出实现**。要改规则改 `extension/shared/*.js`。加新规则时先问一句「扩展要不要用」：要，就进共享文件；不要，才留服务端。
+- **直连模式和服务端模式必须喂给模型同样的 prompt 和同样的后处理**。加规则只改共享模块，不要在 `background.js` 里写第二份；`direct-parity.test.ts` 守着采样参数和后处理调用。
+- 不往 `manifest.json` 的 `host_permissions` 里加模型域名：安装即授予，违背「不多要权限」。要加走 `optional_host_permissions`，在 popup 的提交处理里同步请求。
 - 不读/写 `.env`、`.env.local`、`extension.pem`；不把 token 写进代码、日志或回复。
 - 不把服务端情绪提示改成权威结果；客户端正文优先是有意设计。
 - 改完更新本文件相关段落和命令。
@@ -410,9 +502,11 @@ claude.cmd
 
 ## 8. 变更记录（压缩）
 
-- 2026-10-24 P2a 共享层扩到全量：把最后两块「服务端和扩展都要用」的规则也提到 `extension/shared/`。新增 `zh-prompt.js`（system prompt / 视频锚点 / 情绪底色 / 表情配额 / 角度去重 / BUCKET_HINT / `buildAnalyzeMessages` / `buildChatMessages`）与 `text-core.js`（`clampText` / `sanitizeUntrusted` / `dedupeStrings` / `normalizeForMatch` / `bigrams` / `overlapCount` / `seed`）；`guards-core.js` 再吸收 `BLOCKED_TERMS` / `ALLOWED_MOODS` / `AD_MARKERS` / `isAdvertisement` / `containsBlockedTerm` / `finalizeAnalyzeResult` / `normalizeMeme`。`zh.ts`、`guards.ts`、`lib/text.ts` 全部退成薄封装，规则只剩一份。
-  **`node:crypto` 换成 FNV-1a**：`text.ts` 的 `hashShort` 用 sha256，service worker 里没有这个模块。共享层改用 `SmText.seed()`（FNV-1a，32 位）。副作用是表情配额的平局轮转换了种子——输出仍然确定，只是和 sha256 版本选的不是同一个表情。
-  **加载顺序**：`text-core.js` 最底层，`guards-core.js` 依赖它，`voice-filter.js` 依赖 `guards-core.js`，`zh-prompt.js` 依赖 `text-core.js`。依赖是惰性取值，所以包装层必须显式逐个 import，少一行测试就报「requires X to be loaded first」。新增 `shared-rules.test.ts` 14 项守住这些行为契约。226 个测试通过。
+- 2026-10-24 P2 BYOK 直连模式：新增 §2.1.9。`settings.mode` 全新安装默认 `'direct'`、旧配置留在 `'server'`（`legacyMode()`），**升级已装好的用户不会被静默改道**；`'direct'` 时 `background.js` 直接打用户的 `apiBaseUrl`，`Authorization: Bearer <自己的 Key>`，Key 只存 `chrome.storage.local`。`manifest.json` 只加 `optional_host_permissions: ["https://*/*"]`，不往 `host_permissions` 里塞模型域名——那是安装即授予；`popup.js` 在 submit **同步**调 `chrome.permissions.request()` 收窄到那一个 origin。**权限请求不能绕经 service worker**：用户手势过不了 `sendMessage`，原实现（popup → background → request）每次都返回「must be called during a user gesture」，弹窗根本出不来——已改为 popup 直接请求，并加断言守着。`normalizeApiBaseUrl()` 只收 `https://`，**例外是 loopback**（`127.0.0.1` / `localhost` 走 http），这两个 origin 本就在 `host_permissions` 里（pattern 忽略端口），放行不新增权限，也是 `direct-check.mjs` 能用本地假服务免费测试的前提。
+
+  **共享层扩到全量**：`zh-prompt.js`（system prompt / 视频锚点 / 情绪底色 / 表情配额 / 角度去重 / BUCKET_HINT）和 `text-core.js`（纯文本工具 + FNV-1a `seed`）也搬进 `extension/shared/`，`zh.ts` / `lib/text.ts` 变成薄封装。`node:crypto` 的 sha256 在 service worker 里没有，改用 FNV-1a；代价是配额平局轮转换了种子，`direct-parity.test.ts` 因此屏蔽轮转行、断言其余字节一致。**两个模式必须喂同样的 prompt、跑同样的后处理**，否则「换个模式说话就变了」，而两边各自的测试都发现不了。
+
+  **修打包漏文件**：`pack-extension.mjs` 的白名单从 manifest 反推，但 service worker 的 5 个 `importScripts()` 依赖 manifest 一个字都没提。改前实跑只有 20 个文件、`shared/persona.js` 等 5 个全缺——装到用户机器上 worker 第一行就报错，而清单看着是完整的。改成从 `background.js` 源码解析 `importScripts()` 字面量。新增 `pack-extension.test.ts` 解析 ZIP 中央目录逐个比对（不用字节搜索：正文是压缩的，会误命中），并已手动回退修复验证它会红。234 个测试通过。
 
 - 2026-10-24 P1 共享规则去重：新增 §4.6。把「服务端和扩展都要用」的规则从 TypeScript 提到 `extension/shared/`，服务端改成薄封装，规则只留一份。**已搬走**：`persona.js`（人设，4 个 tone 的全部规则串）、`guards-core.js`（`withMaoSuffix` / `applyMaomaoStyle` / `NEUTRAL_BY_TONE` / `AD_REACTIONS` / `adReaction` / `neutralReaction`）、`voice-filter.js`（`createMaomaoStreamFilter`）。**刻意没搬**：`zh.ts` 与 `trends/*`，因为它们 `import` `node:fs` / `node:crypto`，进 `extension/` 会让 content script 加载即崩。形状是 IIFE 而不是 ESM——MV3 content script 无模块加载器且禁止构建步骤，文件同时挂 `globalThis` 和 `module.exports`，Node 里 `import '...js'` 求副作用即可。
 

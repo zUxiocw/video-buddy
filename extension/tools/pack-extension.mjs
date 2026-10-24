@@ -28,6 +28,26 @@ const REPO_ROOT = resolve(EXT_ROOT, '..');
 // Read from the manifest rather than restating it, so a new content script or
 // icon path is picked up automatically instead of silently missing from the
 // package (which would produce an extension that loads but half-works).
+//
+// The service worker is the one place the manifest cannot describe: it pulls
+// its dependencies in with importScripts(), and MV3 has no module loader. Those
+// files are therefore read back out of background.js. Without this the ZIP
+// omits every shared module and the worker dies on its first line, while the
+// manifest-derived list still looks complete — a hand-maintained second list is
+// exactly how this was missed once already.
+function importScriptsFiles(entry) {
+  const source = readFileSync(join(EXT_ROOT, entry), 'utf8');
+  const files = new Set();
+  for (const match of source.matchAll(/importScripts\s*\(([\s\S]*?)\)\s*;/g)) {
+    for (const literal of match[1].matchAll(/['"]([^'"]+)['"]/g)) {
+      // importScripts resolves relative to the worker, which sits at the
+      // extension root, so the literal is already an extension-relative path.
+      files.add(literal[1]);
+    }
+  }
+  return files;
+}
+
 function manifestFiles() {
   const manifest = JSON.parse(readFileSync(join(EXT_ROOT, 'manifest.json'), 'utf8'));
   const files = new Set(['manifest.json', 'background.js']);
@@ -35,7 +55,10 @@ function manifestFiles() {
   for (const script of manifest.content_scripts || []) {
     for (const js of script.js || []) files.add(js);
   }
-  if (manifest.background?.service_worker) files.add(manifest.background.service_worker);
+  if (manifest.background?.service_worker) {
+    files.add(manifest.background.service_worker);
+    for (const dep of importScriptsFiles(manifest.background.service_worker)) files.add(dep);
+  }
   if (manifest.action?.default_popup) {
     files.add(manifest.action.default_popup);
     // The popup is an HTML page with its own script next to it.

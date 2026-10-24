@@ -1,8 +1,24 @@
-/* Service worker: the only place that talks to the local buddy server.
- * Content scripts cannot call 127.0.0.1 directly (CORS), so every request
- * goes through here. Also handles screenshot capture + JPEG compression.
+/* Service worker: the only place that talks to a model, whether that is the
+ * local buddy server or the provider directly.
+ *
+ * Content scripts cannot call 127.0.0.1 directly (CORS), so every request goes
+ * through here. Also handles screenshot capture + JPEG compression.
+ *
+ * Two modes, chosen by settings.mode:
+ *   'server' — POST to the local Fastify service (the original path).
+ *   'direct' — call the OpenAI-compatible provider with the user's own key.
+ * Both build their prompts from the same shared modules and run the same
+ * output filters, which is the only reason 'direct' can be trusted to sound
+ * and behave the same.
  */
-importScripts('shared/core.js');
+importScripts(
+  'shared/persona.js',
+  'shared/text-core.js',
+  'shared/guards-core.js',
+  'shared/voice-filter.js',
+  'shared/zh-prompt.js',
+  'shared/core.js'
+);
 
 var Buddy = self.Buddy;
 var DEFAULT_ICON_PATH = 'icons/icon48.png';
@@ -28,6 +44,223 @@ function headersFor(settings) {
     authorization: 'Bearer ' + settings.appToken,
     'x-device-id': settings.deviceId,
     'content-type': 'application/json',
+  };
+}
+
+/* ---------- direct mode: call the provider with the user's own key ---------- */
+
+/*
+ * This path exists so the extension works without a self-hosted server. It
+ * deliberately mirrors the server's request construction instead of inventing
+ * its own: same prompt modules, same output filters, same SSE frame shape. Any
+ * difference here would show up as the cat talking differently depending on
+ * which mode the user picked.
+ *
+ * What it cannot reproduce is the server's trend/slang injection, which needs
+ * node:fs and a live hot-list fetch. Both candidate arrays are therefore empty
+ * in this mode; the prompt already handles that (「（无）」).
+ */
+var DIRECT_CONFIG = {
+  visionModel: 'deepseek-flash',
+  chatModel: 'deepseek-flash',
+  visionDetail: 'high',
+  analyzeTimeoutMs: 12000,
+  chatTimeoutMs: 60000,
+};
+
+function directError(code, message, retryable) {
+  return { code: code, message: message, retryable: !!retryable };
+}
+
+/** Map an upstream failure to the codes the content script already handles. */
+function directFailure(status, settings) {
+  if (status === 401 || status === 403) {
+    return directError('UPSTREAM_AUTH', '模型拒绝了访问令牌，检查设置里的 API Key', false);
+  }
+  if (status === 400 || status === 404) {
+    return directError('MODEL_UNAVAILABLE', '模型名或能力不匹配', false);
+  }
+  if (status === 429) {
+    return directError('RATE_LIMITED', '模型限流了，等一会儿再试', true);
+  }
+  if (status >= 500) {
+    return directError('UPSTREAM_ERROR', '模型服务暂时不可用', true);
+  }
+  return directError('UPSTREAM_ERROR', '模型服务返回 HTTP ' + status, false);
+}
+
+/**
+ * One POST to the OpenAI-compatible endpoint.
+ *
+ * Only https is allowed: settings.apiBaseUrl is already forced to https by
+ * normalizeApiBaseUrl, and this is the call that carries the user's key, so a
+ * downgrade to plain http would leak it over the wire.
+ */
+async function directRequest(settings, body, timeoutMs, signal) {
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener('abort', function () { controller.abort(); }, { once: true });
+  }
+  try {
+    return await fetch(settings.apiBaseUrl + '/chat/completions', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer ' + settings.apiKey,
+        'content-type': 'application/json',
+        accept: body.stream === true ? 'text/event-stream' : 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function directThinkingParam() {
+  // Matches the server's default (thinking disabled for latency).
+  return { thinking: { type: 'disabled' } };
+}
+
+/** Pull message text out of a non-streaming OpenAI response. */
+function directContent(json) {
+  var choice = json && json.choices && json.choices[0];
+  var content = choice && choice.message ? choice.message.content : null;
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    return content
+      .map(function (part) {
+        return part && typeof part.text === 'string' ? part.text : '';
+      })
+      .join('')
+      .trim();
+  }
+  return '';
+}
+
+/** The model is told to return JSON, but sometimes wraps it in a fence. */
+function directParseJson(text) {
+  var value = String(text || '').trim();
+  if (value.startsWith('```')) {
+    value = value.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  }
+  var start = value.indexOf('{');
+  var end = value.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(value.slice(start, end + 1));
+  } catch (_error) {
+    return null;
+  }
+}
+
+/** Same shape the provider returns server-side, before finalizeAnalyzeResult. */
+function directNormalizePayload(parsed) {
+  var SmText = self.SmText;
+  if (!parsed || typeof parsed !== 'object') return null;
+  var summary = typeof parsed.summary === 'string' ? SmText.clampText(parsed.summary, 100) : '';
+  var reaction = typeof parsed.reaction === 'string' ? SmText.clampText(parsed.reaction, 100) : '';
+  if (!summary && !reaction) return null;
+  var confidence =
+    typeof parsed.confidence === 'number' && isFinite(parsed.confidence)
+      ? Math.min(1, Math.max(0, parsed.confidence))
+      : 0.6;
+  return {
+    summary: summary,
+    keywords: SmText.dedupeStrings(Array.isArray(parsed.keywords) ? parsed.keywords : [], 5),
+    mood: typeof parsed.mood === 'string' ? SmText.clampText(parsed.mood, 20) || '其他' : '其他',
+    isAd: parsed.isAd === true,
+    isLive: parsed.isLive === true,
+    risk: parsed.risk === 'blocked' ? 'blocked' : 'ok',
+    reaction: reaction,
+    memeUsed: typeof parsed.memeUsed === 'string' ? SmText.clampText(parsed.memeUsed, 40) : null,
+    confidence: confidence,
+  };
+}
+
+/**
+ * Direct-mode analyze.
+ *
+ * Returns the same `{ ok, data }` / `{ ok: false, error }` shape as the server
+ * path so the content script does not need to know which mode is active.
+ */
+async function directAnalyze(payload, settings) {
+  if (!settings.apiKey) {
+    return { ok: false, error: directError('NO_API_KEY', '还没填 API Key，去插件设置里填一下', false) };
+  }
+  var SmPrompt = self.SmPrompt;
+  var SmGuards = self.SmGuards;
+  var input = {
+    requestId: payload.requestId,
+    app: payload.app,
+    tone: payload.tone,
+    dwellMs: payload.dwellMs,
+    ocr: payload.ocr,
+    images: Array.isArray(payload.images) ? payload.images.slice(0, 2) : [],
+    recentReactions: Array.isArray(payload.recentReactions) ? payload.recentReactions : [],
+    repeat: !!payload.repeat,
+    videoBucket: payload.videoBucket || '',
+    // No hot list and no slang lexicon in this mode: both need Node and a
+    // network fetch the service worker has no business doing.
+    trendCandidates: [],
+    slangCandidates: [],
+  };
+
+  var startedAt = Date.now();
+  var response;
+  try {
+    response = await directRequest(
+      settings,
+      {
+        model: DIRECT_CONFIG.visionModel,
+        messages: SmPrompt.buildAnalyzeMessages(input, DIRECT_CONFIG.visionDetail),
+        stream: false,
+        temperature: 0.7,
+        max_tokens: 700,
+        response_format: { type: 'json_object' },
+        ...directThinkingParam(),
+      },
+      DIRECT_CONFIG.analyzeTimeoutMs,
+    );
+  } catch (error) {
+    var aborted = error && error.name === 'AbortError';
+    return {
+      ok: false,
+      error: aborted
+        ? directError('UPSTREAM_TIMEOUT', '模型响应超时，请重试', true)
+        : directError('NETWORK', '连不上模型服务，检查网络和 API 地址', true),
+    };
+  }
+
+  if (!response.ok) return { ok: false, error: directFailure(response.status, settings) };
+
+  var json;
+  try {
+    json = await response.json();
+  } catch (_error) {
+    return { ok: false, error: directError('UPSTREAM_PROTOCOL', '模型返回的不是合法 JSON', true) };
+  }
+  if (json && json.error) {
+    return { ok: false, error: directError('UPSTREAM_ERROR', '模型服务返回错误', true) };
+  }
+
+  var parsed = directParseJson(directContent(json));
+  if (!parsed) {
+    return { ok: false, error: directError('UPSTREAM_PROTOCOL', '模型输出格式不对，再试一次', true) };
+  }
+  var raw = directNormalizePayload(parsed);
+  if (!raw) {
+    return { ok: false, error: directError('UPSTREAM_PROTOCOL', '模型输出缺少摘要与反应', true) };
+  }
+
+  // The page's ad chip is passed as `confirmed`, exactly as the server does:
+  // first-hand evidence needs no corroboration from the model's own text.
+  var result = SmGuards.finalizeAnalyzeResult(raw, [], [], payload.tone, !!payload.adLabel);
+  return {
+    ok: true,
+    data: { requestId: payload.requestId, ...result, latencyMs: Date.now() - startedAt },
   };
 }
 
@@ -69,6 +302,7 @@ async function ping() {
 
 async function analyze(payload) {
   var settings = await getSettings();
+  if (settings.mode === 'direct') return directAnalyze(payload, settings);
   if (!settings.appToken) {
     return { ok: false, error: { code: 'NO_TOKEN', message: '还没填访问令牌，去插件设置里填一下', retryable: false } };
   }
@@ -174,6 +408,10 @@ function streamChat(port, payload) {
 
   (async function () {
     var settings = await getSettings();
+    if (settings.mode === 'direct') {
+      await directStreamChat(port, payload, settings, controller, function () { return closed; });
+      return;
+    }
     if (!settings.appToken) {
       safePost(port, { type: 'error', error: { code: 'NO_TOKEN', message: '还没填访问令牌，去插件设置里填一下', retryable: false } });
       safePost(port, { type: 'done' });
@@ -253,6 +491,156 @@ function streamChat(port, payload) {
       try { await reader.cancel(); } catch (_error) { /* already closed */ }
     }
   })();
+}
+
+/**
+ * Direct-mode chat.
+ *
+ * Emits the same `delta` / `error` / `done` frames the server path emits, and
+ * runs the same two post-processors the server runs:
+ *   - createMaomaoStreamFilter(), because a real model ignores the voice rules;
+ *   - pickChatEmotion(), so `done.emotion` is the same colour hint.
+ *
+ * The filter is applied here rather than in the content script on purpose: the
+ * server path is filtered server-side, so filtering client-side would make the
+ * two modes disagree on punctuation and 喵.
+ */
+async function directStreamChat(port, payload, settings, controller, isClosed) {
+  if (!settings.apiKey) {
+    safePost(port, { type: 'error', error: directError('NO_API_KEY', '还没填 API Key，去插件设置里填一下', false) });
+    safePost(port, { type: 'done' });
+    return;
+  }
+
+  var SmPrompt = self.SmPrompt;
+  var input = {
+    requestId: payload.requestId,
+    sessionId: payload.sessionId,
+    tone: payload.tone,
+    message: payload.message,
+    context: payload.context || {},
+    history: Array.isArray(payload.history) ? payload.history : [],
+    trendCandidates: [],
+    slangCandidates: [],
+    privacyTextOnly: true,
+    emotionTally: payload.emotionTally || {},
+  };
+
+  // Computed before the request, like the server does, so the hint reflects
+  // this turn's user message rather than the reply.
+  var emotionHint = SmPrompt.pickChatEmotion(input);
+
+  var response;
+  try {
+    response = await directRequest(
+      settings,
+      {
+        model: DIRECT_CONFIG.chatModel,
+        messages: SmPrompt.buildChatMessages(input),
+        stream: true,
+        temperature: 0.92,
+        max_tokens: 220,
+        ...directThinkingParam(),
+      },
+      DIRECT_CONFIG.chatTimeoutMs,
+      controller.signal,
+    );
+  } catch (error) {
+    if (!isClosed()) {
+      var aborted = error && error.name === 'AbortError';
+      safePost(port, {
+        type: 'error',
+        error: aborted
+          ? directError('UPSTREAM_TIMEOUT', '模型响应超时，请重试', true)
+          : directError('NETWORK', '连不上模型服务，检查网络和 API 地址', true),
+      });
+      safePost(port, { type: 'done' });
+    }
+    return;
+  }
+
+  if (!response.ok || !response.body) {
+    safePost(port, { type: 'error', error: directFailure(response.status, settings) });
+    safePost(port, { type: 'done' });
+    return;
+  }
+
+  var voice = input.tone === 'maomao' ? self.SmVoiceFilter.createMaomaoStreamFilter() : null;
+  var reader = response.body.getReader();
+  var decoder = new TextDecoder();
+  var buffer = '';
+  var finished = false;
+
+  function emit(text) {
+    if (!text || isClosed()) return;
+    safePost(port, { type: 'delta', text: text });
+  }
+
+  try {
+    while (!isClosed()) {
+      var read = await reader.read();
+      if (read.done) break;
+      buffer += decoder.decode(read.value, { stream: true });
+
+      var newlineIndex;
+      while ((newlineIndex = buffer.indexOf('\n')) >= 0) {
+        var line = buffer.slice(0, newlineIndex).replace(/\r$/, '');
+        buffer = buffer.slice(newlineIndex + 1);
+        var outcome = handleDirectLine(line);
+        if (outcome === 'done') { finished = true; break; }
+      }
+      if (finished) break;
+    }
+    if (!finished) {
+      var tail = handleDirectLine(buffer.replace(/\r$/, ''));
+      if (tail === 'done') finished = true;
+    }
+
+    if (!isClosed()) {
+      // The tail only exists after the last delta, so the 喵 lands once at the
+      // end — same boundary the server's flush() uses.
+      if (voice) emit(voice.flush());
+      safePost(port, emotionHint ? { type: 'done', emotion: emotionHint } : { type: 'done' });
+    }
+  } catch (error) {
+    if (!isClosed()) {
+      var abortedRead = error && error.name === 'AbortError';
+      safePost(port, {
+        type: 'error',
+        error: abortedRead
+          ? directError('UPSTREAM_TIMEOUT', '模型响应超时，请重试', true)
+          : directError('UPSTREAM_ERROR', '连接中断了', true),
+      });
+      safePost(port, { type: 'done' });
+    }
+  } finally {
+    try { await reader.cancel(); } catch (_error) { /* already closed */ }
+  }
+
+  /** Parse one SSE line; returns 'done' when the upstream stream ended. */
+  function handleDirectLine(line) {
+    if (!line || line.charAt(0) === ':' || line.indexOf('data:') !== 0) return null;
+    var data = line.slice(5).trim();
+    if (!data) return null;
+    if (data === '[DONE]') return 'done';
+
+    var event;
+    try {
+      event = JSON.parse(data);
+    } catch (_error) {
+      return null;
+    }
+    if (event && event.error) {
+      safePost(port, { type: 'error', error: directError('UPSTREAM_ERROR', '模型服务在流式响应中报错', true) });
+      return 'done';
+    }
+    var choice = event && event.choices && event.choices[0];
+    var content = choice && choice.delta ? choice.delta.content : null;
+    if (typeof content !== 'string' || !content) return null;
+
+    emit(voice ? voice.push(content) : content);
+    return null;
+  }
 }
 
 function safePost(port, message) {
@@ -456,6 +844,13 @@ function closeSenderTab(sender) {
     }
   });
 }
+
+/*
+ * Permission for the provider origin is requested by popup.js directly, not
+ * here. chrome.permissions.request() only works while a user gesture is live,
+ * and a gesture does not survive the sendMessage hop into this worker —
+ * routing it through here made every prompt fail. Do not move it back.
+ */
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (!message || typeof message !== 'object') return false;

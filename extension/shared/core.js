@@ -68,8 +68,23 @@
   var SETTINGS_VERSION = 2;
   var DEFAULTS = {
     enabled: true,
+    // Which path requests take. 'server' = the local Fastify service (the
+    // original, still-supported mode); 'direct' = the service worker calls
+    // DeepSeek with the user's own key. Kept as a string rather than a boolean
+    // so a third mode can be added without another shape change.
+    //
+    // Fresh installs default to 'direct' because that is what the public build
+    // is: the download page hands the user a BYOK setup, and a stranger has no
+    // local service to point at. Instalments that predate the field keep
+    // 'server' — see legacyMode() below.
+    mode: 'direct',
     serverUrl: 'http://127.0.0.1:8787',
     appToken: '',
+    // Only used in 'direct' mode. Stored in chrome.storage.local, which content
+    // scripts can read but page scripts cannot (content scripts run in an
+    // isolated world). The popup says so in plain words next to the field.
+    apiKey: '',
+    apiBaseUrl: 'https://api.deepseek.com',
     deviceId: '',
     // Must be >= DWELL_MIN below, otherwise normalizeSettings clamps the
     // default and the two silently disagree.
@@ -173,6 +188,32 @@
   }
 
   /**
+   * Base URL for the OpenAI-compatible provider used in direct mode.
+   *
+   * Stricter than normalizeServerUrl on purpose: this one is combined with the
+   * user's API key, so a typo that silently fell back to a default would send
+   * a real bearer token to a host the user did not intend. Plain http is
+   * therefore rejected — the one exception is loopback, which never leaves the
+   * machine. That exception is what makes the mode testable against a local
+   * stub instead of spending real tokens on every run, and both loopback hosts
+   * are already in host_permissions for server mode, so it grants nothing new.
+   */
+  function normalizeApiBaseUrl(value) {
+    var text = typeof value === 'string' ? value.trim() : '';
+    if (!text) return DEFAULTS.apiBaseUrl;
+    var secure = /^https:\/\//i.test(text);
+    var loopback = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/i.test(text);
+    if (!secure && !loopback) return DEFAULTS.apiBaseUrl;
+    try {
+      var url = new URL(text);
+      if (!url.hostname) return DEFAULTS.apiBaseUrl;
+      return url.origin + url.pathname.replace(/\/+$/, '');
+    } catch (_error) {
+      return DEFAULTS.apiBaseUrl;
+    }
+  }
+
+  /**
    * Settings saved by a build that predates `limitEnabled` carry no value for
    * it, so they would fall through to the (now off) default and silently lose
    * a feature the user was already relying on. A saved object that has other
@@ -187,15 +228,46 @@
     return undefined;
   }
 
+  /**
+   * Same problem as legacyLimitEnabled, one field over: `mode` now defaults to
+   * 'direct' for fresh installs, but every machine that saved settings before
+   * this field existed is talking to a local service that does work. Letting
+   * those fall through to the new default would reroute their requests to a
+   * provider they never configured a key for — the cat goes silent on upgrade.
+   *
+   * A saved object with other keys but no `mode` is such an instalment: keep it
+   * on 'server'. An explicit value always wins.
+   */
+  function legacyMode(source) {
+    if (Object.prototype.hasOwnProperty.call(source, 'mode')) return undefined;
+    for (var key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) return 'server';
+    }
+    return undefined;
+  }
+
   function normalizeSettings(raw) {
     var source = raw && typeof raw === 'object' ? raw : {};
     var deviceId = typeof source.deviceId === 'string' ? source.deviceId.trim() : '';
     if (!DEVICE_ID_RE.test(deviceId)) deviceId = makeDeviceId();
     var legacyLimit = legacyLimitEnabled(source);
+    var legacyRoute = legacyMode(source);
     return {
       enabled: source.enabled === undefined ? DEFAULTS.enabled : !!source.enabled,
+      // 'server' keeps talking to the local Fastify service; 'direct' calls the
+      // model from the service worker with the user's own key. Only the exact
+      // string 'direct' selects the new path: an unrecognised value must not
+      // silently reroute a working instalment. Missing entirely means the
+      // settings predate the field, which legacyMode() resolves to 'server'.
+      mode: source.mode === 'direct'
+        ? 'direct'
+        : (source.mode === 'server' ? 'server' : (legacyRoute !== undefined ? legacyRoute : DEFAULTS.mode)),
       serverUrl: normalizeServerUrl(source.serverUrl),
       appToken: typeof source.appToken === 'string' ? source.appToken.trim() : '',
+      // Trimmed here so a pasted key with a trailing newline does not fail with
+      // a 401 that looks like a wrong key.
+      apiKey: typeof source.apiKey === 'string' ? source.apiKey.trim() : '',
+      apiBaseUrl: normalizeApiBaseUrl(source.apiBaseUrl),
       deviceId: deviceId,
       dwellSeconds: clampInt(source.dwellSeconds, DEFAULTS.dwellSeconds, DWELL_MIN, DWELL_MAX),
       repeatDwellSeconds: normalizeRepeatDwell(source.repeatDwellSeconds),
@@ -860,6 +932,7 @@
     MAX_SESSION_MESSAGES: MAX_SESSION_MESSAGES,
     normalizeSettings: normalizeSettings,
     normalizeServerUrl: normalizeServerUrl,
+    normalizeApiBaseUrl: normalizeApiBaseUrl,
     emotionHoldMs: emotionHoldMs,
     bubbleMs: bubbleMs,
     repeatDwellMs: repeatDwellMs,

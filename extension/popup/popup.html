@@ -180,19 +180,43 @@
       <fieldset>
         <legend>接入</legend>
         <label>
-          <span>服务地址</span>
-          <input id="serverUrl" type="text" spellcheck="false" placeholder="http://127.0.0.1:8787" />
+          <span>方式</span>
+          <select id="mode">
+            <option value="server">连自己的服务（需先启动）</option>
+            <option value="direct">直接用 API Key</option>
+          </select>
         </label>
-        <label>
-          <span>访问令牌</span>
-          <input id="appToken" type="password" spellcheck="false" autocomplete="off" />
-        </label>
-        <details>
-          <summary>设备 ID</summary>
-          <label style="margin-top: 6px">
-            <input id="deviceId" type="text" spellcheck="false" />
+
+        <div id="serverFields">
+          <label>
+            <span>服务地址</span>
+            <input id="serverUrl" type="text" spellcheck="false" placeholder="http://127.0.0.1:8787" />
           </label>
-        </details>
+          <label>
+            <span>访问令牌</span>
+            <input id="appToken" type="password" spellcheck="false" autocomplete="off" />
+          </label>
+          <details>
+            <summary>设备 ID</summary>
+            <label style="margin-top: 6px">
+              <input id="deviceId" type="text" spellcheck="false" />
+            </label>
+          </details>
+        </div>
+
+        <div id="directFields" hidden>
+          <label>
+            <span>API Key</span>
+            <input id="apiKey" type="password" spellcheck="false" autocomplete="off" placeholder="sk-..." />
+          </label>
+          <label>
+            <span>API 地址</span>
+            <input id="apiBaseUrl" type="text" spellcheck="false" placeholder="https://api.deepseek.com" />
+          </label>
+          <p class="hint" id="keyHint">
+            这个 Key 只存在本机的浏览器存储里，不会发给除模型服务之外的任何地方。首次使用会请求一次该地址的访问权限。
+          </p>
+        </div>
       </fieldset>
 
       <div class="actions">
@@ -204,7 +228,7 @@
     <p class="hint">
       悬浮球默认在右下角。拖动换位置，拖右下角小圆点或在上面调大小（一个抖音头像约 48px）。<br />
       聊天面板右上角「记录」可以回看或删除之前的对话；本次会话在页面关闭后自动存档。<br />
-      本插件只把你正在看的这条视频的文案和一张压缩截图，发到上面填的服务地址；除此之外不采集任何内容。
+      本插件只把你正在看的这条视频的文案和一张压缩截图，发到上面填的地址（自己的服务或模型服务）；除此之外不采集任何内容。
     </p>
 
     <div class="toast" id="toast"></div>

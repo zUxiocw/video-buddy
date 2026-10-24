@@ -36,6 +36,7 @@ interface BuddyApi {
   DEVICE_ID_RE: RegExp;
   normalizeSettings(raw: unknown): Record<string, unknown>;
   normalizeServerUrl(value: unknown): string;
+  normalizeApiBaseUrl(value: unknown): string;
   emotionHoldMs(settings: unknown, overrideMs?: number): number;
   bubbleMs(settings: unknown): number;
   repeatDwellMs(settings: unknown): number;
@@ -115,6 +116,64 @@ describe('extension core', () => {
     expect(Buddy.DEFAULTS.limitCooldownMinutes).toBeLessThanOrEqual(Buddy.LIMIT_COOLDOWN_MAX);
     expect(Buddy.DEFAULTS.limitCloseSeconds).toBeGreaterThanOrEqual(Buddy.LIMIT_CLOSE_MIN);
     expect(Buddy.DEFAULTS.limitCloseSeconds).toBeLessThanOrEqual(Buddy.LIMIT_CLOSE_MAX);
+  });
+
+  it('gives fresh installs direct mode, but never reroutes an existing one', () => {
+    // The public build is BYOK: the download page hands out a key setup, and a
+    // stranger has no local service to point at. So a fresh install starts on
+    // 'direct'.
+    expect(Buddy.normalizeSettings({}).mode).toBe('direct');
+    expect(Buddy.DEFAULTS.mode).toBe('direct');
+
+    // An instalment saved before the field existed must keep using the service
+    // it was already using. Letting it fall through to the new default would
+    // reroute its requests to a provider it has no key for, and the cat would
+    // go silent on upgrade. Same shape as the limitEnabled migration: other
+    // keys present but this one absent means "old config, preserve it".
+    expect(Buddy.normalizeSettings({ serverUrl: 'http://127.0.0.1:8787' }).mode).toBe('server');
+    expect(Buddy.normalizeSettings({ appToken: 'abc' }).mode).toBe('server');
+    expect(
+      Buddy.normalizeSettings({ dwellSeconds: 10, serverUrl: 'http://127.0.0.1:8787' }).mode,
+    ).toBe('server');
+
+    // An explicit choice always wins, in both directions.
+    expect(Buddy.normalizeSettings({ mode: 'direct' }).mode).toBe('direct');
+    expect(Buddy.normalizeSettings({ mode: 'server' }).mode).toBe('server');
+    expect(Buddy.normalizeSettings({ mode: 'server', apiKey: 'sk-x' }).mode).toBe('server');
+    // Only the exact strings count. A value this build does not recognise is
+    // not an old config (the key is present) and not a routing decision, so it
+    // falls back to the default like any other malformed field — same rule as
+    // `enabled`.
+    expect(Buddy.normalizeSettings({ mode: 'DIRECT' }).mode).toBe('direct');
+    expect(Buddy.normalizeSettings({ mode: 'byok' }).mode).toBe('direct');
+  });
+
+  it('requires https for the direct-mode endpoint, except loopback', () => {
+    // This URL is combined with the user's API key, so a plain-http or
+    // malformed value must fall back rather than send the key in the clear.
+    expect(Buddy.normalizeApiBaseUrl('')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('https://api.deepseek.com')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('https://api.deepseek.com/')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('http://api.deepseek.com')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('ftp://api.deepseek.com')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('not a url')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('https://proxy.example.com/v1')).toBe('https://proxy.example.com/v1');
+
+    // Loopback over http is allowed: it never leaves the machine, and it is
+    // what makes the mode testable against a local stub. Both hosts are
+    // already granted for server mode, so this adds no permission.
+    expect(Buddy.normalizeApiBaseUrl('http://127.0.0.1:8787')).toBe('http://127.0.0.1:8787');
+    expect(Buddy.normalizeApiBaseUrl('http://localhost:8787')).toBe('http://localhost:8787');
+    expect(Buddy.normalizeApiBaseUrl('http://localhost:8787/')).toBe('http://localhost:8787');
+    // Still not a cartesian product: http + a real host stays rejected, and a
+    // loopback lookalike is not loopback.
+    expect(Buddy.normalizeApiBaseUrl('http://localhost.evil.com')).toBe('https://api.deepseek.com');
+    expect(Buddy.normalizeApiBaseUrl('http://127.0.0.1.nip.io')).toBe('https://api.deepseek.com');
+  });
+
+  it('trims the API key so a pasted newline is not a 401', () => {
+    expect(Buddy.normalizeSettings({ apiKey: '  sk-abc123\n' }).apiKey).toBe('sk-abc123');
+    expect(Buddy.normalizeSettings({}).apiKey).toBe('');
   });
 
   it('normalizes the server url and drops junk', () => {
