@@ -15,10 +15,13 @@
  *
  *   node tools/pack-site.mjs
  *   node tools/pack-site.mjs --out _publish
+ *   node tools/pack-site.mjs --zip
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync, copyFileSync, statSync } from 'node:fs';
-import { join, dirname, resolve, relative } from 'node:path';
+import { join, dirname, basename, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// One ZIP writer for both release paths (see the file header for why).
+import { buildZip } from './zip-writer.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..');
@@ -122,6 +125,7 @@ const outIndex = args.indexOf('--out');
 const outDir = outIndex >= 0 && args[outIndex + 1]
   ? resolve(args[outIndex + 1])
   : join(REPO_ROOT, 'site-dist');
+const wantZip = args.includes('--zip');
 
 const { files, zips } = stageList();
 const staged = files
@@ -157,7 +161,26 @@ const skipped = readdirSync(SITE_ROOT).filter(
   (name) => !['assets', 'download'].includes(name) && !staged.some((file) => file === name)
 );
 
+// A zip is the least ambiguous thing to hand Cloudflare: its upload page takes
+// a folder or a single zip, and either way the CONTENTS become the site root.
+// The entries below are therefore rooted at the archive, with no `site-dist/`
+// prefix — a prefix would deploy the whole site one level down and every page
+// would 404 at /.
+let zipNote = '';
+if (wantZip) {
+  const entries = staged.map((name) => ({ name, data: readFileSync(join(outDir, name)) }));
+  // Beside the directory, so `--out` in a scratch location keeps everything
+  // there instead of dropping a zip in the repo root.
+  const zipPath = outDir + '.zip';
+  writeFileSync(zipPath, buildZip(entries));
+  const kb = (statSync(zipPath).size / 1024).toFixed(0);
+  zipNote = '\n[site] also wrote ' + relative(REPO_ROOT, zipPath) + ' (' + kb + ' KiB, ' + staged.length + ' entries at archive root)';
+}
+
 console.log('[site] ' + staged.length + ' files, ' + (bytes / 1024).toFixed(0) + ' KiB → ' + relative(REPO_ROOT, outDir));
 for (const name of staged) console.log('       ' + name);
 if (skipped.length) console.log('[site] held back (working files, not published): ' + skipped.join(', '));
-console.log('[site] deploy the CONTENTS of ' + relative(REPO_ROOT, outDir) + '/, not the folder itself');
+console.log(
+  '[site] upload either the folder ' + relative(REPO_ROOT, outDir) + '/ or ' + basename(outDir) + '.zip;' +
+  ' Cloudflare uses its contents as the site root' + zipNote
+);

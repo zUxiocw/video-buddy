@@ -3,7 +3,7 @@
 > 最后更新：2026-10-24
 > 项目：抖音网页悬浮球「上头了喵喵」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（239 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（245 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**刷视频限时（§2.1.7）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -38,6 +38,10 @@
   - `src/lib/text.ts` — **薄封装**，实现在 `extension/shared/text-core.js`；只保留服务端独有的 `hashShort`（`node:crypto`）、`isAbortError`、`delay`
   - `src/lib/dataPath.ts` — 从 `import.meta.url` 逐级上溯定位 `server/data/*.json`（见 §4.6）
   - `test/` — Vitest
+- `tools/`
+  - `pack-site.mjs` — **网站发布目录打包**（白名单）→ `site-dist/`；`--zip` 同时产出 `site-dist.zip`，见 §4.8
+  - `zip-writer.mjs` — **ZIP 写入唯一副本**（无依赖），`pack-extension.mjs` 与 `pack-site.mjs` 共用
+- `site/` — 公开网页（4 页 + `app.js` / `styles.css` / 情绪图 / `download/*.zip`），`site/README.md` 是内部说明、不进发布目录
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
 - `.claude/commands/` — Claude Code 斜杠命令
 - 备份：无（`.backup-*` 快照已于 2026-10-24 清理，见第 8 节）
@@ -327,7 +331,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 239 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 245 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
@@ -448,6 +452,22 @@ DevTools → Network 过滤 `chat/completions`，刷一条视频触发 analyze�
 
 **判断完的落地方式**：把结论写进 `DIRECT_CONFIG` 上方的注释（模型名 + 已验证的能力），改 `direct-parity.test.ts` 对应断言，然后重跑 `direct-check.mjs` 确认 loopback 路径没被连带改坏。**不要**为了「以后可能换模型」加一层能力探测的运行时逻辑——那会让每次请求多一次失败重试，而模型是发布时定好的。
 
+### 4.8 网站发布（Cloudflare Pages 直接上传）
+
+```powershell
+cd D:\code\video-buddy
+node extension/tools/pack-extension.mjs --out site/download   # 安装包
+node tools/pack-site.mjs --zip                                 # site-dist/ + site-dist.zip
+```
+
+Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload assets**，上传 **`site-dist` 文件夹本身**或 **`site-dist.zip`**。它的提示是「The contents of your zip file or folder will be used to deploy your project」——取的是**内容**作为站点根目录，所以拖文件夹本身是对的，**不需要进去全选再拖**（曾把这条写反过）。
+
+1. **`tools/pack-site.mjs` 是白名单**：只复制 4 个页面、`styles.css`、`app.js`、`assets/**/*.png`、`download/*.zip`。`site/README.md`（含内部决策：为什么不上 Firefox、为什么暂不上架）和 `site/serve.mjs`（本地预览服务）不进发布目录。新增页面必须显式加进 `PAGES`。
+2. **三条守卫，直接 `exit 1`**：`download/` 里没有 ZIP；`app.js` 的 `DOWNLOAD_URL` 与磁盘上的 ZIP 名不一致（改 `manifest.json` 版本却没同步时会发生）；页面引用了没被复制的文件。这三件事单独看都不会报错，只会让站点「看着正常但下不到扩展」。
+3. **ZIP 条目位于归档根部，不带 `site-dist/` 前缀**。多一层前缀不报错，但整站会被部署到下一级目录，`/` 上什么都没有。`pack-site.test.ts` 解析中央目录断言这一点（已回退验证会红）。
+4. **ZIP 写入逻辑只有一份**：`tools/zip-writer.mjs`，`pack-extension.mjs` 和 `pack-site.mjs` 都 import 它。两个发布路径各写一份的话，修好一处、另一处仍是旧的。
+5. `site-dist/` 与 `*.zip` 都在 `.gitignore` 里，是构建产物，不要提交。
+
 ## 5. 环境与密钥
 
 - `server/.env.local` 优先于 `server/.env`：`loadEnvFiles()` 先加载 `.env.local`，再加载 `.env`，且不覆盖已存在的变量。
@@ -516,6 +536,8 @@ claude.cmd
     - **暂不上架商店**。安装走开发者模式加载，代价是 Chrome 每次启动提示「请停用开发者模式扩展程序」且**没有自动更新**；这条已在 `site/install.html` 如实写给用户。做了 Firefox 适配或决定上架时，先改这一条和网站文案，别让页面继续承诺手工安装的路径。
 
 ## 8. 变更记录（压缩）
+
+- 2026-10-24 网站发布目录 + 共用 ZIP 写入：新增 §4.8。`tools/pack-site.mjs` 白名单产出 `site-dist/`，`--zip` 同时产出 `site-dist.zip`（18 个条目**位于归档根部**，不带 `site-dist/` 前缀——多一层不报错，但整站会部署到下一级目录、`/` 上什么都没有）。ZIP 写入抽成 `tools/zip-writer.mjs` 一份，`pack-extension.mjs` 与 `pack-site.mjs` 共用；抽出来后重跑扩展打包仍是 25 个文件、`pack-extension.test.ts` 全绿。`pack-site.test.ts` 新增一条解析中央目录的断言（归档根 + 内嵌 `download/*.zip`），**已回退验证会红**。修正文档里写反的一处：Cloudflare 的提示是「The contents of your zip file or folder will be used to deploy your project」，**拖 `site-dist` 文件夹本身就是对的**，不需要进去全选；之前 `site/README.md` 与给用户的说明都是反的。245 个测试通过。
 
 - 2026-10-24 发布前收尾：新增 §7.10。网站上线前补三件事。**① 写明兼容范围**：首页 hero、安装页 FAQ、BYOK 步骤三处说明只支持 Chromium 内核（Chrome / Edge 116+ 等），**Firefox（MV3 无后台 service worker）和 Safari 明确不支持**。**② 如实交代开发者模式的代价**：Chrome 每次启动会提示「请停用开发者模式扩展程序」、且没有自动更新；不解释的话用户会以为是装坏了。**③ 下载回退文案改写给访客看**：原来写的是「部署时把安装包放在 download/ 下」「自己构建 `node ...`」，那是给部署者的话，访客只会看到一堆无从下手的命令；同时删掉过时的「公开包正在打包」。已决定**暂不上架商店**，因此上述手工安装路径是当前正式路径，不是临时方案。提交 `f2e0b56`。
 

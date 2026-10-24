@@ -42,10 +42,17 @@ node serve.mjs
 ```powershell
 cd D:\code\video-buddy
 node extension/tools/pack-extension.mjs --out site/download   # 产出安装包
-node tools/pack-site.mjs                                       # 产出 site-dist/
+node tools/pack-site.mjs --zip                                 # 产出 site-dist/ 和 site-dist.zip
 ```
 
-然后 Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload assets**，把 **`site-dist/` 里面的内容**拖进去（不是拖 `site-dist` 文件夹本身），部署即可。
+然后 Cloudflare Dashboard → Workers & Pages → Create → Pages → **Upload assets**，二选一：
+
+- 把 **`site-dist/` 文件夹本身**拖进去；
+- 或者上传 **`site-dist.zip`**。
+
+Cloudflare 的提示是「The contents of your zip file or folder will be used to deploy your project」——它取的是**内容**作为站点根目录，所以拖文件夹本身是对的，不需要进去全选再拖。zip 里的条目也直接位于归档根部（不带 `site-dist/` 前缀），`index.html` 就在 `/`。
+
+**不要**只上传 `index.html` 一个文件：那会是一张没有样式和脚本的裸页面。
 
 `tools/pack-site.mjs` 是白名单：只复制 4 个页面、`styles.css`、`app.js`、`assets/**/*.png` 和 `download/*.zip`。`README.md`（含内部决策）和 `serve.mjs` 不会进发布目录。它会在以下三件事上直接失败退出：
 
