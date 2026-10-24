@@ -69,6 +69,19 @@
   var NUDGE_AFTER_MAX = 10;
   var NUDGE_AFTER_MS = 5 * 60 * 1000;
   var NUDGE_GAP_MS = 5 * 1000;
+  // How long after the page settles before the budget is read out.
+  //
+  // It used to be announced from `onDwell()`, which put it in the same second
+  // as the first video reaction — the user got a number and a joke at once and
+  // the two bubbles fought over one slot. Announcing on load instead means the
+  // notice always lands before any reaction.
+  //
+  // The value is not free: it has to stay below the shortest possible dwell
+  // (`DWELL_MIN`), otherwise a fast setting would still put a reaction first.
+  // `nudge.test.ts` asserts that inequality rather than trusting the numbers.
+  // The gap also keeps the line off the greeting's first moment, so the opener
+  // is read before it is replaced.
+  var BUDGET_LEAD_MS = 3 * 1000;
   // How many unanswered nags before the cat stops talking and shuts the tab.
   // The count IS a setting (unlike the 5s gap above), because "how long do I
   // tolerate being ignored" is a matter of taste, not of mechanism.
@@ -1365,6 +1378,9 @@
     NUDGE_AFTER_MAX: NUDGE_AFTER_MAX,
     nudgeAfterMs: nudgeAfterMs,
     NUDGE_GAP_MS: NUDGE_GAP_MS,
+    // Delay between the page settling and the budget being read out. Exported
+    // so the tests can assert it stays under `DWELL_MIN`.
+    BUDGET_LEAD_MS: BUDGET_LEAD_MS,
     NUDGE_LIMIT_MIN: NUDGE_LIMIT_MIN,
     NUDGE_LIMIT_MAX: NUDGE_LIMIT_MAX,
     BUDGET_LINES: BUDGET_LINES,

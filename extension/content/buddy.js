@@ -91,7 +91,15 @@
         // The opener is chained to the limiter on purpose: if the budget is
         // already gone (or we are in the cooldown), greeting the user and then
         // closing the tab one second later reads as two minds, not one.
-        limiter.start(sayOpener);
+        //
+        // The budget notice is scheduled inside the same "allowed to watch"
+        // branch, so it cannot announce a budget on a page that is about to be
+        // closed. It fires `BUDGET_LEAD_MS` after the greeting, which keeps it
+        // clear of both the opener and the first dwell reaction (≥10s away).
+        limiter.start(function () {
+          sayOpener();
+          scheduleBudget();
+        });
       });
       chrome.storage.onChanged.addListener(function (changes, area) {
         if (area !== 'local') return;
@@ -284,6 +292,10 @@
       // Runs before the video checks: the silence clock is about the user, not
       // about whether a video happens to be on screen.
       nudge.tick();
+      // Same reasoning for the budget notice: it is about the user's setting,
+      // not about the video. Stepping it here rather than on its own timer is
+      // what keeps it from being lost to throttling or a cancel/re-arm race.
+      tickBudget();
 
       var video = pickVideo();
       if (!video) {
@@ -1027,10 +1039,16 @@
   /**
    * Say the budget out loud, once per conversation.
    *
-   * Two paths can reach this — the user's first message and the first
-   * dwell-triggered reaction — and whichever comes first does the announcing.
-   * Announcing on both would mean the user hears the same number twice in the
-   * first half-minute, which is the opposite of a heads-up.
+   * Called from two places — the scheduled call just after load, and the
+   * user's first message if they type before that timer fires. `budgetAnnounced`
+   * makes whichever wins the only one that speaks, so the number is not said
+   * twice in the first half-minute.
+   *
+   * It used to be announced from `onDwell()` instead. That put it in the same
+   * second as the first video reaction: the bubble was overwritten before it
+   * could be read, and the "heads-up before anything happens" arrived after
+   * something had already happened. `scheduleBudget()` below is what fixed the
+   * ordering; this function only speaks.
    *
    * Not gated on `proactive`: this is the limiter explaining a rule that is
    * already in force, the same category as the shutdown line. Turning off
@@ -1041,11 +1059,64 @@
     if (state.budgetAnnounced) return;
     if (Buddy.limitBudgetMs(settings) <= 0) return;
     state.budgetAnnounced = true;
+    // Whoever speaks first wins. Disarm the pending deadline here too, so a
+    // `newSession()` that re-arms immediately afterwards is not blocked by the
+    // old value (`scheduleBudget` refuses while one is armed).
+    cancelBudgetTimer();
     var line = Buddy.pickBudgetLine(settings.limitMinutes);
     // Announce says what the rule is; it is not annoyance at the user, so it
     // keeps the resting face rather than borrowing the shutdown's 生气.
     ui.appendNotice(line, EMOTION_DEFAULT, 'budget');
     ui.showReaction(line);
+  }
+
+  /**
+   * Say the budget a few seconds after the page settles, well before the first
+   * dwell reaction can fire.
+   *
+   * The delivery is a timer, not a call from `onDwell()`, because the two
+   * events need distance: a video reaction already owns the bubble at
+   * `dwellSeconds` (≥10s), and the notice arriving in the same tick made it
+   * unreadable. This is the "earlier" half of the fix; the reaction no longer
+   * announces at all, so the gap is now the whole dwell window.
+   *
+   * Driven by the tracker's existing 400ms tick, not by its own `setTimeout`.
+   * A separate timer was the first implementation and it dropped the notice
+   * outright in roughly one run in four: a backgrounded tab throttles timers,
+   * and the visibility handlers cancel and re-arm around it, so a fire could
+   * land in the gap and never come back. The tick cannot be lost that way — it
+   * is already the heartbeat for the dwell logic, it only runs while the page
+   * is visible (so the line always waits for someone to read it), and there is
+   * no second timer to keep in sync with the other two.
+   */
+  var budgetDueAt = 0;
+
+  function scheduleBudget() {
+    if (budgetDueAt) return;
+    if (state.budgetAnnounced) return;
+    if (Buddy.limitBudgetMs(settings) <= 0) return;
+    budgetDueAt = Date.now() + Buddy.BUDGET_LEAD_MS;
+  }
+
+  function cancelBudgetTimer() {
+    budgetDueAt = 0;
+  }
+
+  /** Called from the tracker tick, next to `nudge.tick()`. */
+  function tickBudget() {
+    if (!budgetDueAt) return;
+    // Re-check at fire time: the user may have turned the plugin off, or said
+    // something first, while the deadline was pending.
+    if (!settings.enabled) {
+      budgetDueAt = 0;
+      return;
+    }
+    if (Date.now() < budgetDueAt) return;
+    // Clear first: `announceBudget()` is guarded on `budgetAnnounced` too, but
+    // an early return there (no budget) would otherwise leave this deadline
+    // armed and re-evaluated on every tick for the life of the page.
+    budgetDueAt = 0;
+    announceBudget();
   }
 
   /** Back off only after a failure, so a slow server cannot mute the next video. */
@@ -1070,9 +1141,12 @@
       ui.flash(settings.mode === 'direct' ? '先在插件设置里填 API Key' : '先在插件设置里填访问令牌');
       return;
     }
-    // Before the request, so the budget is known even if the model call fails
-    // — the number is the user's own setting, not something to wait on.
-    announceBudget();
+    // The budget notice deliberately does NOT happen here any more. It used to,
+    // and that put it in the same tick as this reaction: the bubble was
+    // overwritten before it could be read, and the "before anything happens"
+    // warning arrived after something had already happened. It is now scheduled
+    // from page load (`scheduleBudget()`), so the two are always separated by
+    // at least `dwellSeconds`. Do not add a call back here.
     ui.setState('thinking');
 
     var screen = readScreenText(video);
@@ -1631,7 +1705,12 @@
       var on = settings.enabled;
       state.host.style.display = on ? '' : 'none';
       els.panelHost.style.display = on ? '' : 'none';
-      if (!on) closePanel();
+      if (!on) {
+        closePanel();
+        // A pending notice must not surface on a page where the cat has just
+        // been switched off; the user would see a bubble with no ball.
+        cancelBudgetTimer();
+      }
       // Turning the plugin back on within the same day greets again, the same
       // as a fresh page load would.
       if (on && state.wasDisabled) sayOpener(true);
@@ -2204,8 +2283,13 @@
       // A fresh conversation starts from a clean palette.
       state.emotionTally = Object.create(null);
       // The budget notice is once per conversation, so a new conversation earns
-      // a new one. The silence clock restarts too: the panel was just used.
+      // a new one. It is re-scheduled here rather than waiting for the next page
+      // load: the user is looking at an empty panel and that is the moment the
+      // number is useful. The silence clock restarts too — the panel was just
+      // used.
       state.budgetAnnounced = false;
+      cancelBudgetTimer();
+      scheduleBudget();
       nudge.restart();
 
       closeHistory();
@@ -2445,6 +2529,8 @@
   window.addEventListener('pagehide', function () {
     ui.persistSession();
     limiter.flush();
+    // A pending notice has no one to speak to once the page is gone.
+    cancelBudgetTimer();
   });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'hidden') {
@@ -2454,7 +2540,16 @@
       // gets its timers throttled anyway; the silence clock keeps running, so
       // `tick()` restarts the nudge on the next visit if it is still due.
       nudge.stop();
+      // Same rule for the budget: a throttled background timer would fire
+      // minutes later, when the user comes back expecting a greeting, not a
+      // number from a conversation that has moved on.
+      cancelBudgetTimer();
+      return;
     }
+    // Coming back after the timer was cancelled: if that conversation has not
+    // heard the number yet, it still should. Re-arming here (rather than
+    // letting the hidden tick fire) means the line waits for someone to read it.
+    scheduleBudget();
   });
 
   // Douyin is a single-page app, so coming back the next day usually means

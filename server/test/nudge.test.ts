@@ -57,6 +57,8 @@ interface NudgeApi {
   NUDGE_AFTER_MAX: number;
   nudgeAfterMs(settings: unknown): number;
   NUDGE_GAP_MS: number;
+  BUDGET_LEAD_MS: number;
+  DWELL_MIN: number;
   NUDGE_LIMIT_MIN: number;
   NUDGE_LIMIT_MAX: number;
   NUDGE_LINES: string[];
@@ -674,28 +676,63 @@ describe('content script wiring', () => {
     expect(content).toMatch(/state\.budgetAnnounced\s*=\s*false[\s\S]{0,80}nudge\.restart\(\)/);
   });
 
-  it('reaches the budget notice from both the first message and the first reaction', () => {
-    // "在第一次对话与停留某一视频10秒产生的对话之间" means either one may come
-    // first, and whichever does announces. Missing either call site would leave
-    // a user who never types hearing about the budget only at closing time.
-    const calls = content.match(/^\s*announceBudget\(\);$/gm) ?? [];
-    expect(calls.length).toBe(2);
-
-    const onDwell = content.slice(content.indexOf('function onDwell'));
-    const beforeRequest = onDwell.slice(0, onDwell.indexOf('ui.setState'));
-    expect(beforeRequest).toContain('announceBudget()');
-
+  it('reaches the budget notice from the first message and from the load path', () => {
+    // Either may come first — a user who types immediately, or one who only
+    // watches — and whichever does announces. Both paths must stay wired: lose
+    // the scheduled one and a silent viewer hears the number only at closing
+    // time; lose the message path and their first line arrives before the
+    // heads-up.
     const sendMessage = content.slice(content.indexOf('function sendMessage()'));
     const head = sendMessage.slice(0, sendMessage.indexOf('startStream'));
     expect(head).toContain('announceBudget()');
+
+    // The notice is stepped from the tracker tick, not from a `setTimeout`.
+    // Its own timer was the first implementation and dropped the line about one
+    // run in four (throttled background timers and a cancel/re-arm race); the
+    // tick is already the heartbeat and cannot be lost that way.
+    const tickBudget = content.slice(content.indexOf('function tickBudget'));
+    expect(tickBudget.slice(0, tickBudget.indexOf('function backoff'))).toContain('announceBudget()');
+    expect(content).not.toMatch(/setTimeout\(function \(\) \{[^}]*announceBudget\(\)/);
+
+    // The tracker tick, from its definition down to the next module. Slicing on
+    // `var tracker` would come out empty: the tick is defined *inside* it.
+    const trackerTick = content.slice(content.indexOf('function tick()'), content.indexOf('var limiter = (function'));
+    expect(trackerTick).toContain('tickBudget()');
+    // The limiter's "allowed to watch" callback is where the deadline is armed,
+    // so a page that is about to be closed never announces a budget.
+    expect(content).toMatch(/limiter\.start\(function \(\) \{[\s\S]{0,120}scheduleBudget\(\)/);
   });
 
-  it('announces before the first reaction rather than after the model replies', () => {
-    // The notice is the user's own setting read back, so it must not wait on a
-    // request that might fail or be slow.
-    const onDwell = content.slice(content.indexOf('function onDwell'));
-    expect(onDwell.indexOf('announceBudget()')).toBeLessThan(onDwell.indexOf('readScreenText'));
-    expect(onDwell.indexOf('announceBudget()')).toBeLessThan(onDwell.indexOf('sm:analyze'));
+  it('keeps the budget notice out of the dwell reaction', () => {
+    // It used to be announced from onDwell(), which fired it in the same tick
+    // as the first reaction: its bubble was replaced before it could be read,
+    // and the "before anything happens" warning landed after something had
+    // already happened. Scheduling it from the page load is what separates the
+    // two, so a call creeping back here would silently undo the fix.
+    const onDwell = content.slice(content.indexOf('async function onDwell'));
+    // Just the head of the function: everything before the state change that
+    // starts the request. A call anywhere in there is the regression.
+    const head = onDwell.slice(0, onDwell.indexOf("ui.setState('thinking')"));
+    expect(head).not.toContain('announceBudget()');
+    // The lead has to stay shorter than the shortest dwell, otherwise a fast
+    // setting would still put a reaction first.
+    expect(Buddy.BUDGET_LEAD_MS).toBeGreaterThan(0);
+    expect(Buddy.BUDGET_LEAD_MS).toBeLessThan(Buddy.DWELL_MIN * 1000);
+  });
+
+  it('cancels a pending budget notice when there is no one to read it', () => {
+    // A bubble must not appear after the plugin was switched off, nor surface
+    // minutes later when the user comes back to a conversation that moved on.
+    const applySettings = content.slice(content.indexOf('function applySettings'));
+    expect(applySettings.slice(0, applySettings.indexOf('applyPosition'))).toContain('cancelBudgetTimer()');
+    const hidden = content.slice(content.indexOf("if (document.visibilityState === 'hidden')"));
+    expect(hidden.slice(0, hidden.indexOf("document.visibilityState !== 'visible'"))).toContain('cancelBudgetTimer()');
+    // ...and it is re-armed on the way back, or hiding once would cost the user
+    // the reminder for the rest of the conversation. Anchored past the hidden
+    // branch's own cancel, because the tracker checks visibility too and an
+    // earlier match would slice the wrong block.
+    const returnAfterHidden = hidden.indexOf('cancelBudgetTimer();');
+    expect(hidden.slice(returnAfterHidden)).toContain('scheduleBudget()');
   });
 
   it('drops the nag when the tab is hidden or the page is closing', () => {
