@@ -570,6 +570,16 @@ ul, ol { margin: 0; padding: 0; }
 }
 .personality { scroll-margin-top: 90px; }
 .personality-copy .lede { max-width: 56ch; }
+.personality-declaration {
+  margin-top: 18px;
+  padding-left: 14px;
+  border-left: 3px solid var(--lav);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+}
 .personality-traits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 26px; }
 .personality-traits div {
   padding: 14px;
@@ -1445,6 +1455,7 @@ ul, ol { margin: 0; padding: 0; }
   .personality-card { padding: 22px; border-radius: 26px; }
   .personality-portrait img { width: 76px; height: 76px; }
   .personality-bubble { font-size: 14px; padding: 15px; }
+  .personality-declaration { font-size: 15px; }
 }
 @media (max-width: 760px) {
   .settings-guide { margin-top: 40px; padding-top: 28px; }
