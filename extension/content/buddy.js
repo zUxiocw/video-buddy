@@ -289,15 +289,27 @@
         return;
       }
 
-      // Runs before the video checks: the silence clock is about the user, not
-      // about whether a video happens to be on screen.
+      // A paused video is not watching, so the silence window must not advance
+      // through it: the user who pauses and walks away should not come back to
+      // a cat that has been nagging at an empty page for minutes. This is the
+      // same rule the dwell ring and the daily budget already follow.
+      //
+      // Computed here rather than inside the nudge machine because it needs the
+      // real `<video>` state, and passed as a getter so the machine reads it at
+      // the moment it ticks. `pickVideo` is called once and reused below, since
+      // the tick is the hot path (CLAUDE.md §2.1.6.1).
+      var video = pickVideo();
+      var playing = !!video && !video.paused && !video.ended && video.readyState >= 2;
+      nudge.setPlaying(playing);
+
+      // The silence clock is about the user, so it is stepped even on the
+      // versions of this path that return early below.
       nudge.tick();
       // Same reasoning for the budget notice: it is about the user's setting,
       // not about the video. Stepping it here rather than on its own timer is
       // what keeps it from being lost to throttling or a cancel/re-arm race.
       tickBudget();
 
-      var video = pickVideo();
       if (!video) {
         if (currentKey) reset('');
         // No video on screen: nothing those frames belong to any more.
@@ -318,8 +330,8 @@
 
       // Paused, buffering, or being nagged: keep what we have, stop counting.
       // The nudge case is a pause, not a reset — see the module comment: the
-      // user keeps the time they had already watched.
-      var playing = !video.paused && !video.ended && video.readyState >= 2;
+      // user keeps the time they had already watched. `playing` was computed
+      // above, before the nudge tick, which needs the same answer.
       if (!playing || delta <= 0 || nudge.isActive()) {
         var shownGoal = Buddy.dwellGoalMs(settings, firedCount[key] || 0);
         if (shownGoal > 0) ui.setProgress(Math.min(1, accumulated / shownGoal));
@@ -614,6 +626,10 @@
    */
   var nudge = (function () {
     var recent = [];
+    // Set by the tracker on every tick. Lives here rather than being read from
+    // the DOM inside the machine, because the machine is a pure state object and
+    // the page already had to call `pickVideo()` one line earlier.
+    var playing = true;
 
     var machine = Buddy.createNudgeMachine({
       now: function () { return Date.now(); },
@@ -625,6 +641,12 @@
       // background is not "ignoring the cat", it is not there, and talking to
       // an empty room every five seconds is pure noise.
       visible: function () { return document.visibilityState === 'visible'; },
+      // ...and it only counts while a video is actually playing. `visible`
+      // alone let a paused-and-abandoned page keep accruing silence, so the user
+      // came back to a cat that had been nagging at nobody for minutes. The
+      // machine pushes the silence window forward by the paused stretch instead
+      // of resetting it, so a short pause costs nothing.
+      watching: function () { return playing; },
       // Minutes of silence before the first line. A getter so a popup change
       // applies without a reload; the 5s gap between lines stays fixed.
       afterMs: function () { return Buddy.nudgeAfterMs(settings); },
@@ -666,8 +688,18 @@
     return {
       /** True while the nag is the reason dwell time is frozen. */
       isActive: function () { return machine.isActive(); },
+      /**
+       * Whether a video is playing right now. Called by the tracker before
+       * `tick()`, since it has already picked the video.
+       */
+      setPlaying: function (next) { playing = !!next; },
       /** Called on the tracker's 400ms tick, after the visibility gate. */
       tick: function () { machine.tick(); },
+      /**
+       * Ticks stop while the page is hidden, so the machine's reference point
+       * goes stale. Tell it the gap was the background, not a pause.
+       */
+      markPresent: function () { machine.markPresent(); },
       /** The user said something: end the nag and restart the silence clock. */
       resolve: function () { machine.userSpoke(); },
       /** Reset the silence clock without claiming the user spoke. */
@@ -2550,6 +2582,11 @@
     // heard the number yet, it still should. Re-arming here (rather than
     // letting the hidden tick fire) means the line waits for someone to read it.
     scheduleBudget();
+    // Ticks stop while hidden, so the machine's "last seen" mark is stale. Tell
+    // it the gap was the background, not a pause — otherwise coming back would
+    // charge the entire hidden stretch to the pause rule and push the silence
+    // window forward, which would mean a page tabbed away from never nagging.
+    nudge.markPresent();
   });
 
   // Douyin is a single-page app, so coming back the next day usually means

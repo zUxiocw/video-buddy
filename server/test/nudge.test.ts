@@ -30,6 +30,7 @@ interface NudgeMachine {
   lastUserAt(): number;
   spoken(): number;
   isExhausted(): boolean;
+  markPresent(): void;
   tick(): void;
   userSpoke(): void;
   restart(): void;
@@ -42,6 +43,7 @@ interface MachineOptions {
   enabled?(): boolean;
   proactive?(): boolean;
   visible?(): boolean;
+  watching?(): boolean;
   afterMs?(): number;
   cap?(): number;
   onSpeak?(): void;
@@ -96,7 +98,7 @@ function harness(options: Partial<MachineOptions> = {}) {
   let speaks = 0;
   let stops = 0;
   let exhausted = 0;
-  const flags = { enabled: true, proactive: true, visible: true };
+  const flags = { enabled: true, proactive: true, visible: true, watching: true };
   // Mirrors the page's `cap` getter: the limiter switch decides whether a cap
   // exists at all, the count decides where it sits.
   const cap = { enabled: false, count: 10 };
@@ -106,6 +108,7 @@ function harness(options: Partial<MachineOptions> = {}) {
     enabled: () => flags.enabled,
     proactive: () => flags.proactive,
     visible: () => flags.visible,
+    watching: () => flags.watching,
     cap: () => (cap.enabled ? cap.count : 0),
     onSpeak: () => { speaks += 1; },
     onStop: () => { stops += 1; },
@@ -122,11 +125,23 @@ function harness(options: Partial<MachineOptions> = {}) {
     }
   }
 
+  /**
+   * Move the clock without ticking, the way a hidden or throttled tab does.
+   *
+   * Existing so a test can create the stale-reference case that
+   * `markPresent()` exists for: the machine's notion of "last seen" has to lag
+   * the real clock by an arbitrary amount, which `advance()` cannot express.
+   */
+  function jump(ms: number) {
+    clock += ms;
+  }
+
   return {
     machine,
     flags,
     cap,
     advance,
+    jump,
     speaks: () => speaks,
     stops: () => stops,
     exhausted: () => exhausted,
@@ -146,8 +161,41 @@ describe('silence nudge constants', () => {
       expect(line.endsWith('喵'), line).toBe(true);
       // The same hard rule as the shutdown lines: the cat never talks about
       // how long anything has been watched.
-      expect(line, line).not.toMatch(/\d|\b秒\b|\b分钟\b/);
+      //
+      // No `\b` here, and that is the whole point of this comment. The previous
+      // version wrote `/\d|\b秒\b|\b分钟\b/`, and `\b` is a *word* boundary —
+      // CJK characters are not `\w`, so `\b分钟\b` never matches inside Chinese
+      // text and 「喂，五分钟没理我了喵」 passed this guard for as long as it
+      // shipped. A stale duration in the pool is the exact thing this test
+      // exists to catch, so it must not be the thing it lets through.
+      expect(line, line).not.toMatch(/\d|秒|分钟|小时|毫秒/);
     }
+  });
+
+  it('has enough distinct lines to cover a full streak', () => {
+    // A streak reads the pool in sequence and only recycles when it runs dry,
+    // so a pool smaller than the default cap repeats within one run — the user
+    // hears the same handful of jokes in the same order every time and reads it
+    // as a bug. Ten default nags plus the closing line is the number to beat.
+    expect(Buddy.NUDGE_LINES.length).toBeGreaterThan(Buddy.DEFAULTS.nudgeLimitCount);
+    // And they have to be genuinely different, not near-copies that only differ
+    // by a particle.
+    expect(new Set(Buddy.NUDGE_LINES).size).toBe(Buddy.NUDGE_LINES.length);
+  });
+
+  it('never reads out the wait it is quoting', () => {
+    // The wait is a setting now (1–10 minutes), so any line naming a fixed
+    // duration is wrong for most users. Read the pool through the picker too,
+    // because that is what the page actually speaks.
+    const spoken = new Set<string>();
+    let recent: string[] = [];
+    for (let i = 0; i < Buddy.NUDGE_LINES.length; i += 1) {
+      const line = Buddy.pickNudgeLine(recent);
+      spoken.add(line);
+      recent = [line, ...recent];
+    }
+    expect(spoken.size).toBe(Buddy.NUDGE_LINES.length);
+    for (const line of spoken) expect(line).not.toMatch(/五分钟|5分钟|五 分钟/);
   });
 });
 
@@ -203,6 +251,93 @@ describe('nudge timing setting', () => {
     h.advance(2 * MINUTE - 1000);
     expect(h.speaks()).toBe(0);
     h.advance(1000);
+    expect(h.speaks()).toBe(1);
+  });
+});
+
+describe('silence only counts while a video is playing', () => {
+  it('does not nag through a paused video', () => {
+    // The reported bug: pause the video, walk away, come back — the cat had
+    // been nagging at an empty page because the silence clock was pure wall
+    // time. Pausing is not "ignoring the cat", it is not being there, the same
+    // way a background tab is not.
+    const h = harness();
+    h.flags.watching = false;
+    h.advance(Buddy.NUDGE_AFTER_MS * 3);
+    expect(h.speaks()).toBe(0);
+  });
+
+  it('resumes from where it was instead of restarting the wait', () => {
+    // A pause is a freeze, not a reset — the same rule the dwell ring and the
+    // daily budget follow. Pausing near the threshold must not cost the whole
+    // wait, or a user who pauses once every few minutes is never nagged at all.
+    const h = harness();
+    h.advance(Buddy.NUDGE_AFTER_MS - 30_000);
+    expect(h.speaks()).toBe(0);
+
+    h.flags.watching = false;
+    h.advance(10 * MINUTE);
+    expect(h.speaks()).toBe(0);
+
+    h.flags.watching = true;
+    // 30s of watching left, not another full five minutes: 20s in and it is
+    // still quiet, then the remaining 10s crosses the threshold exactly once.
+    // If the pause had reset the window instead of freezing it, this would be
+    // silent for a whole further five minutes.
+    h.advance(20_000);
+    expect(h.speaks()).toBe(0);
+    h.advance(10_000);
+    expect(h.speaks()).toBe(1);
+  });
+
+  it('stops an in-flight nag run when the video pauses', () => {
+    // Once the nag is running, a pause has to end it: the cat nagging at a
+    // paused video is the same noise as nagging at a closed tab.
+    const h = harness();
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
+    expect(h.speaks()).toBe(1);
+    expect(h.machine.isActive()).toBe(true);
+
+    h.flags.watching = false;
+    h.advance(Buddy.NUDGE_GAP_MS);
+    expect(h.machine.isActive()).toBe(false);
+    const spoken = h.speaks();
+    h.advance(Buddy.NUDGE_GAP_MS * 5);
+    expect(h.speaks()).toBe(spoken);
+  });
+
+  it('does not charge a hidden stretch to the pause rule', () => {
+    // Ticks stop while the page is hidden, so the machine's reference point
+    // goes stale. Without `markPresent()` the first tick after coming back
+    // would see a huge gap, decide it was a pause, and shove the silence window
+    // forward by all of it — so a page that is tabbed away from would never nag
+    // again, which is the opposite of the documented behaviour.
+    const h = harness();
+    h.advance(60_000);
+    // Ten minutes with the tab in the background: the clock moves, no ticks.
+    h.jump(10 * MINUTE);
+    h.machine.markPresent();
+    // Silence still counts while hidden, so it is already well past the wait.
+    h.advance(Buddy.NUDGE_GAP_MS + 1000);
+    expect(h.speaks()).toBeGreaterThan(0);
+  });
+
+  it('never lets a pause push the silence mark into the future', () => {
+    // The user can type while the video is paused; `userSpoke()` sets the mark
+    // to now. A stale gap must not then be added on top of it — otherwise the
+    // next nag is delayed by the length of a pause that has already ended, and
+    // answering during a pause would paradoxically extend the silence.
+    const h = harness();
+    h.flags.watching = false;
+    h.advance(2 * MINUTE);
+    h.machine.userSpoke();
+    expect(h.machine.lastUserAt()).toBeLessThanOrEqual(h.now());
+    // Further paused time cannot move the mark any further forward than now.
+    h.advance(3 * MINUTE);
+    expect(h.machine.lastUserAt()).toBeLessThanOrEqual(h.now());
+
+    h.flags.watching = true;
+    h.advance(Buddy.NUDGE_AFTER_MS + 1);
     expect(h.speaks()).toBe(1);
   });
 });
@@ -650,10 +785,47 @@ describe('content script wiring', () => {
     expect(tick.indexOf('accumulated +=')).toBeGreaterThan(gateIndex);
   });
 
-  it('runs the nag before the video checks, so it does not depend on a video', () => {
+  it('runs the nag before any early return that needs a video', () => {
+    // The nag must still fire when no video is on screen (a user who scrolled
+    // to a blank area has not magically started answering). It cannot be
+    // asserted as "before `pickVideo`" any more — the tick now has to learn
+    // whether a video is *playing* before it decides, which means calling
+    // `pickVideo()` first. What matters is that it comes before the branches
+    // that return early because there is nothing to play.
     const tick = content.slice(content.indexOf('function tick('));
-    const body = tick.slice(0, tick.indexOf('pickVideo'));
-    expect(body).toContain('nudge.tick()');
+    const nudgeAt = tick.indexOf('nudge.tick()');
+    expect(nudgeAt).toBeGreaterThan(-1);
+    expect(tick.indexOf('if (!video)')).toBeGreaterThan(nudgeAt);
+    expect(tick.indexOf('if (key !== currentKey)')).toBeGreaterThan(nudgeAt);
+  });
+
+  it('tells the nag whether a video is actually playing', () => {
+    // The reported bug lived here: the silence window advanced on wall-clock
+    // time, so a paused-and-abandoned page collected a backlog of nags. The
+    // tracker must hand the real playback answer over before the tick, and that
+    // answer must be the same one the dwell ring uses — not a second opinion
+    // that could disagree.
+    const tick = content.slice(content.indexOf('function tick('));
+    const setAt = tick.indexOf('nudge.setPlaying(');
+    expect(setAt).toBeGreaterThan(-1);
+    expect(tick.indexOf('nudge.tick()')).toBeGreaterThan(setAt);
+    expect(content).toMatch(/var playing = [^;]*!video\.paused[^;]*readyState >= 2/);
+    // The answer is computed once and reused by the dwell gate below, rather
+    // than recomputed on this 400ms hot path (CLAUDE.md §2.1.6.1).
+    expect(tick.match(/readyState >= 2/g)?.length).toBe(1);
+  });
+
+  it('re-syncs the silence reference after the tab comes back', () => {
+    // Ticks stop while hidden, so the machine cannot tell a background stretch
+    // from a pause. Without `markPresent()` on the way back, coming back from
+    // the background would be charged to the pause rule and the nag would never
+    // fire on a page the user keeps tabbing away from.
+    // Anchored on the hidden branch of the lifecycle listener, not on the
+    // tracker's own visibility check — that one appears first in the file and
+    // has no callbacks to sync.
+    const hiddenTail = content.slice(content.indexOf("if (document.visibilityState === 'hidden')"));
+    const visibleBranch = hiddenTail.slice(hiddenTail.indexOf('scheduleBudget();'));
+    expect(visibleBranch.slice(0, visibleBranch.indexOf('});'))).toContain('nudge.markPresent()');
   });
 
   it('only resets the silence clock where the user actually typed', () => {

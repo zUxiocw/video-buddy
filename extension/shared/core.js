@@ -745,20 +745,45 @@
    * Lines for the repeated nudge once the user has gone quiet.
    *
    * Deliberately nagging in tone — that is the brief — but every line still
-   * ends in 喵 and none of them mentions a duration, so they stay inside the
-   * persona. Shorter than the opener pool on purpose: repetition is the
-   * mechanism here, and pretending otherwise would make the array longer
-   * without making the behaviour less repetitive.
+   * ends in 喵 and none of them names a duration, so they stay inside the
+   * persona.
+   *
+   * The pool has to be comfortably larger than the default cap (10), because a
+   * streak reads these in sequence and recycles only when it runs dry: with
+   * fewer lines than utterances the user hears the same three jokes in a row,
+   * which reads as a bug rather than as nagging. `pickNudgeLine` avoids the
+   * recent ones, so a bigger pool is the only thing that makes the later lines
+   * feel different from the first.
+   *
+   * It used to open with 「喂，五分钟没理我了喵」. That number stopped being true
+   * the moment the wait became a setting (1–10 minutes), and quoting a wrong
+   * number is worse than quoting none: the user reads it as the plugin not
+   * knowing its own state. Nothing in here may mention 秒 / 分钟 / 小时, and
+   * `nudge.test.ts` enforces that with a plain-keyword regex — the earlier
+   * `\b`-anchored one could never match CJK text, so it passed on every line
+   * including the offending one.
    */
   var NUDGE_LINES = [
-    '喂，五分钟没理我了喵',
+    '喂，我在这儿等着呢喵',
     '视频比我好看是吧喵',
-    '你再不回，我就一直说喵',
+    '你再不回，我就一直念下去喵',
     '看我一眼，就一眼喵',
-    '行，你刷，我就在这儿念喵',
+    '行，你刷，我就在旁边念喵',
     '人呢，屏幕还亮着喵',
     '理我一下会少块肉吗喵',
     '我数到三，你再不说话我就继续数喵',
+    '这猫都比你话多喵',
+    '键盘借我一下，我替你打字喵',
+    '你是不是把我静音了喵',
+    '刷得这么专心，连我都看不见了喵',
+    '我在这儿呢，你倒是看一眼喵',
+    '别装了，我知道你在听喵',
+    '抬头，看看谁在跟你说话喵',
+    '再刷一条，我就坐你键盘上喵',
+    '你说句话嘛，我又不咬人喵',
+    '喂喂喂，信号不好吗喵',
+    '这个视频有什么好看的，问我啊喵',
+    '我准备好听你说话了，你倒是开口喵',
   ];
 
   function pickNudgeLine(recent) {
@@ -870,6 +895,12 @@
    * does: the page's `onSpeak` is a DOM callback, and a threshold buried in one
    * cannot be driven by a fake clock. It also cannot be re-armed by the page's
    * own shutdown path, which calls `stop()` from inside the callback.
+   *
+   * `watching` is the fourth signal, and the one the user reported: a paused
+   * video is not watching, so the silence window must not keep advancing
+   * through it. The page passes "visible AND a playing video"; `visible` alone
+   * only covers a background tab, and a user who paused and walked away came
+   * back to a cat that had been nagging at an empty page.
    */
   function createNudgeMachine(options) {
     var opts = options || {};
@@ -881,6 +912,10 @@
     var isEnabled = dep('enabled', true);
     var isProactive = dep('proactive', true);
     var isVisible = dep('visible', true);
+    // Whether the user is actually present: page in front AND a video playing.
+    // Defaults to true so any caller that does not supply it keeps the plain
+    // wall-clock behaviour rather than silently never nagging.
+    var isWatching = dep('watching', true);
     var afterMsOf = dep('afterMs', NUDGE_AFTER_MS);
     var capOf = dep('cap', 0);
     var onSpeak = dep('onSpeak', undefined);
@@ -889,6 +924,9 @@
 
     var lastUserAt = Number(opts.lastUserAt);
     if (!Number.isFinite(lastUserAt) || lastUserAt <= 0) lastUserAt = now();
+    // When the last tick happened, so a frozen stretch can be measured. Not
+    // `lastUserAt`: this tracks the clock, not the user.
+    var lastSeenAt = now();
     var state = { active: false, nextAt: 0 };
     // Utterances in this silence streak, and whether the cap already fired.
     // `exhausted` survives `stop()` on purpose: hiding the tab is not answering
@@ -910,7 +948,36 @@
       // being closed. Waking the ring up during the countdown would let a
       // reaction fire in the middle of the shutdown line.
       if (exhausted) return;
-      var next = nudgeStep({ lastUserAt: lastUserAt, active: state.active, nextAt: state.nextAt }, now(), {
+
+      var stamp = now();
+      // Silence is only meaningful while something is actually going on.
+      //
+      // `visible` covers "the tab is in the background", but not the case the
+      // user reported: the video is paused and they walked away. Wall-clock
+      // silence kept accruing there, so they came back to a cat that had
+      // already been nagging for minutes about a page nobody was watching.
+      //
+      // The rule is the same one the dwell counter and the daily budget
+      // already use — a paused video is not watching — so this pushes the
+      // silence window forward by however long the pause lasted, instead of
+      // resetting it. Pausing for a moment and resuming must not cost progress
+      // any more than it costs the ring, and a genuinely idle user still gets
+      // nagged once they are demonstrably present.
+      var watching = !!isWatching();
+      if (!watching) {
+        var frozen = stamp - lastSeenAt;
+        // Guard the clock going backwards, and never push the silence mark past
+        // now: the user may have typed while the video was paused, which sets
+        // `lastUserAt` to the present and must not then be shoved into the
+        // future by a stale gap.
+        if (frozen > 0) lastUserAt = Math.min(lastUserAt + frozen, stamp);
+        lastSeenAt = stamp;
+        settle(false, 0);
+        return;
+      }
+      lastSeenAt = stamp;
+
+      var next = nudgeStep({ lastUserAt: lastUserAt, active: state.active, nextAt: state.nextAt }, stamp, {
         enabled: !!isEnabled(),
         proactive: !!isProactive(),
         visible: !!isVisible(),
@@ -946,6 +1013,20 @@
       lastUserAt: function () { return lastUserAt; },
       spoken: function () { return spoken; },
       isExhausted: function () { return exhausted; },
+      /**
+       * "The stretch up to now was not a pause; don't charge it to silence."
+       *
+       * The tracker stops calling `tick()` while the page is hidden, so
+       * `lastSeenAt` goes stale. Without this, the first tick after coming back
+       * would measure the whole hidden stretch as a pause and push the silence
+       * window forward by it — which would quietly stop the nudge from ever
+       * firing on a page the user keeps tabbing away from, the opposite of the
+       * documented "the clock keeps running in the background".
+       *
+       * The page calls it on the way back to visible, next to `nudge.stop()`'s
+       * counterpart.
+       */
+      markPresent: function () { lastSeenAt = now(); },
       tick: tick,
       /** The user answered: end the run and restart the silence window. */
       userSpoke: function () {
