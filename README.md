@@ -1,7 +1,9 @@
 # 喵喵陪你刷
 
 > 住在抖音网页里的 AI 陪刷搭子。  
-> **会接话，也会喊停。**
+> **会接话，也会喊停；不撒娇，也不讨好。**
+>
+> 作品提交 v1.0 · 2026-10-25
 
 ![喵喵陪你刷首页](docs/screenshots/index.png)
 
@@ -14,7 +16,7 @@
 - 你停在同一条视频上 10 秒，它读画面、文案和标签，主动接一句；
 - 你接话，它用 9 种情绪回应，回复结束才换脸；
 - 你刷过头，它先报当次总时长；到点先说一句，再关掉标签页；
-- 沉默 1–10 分钟（默认 5）没主动说话，它会每 5 秒催一次，直到你回它；催的时候视频停留计时暂停；
+- 沉默 1–10 分钟（默认 5）没主动说话，它会每 5 秒催一次，直到你回它；催的时候视频停留计时暂停；只累计视频正在播放、页面在前台的时间；
 - 催满次数（默认 10 次，可调 3–60）还不回，它会关掉标签页并进入冷静期，规定时间内打不开；
 - 它不点赞、不评论、不关注、不刷数据，也不自动操作你的账号。
 
@@ -38,10 +40,19 @@
 | 提交项 | 位置 |
 |---|---|
 | README | 本文件 |
-| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy) |
-| Demo | [`submission/demo/demo.html`](submission/demo/demo.html) |
+| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy) · [`submission/shangtou-meowmeow-repo.zip`](submission/shangtou-meowmeow-repo.zip) |
+| Demo | [`submission/demo/index.html`](submission/demo/index.html) · [`demo.html`](submission/demo/demo.html) · [`demo.zip`](submission/shangtou-meowmeow-demo.zip) |
 | 一页作品介绍 | [`submission/one-pager/one-pager.html`](submission/one-pager/one-pager.html) · [PDF](submission/one-pager/one-pager.pdf) · [PNG](submission/one-pager/one-pager.png) |
 | 提交索引 | [`submission/README.md`](submission/README.md) |
+| 提交总包 | [`submission/shangtou-meowmeow-submission.zip`](submission/shangtou-meowmeow-submission.zip) |
+
+### 3 分钟验收
+
+1. 打开一页介绍 PDF，看定位、性格和核心规则；
+2. 打开 Demo 首页，进入「在线试玩」；
+3. 点「演示」看首次报额度，点「模拟沉默没说话」看催促、计数和停留计时暂停；
+4. 滚到「到点关页」看关页与冷静期示意；
+5. 需要源码时再看下面的架构、安装、测试与隐私边界。
 
 一页介绍预览：
 
@@ -54,7 +65,7 @@
 | 主动搭话 | 同一视频停留 10 秒后，自动请求一条 reaction；长视频可按间隔复聊 |
 | 9 种情绪 | 委屈、开心、嫌弃、生气、大笑、兴奋、打招呼、疑惑、震惊 |
 | 聊天 | 点悬浮球打开面板，支持 SSE 流式回复、历史记录和键盘隔离 |
-| 双计时器 + 催促上限 | 到点关视频始终开启、不可关闭；第一次对话/停留 10 秒先报总时长；沉默 1–10 分钟（默认 5）后每 5 秒催一次，催时停留计时暂停；催满 10 次（可调 3–60）关页进冷静期 |
+| 双计时器 + 催促上限 | 到点关视频始终开启、不可关闭；第一次对话/停留 10 秒先报总时长；沉默 1–10 分钟（默认 5）后每 5 秒催一次，催时停留计时暂停；催满 10 次（可调 3–60）关页进冷静期；沉默只累计视频正在播放、页面在前台的时间 |
 | 悬浮球 | 可在手机框内拖动、方向键移动、Home 复位 |
 | BYOK | 用户自己开通 DeepSeek API，Key 存 `chrome.storage.local`，请求直连模型 |
 | 本地服务模式 | 保留 Fastify + `APP_TOKEN` 路径，适合开发者、离线 Mock 或不想把 Key 放浏览器 |
@@ -167,6 +178,9 @@ flowchart LR
 ├─ submission/               作品提交包
 │  ├─ demo/                  可独立打开的 Demo
 │  ├─ one-pager/             一页作品介绍 HTML/PDF/PNG
+│  ├─ shangtou-meowmeow-repo.zip       干净源码包
+│  ├─ shangtou-meowmeow-demo.zip       Demo 单包
+│  ├─ shangtou-meowmeow-submission.zip 提交总包
 │  └─ README.md              提交索引
 ├─ docs/screenshots/         README 截图
 └─ design/                   历史设计冻结版（ui-v1/v2/v3）
@@ -200,8 +214,11 @@ node extension/tools/e2e.mjs
 
 `e2e.mjs` 需要本机服务运行；真实抖音页面的限时 / 键盘回归仍建议手动过一遍。
 
+当前自动化：**304 项通过 / 22 个文件**（`nudge.test.ts` 50 项），`typecheck` / `build` 通过；扩展直连 25 项、部署检查 11/11。
+
 ## 状态
 
+- 作品提交 v1.0（2026-10-25）：README + Demo + 仓库 + 一页介绍四件套。
 - UI v3.4：双计时器 + 催促上限文案与可交互 Demo（首次报额度 / 1–10 分钟沉默催促 / 催满关页 / 冷静期 / 到点关页），品牌统一为「喵喵陪你刷」。
 - 扩展：到点关视频始终开启；沉默开始 1–10 分钟可调；催满次数 3–60 可调；BYOK 直连模式、权限与打包修复。
 - 公开商店安装包尚未发布；当前仓库提供源码与本地打包脚本。
