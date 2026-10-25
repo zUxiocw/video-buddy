@@ -41,11 +41,11 @@
 |---|---|
 | README | 本文件 |
 | 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy)（源码即本仓库） |
-| Demo | [`submission/demo/index.html`](submission/demo/index.html) · [`demo.html`](submission/demo/demo.html) · [`demo.zip`](submission/shangtou-meowmeow-demo.zip) |
+| Demo | [`submission/demo/index.html`](submission/demo/index.html) · [`demo.html`](submission/demo/demo.html) |
 | 一页作品介绍 | [`submission/one-pager/one-pager.html`](submission/one-pager/one-pager.html) · [PDF](submission/one-pager/one-pager.pdf) · [PNG](submission/one-pager/one-pager.png) |
 | 提交索引 | [`submission/README.md`](submission/README.md) |
 
-作品曾经打过 `repo.zip` / `submission.zip` 快照包，现在不再进仓库：它们只是把仓库本身重新压一遍，留着会让人不知道源码以哪份为准。需要时用提交索引里的命令重新生成。
+作品曾经打过 `repo.zip` / `submission.zip` / `demo.zip` 等快照包，现在这些包都不在仓库里：它们只是把已有的目录重新压一遍，留着会让人不知道源码以哪份为准。需要时直接在仓库里打开对应目录，或按提交索引里的命令重新打包。
 
 ### 3 分钟验收
 
@@ -179,7 +179,6 @@ flowchart LR
 ├─ submission/               作品提交包
 │  ├─ demo/                  可独立打开的 Demo
 │  ├─ one-pager/             一页作品介绍 HTML/PDF/PNG
-│  ├─ shangtou-meowmeow-demo.zip       Demo 单包
 │  └─ README.md              提交索引
 ├─ docs/screenshots/         README 截图
 └─ design/                   历史设计冻结版（ui-v1/v2/v3）

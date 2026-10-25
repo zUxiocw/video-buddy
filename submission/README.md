@@ -10,7 +10,7 @@
 | 提交项 | 位置 |
 |---|---|
 | README | 本文件；项目主页见 [`../README.md`](../README.md) |
-| Demo | [`demo/index.html`](demo/index.html) · [`demo/demo.html`](demo/demo.html) · [`shangtou-meowmeow-demo.zip`](shangtou-meowmeow-demo.zip) |
+| Demo | [`demo/index.html`](demo/index.html) · [`demo/demo.html`](demo/demo.html) |
 | 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy)（源码即仓库） |
 | 一页介绍 | [`one-pager/one-pager.html`](one-pager/one-pager.html) · [PDF](one-pager/one-pager.pdf) · [PNG](one-pager/one-pager.png) |
 
@@ -114,7 +114,7 @@ BYOK 模式不需要启动服务端；在扩展设置里选「直接用 API Key�
 
 ## 当前验证
 
-- 服务端测试：**304 项通过 / 22 个文件**
+- 服务端测试：**305 项通过 / 22 个文件**
 - `typecheck` / `build`：通过
 - 扩展直连检查：**25/25**
 - 部署检查：**11/11**
@@ -127,9 +127,7 @@ BYOK 模式不需要启动服务端；在扩展设置里选「直接用 API Key�
 submission/
 ├─ README.md                        本文件
 ├─ demo/                            独立静态 Demo
-├─ one-pager/                       HTML / PDF / PNG
-├─ shangtou-meowmeow-demo.zip       Demo 单包
-└─ ...
+└─ one-pager/                       HTML / PDF / PNG
 ```
 
 ---

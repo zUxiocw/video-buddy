@@ -20,7 +20,7 @@
 - `design/ui-v2/`：本次冻结快照，不直接改
 - `design/ui-v1/`：旧版，保留作对比；其直连 API 叙事已废弃
 - `design/ui-v2/DESIGN.md`：设计规范
-- 交付包：`design/shangtou-meowmeow-ui-v2.zip`（不进仓库，本地保留）
+- 交付包：已删除，不进仓库；`design/ui-v2/` 本身即完整快照
 
 ## 若用户同意“UI 交接”
 

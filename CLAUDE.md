@@ -44,7 +44,7 @@
   - `check-deploy.mjs` — **线上站点检查**：headless Chrome 打开真实 URL，11 项断言，不需要 Key，见 §4.8
 - `site/` — 公开网页（4 页 + `app.js` / `styles.css` / 情绪图 / `download/*.zip`），`site/README.md` 是内部说明、不进发布目录
 - `extension.pem`、`server/.env`、`server/.env.local` — 敏感文件，不要读、不要改、不要提交
-- `.claude/commands/` — Claude Code 斜杠命令
+- `.claude/commands/` — Claude Code 斜杠命令（只有这三个进仓库；`.claude/skills/` 是工具自带的第三方技能库，已被 `.gitignore` 挡在外面，不要提交）
 - 备份：无（`.backup-*` 快照已于 2026-10-24 清理，见第 8 节）
 
 ## 2. 当前行为（不要改坏）

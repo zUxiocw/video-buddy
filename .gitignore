@@ -24,23 +24,27 @@ site-dist/
 # Local release artefacts (regenerate with tools/pack-extension.mjs)
 releases/
 *.zip
-# The build-artefact ZIPs also cover the repo snapshots under submission/ and
-# design/. They used to be tracked, and because they were rewritten on every
-# packaging run each rewrite added a fresh ~8 MB blob to history — .git grew to
-# 178 MB against 31 MB of actual source. Untracked now, and the local copies are
-# still on disk. Shrinking history itself needs a filter-branch pass, which is
-# a separate decision (it rewrites every commit hash).
+# The repo-snapshot ZIPs under submission/ and design/ used to be tracked, and
+# because they were rewritten on every packaging run each rewrite added a fresh
+# ~8 MB blob to history — .git grew to 178 MB against 31 MB of actual source.
+# They are deleted now, not just untracked: they were only ever repackings of
+# directories that are already in the repo, so keeping a stale copy on disk
+# invites people to treat it as the source of truth. Shrinking history itself
+# needs a filter-repo pass, which rewrites every commit hash — a separate
+# decision that has not been taken.
 submission/*.zip
 design/*.zip
-# ...except these two, which are deliberate deliverables, not rebuildable
-# artefacts, so they stay tracked and stay small.
-!submission/shangtou-meowmeow-demo.zip
 
 # Editor / OS noise
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
+# Project-level Agent Skills are third-party content shipped by the tool, not
+# part of this project. `.claude/commands/` (the three slash commands this repo
+# actually uses) is tracked; anything under `.claude/skills/` is not.
+.claude/skills/
 
 # Ad-hoc scratch files at the repo root
 test2.c
