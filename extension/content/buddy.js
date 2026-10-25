@@ -1306,7 +1306,22 @@
       '.title{font-size:13px;font-weight:600;flex:1}',
       '.icon{width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:#b7aecb;font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center}',
       '.icon:hover{background:rgba(255,255,255,.08);color:#fff}',
-      '.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin}',
+      // Scrollbars inside a shadow root are NOT styled by the page, and the
+      // default one is a light-grey OS slab — on this #17131f panel it reads as
+      // a piece of the browser poking through. `scrollbar-width`/`color` are the
+      // standard pair (Firefox and Chrome 121+); the ::-webkit-* rules cover the
+      // older Chromium builds this extension also runs on. Both are here on
+      // purpose: drop either and part of the audience gets the default slab back.
+      //
+      // The thumb is a translucent violet over a transparent track, so it picks
+      // up whatever is behind it (bubbles scrolling under it) instead of
+      // cutting a solid stripe through the panel.
+      '.msgs,.hlist{scrollbar-width:thin;scrollbar-color:rgba(183,156,255,.45) transparent;overscroll-behavior:contain}',
+      '.msgs::-webkit-scrollbar,.hlist::-webkit-scrollbar{width:6px}',
+      '.msgs::-webkit-scrollbar-track,.hlist::-webkit-scrollbar-track{background:transparent}',
+      '.msgs::-webkit-scrollbar-thumb,.hlist::-webkit-scrollbar-thumb{background:rgba(183,156,255,.3);border-radius:3px}',
+      '.msgs::-webkit-scrollbar-thumb:hover,.hlist::-webkit-scrollbar-thumb:hover{background:rgba(183,156,255,.55)}',
+      '.msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}',
       '.msg{max-width:82%;padding:8px 11px;border-radius:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}',
       // Assistant lines carry a face. The row itself is transparent; the bubble
       // styling moves onto .col so the avatar can sit outside the bubble.
@@ -1342,7 +1357,7 @@
       '.history.on{display:flex}',
       '.hhead{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#1f192b;font-size:12px;font-weight:600}',
       '.hhead .grow{flex:1}',
-      '.hlist{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin}',
+      '.hlist{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px}',
       '.hrow{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;background:#2a2238}',
       '.hrow.cur{outline:1px solid rgba(138,99,255,.5)}',
       '.hrow .label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d9d0ea;font-size:12px}',
