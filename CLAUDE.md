@@ -3,7 +3,7 @@
 > 最后更新：2026-10-25
 > 项目：抖音网页悬浮球「喵喵陪你刷」聊天插件
 > 技术栈：Chrome Manifest V3 + 原生 JS；Node 22 + Fastify + TypeScript；DeepSeek OpenAI-compatible
-> 交接状态：功能可运行，自动化测试通过（304 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促与催满关页（§2.1.11 / §2.1.12）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
+> 交接状态：功能可运行，自动化测试通过（305 个）+ 直连端到端 25 项（`tools/direct-check.mjs`，不需要 Key）；红点移除 / 广告识别 / 长视频复聊三项真实抖音页面回归已由用户确认（2026-10-24）。**到点关视频（§2.1.7）、沉默催促与催满关页（§2.1.11 / §2.1.12）、键盘守卫、BYOK 直连模式（§2.1.9）只做过自动化/headless 验证，真实抖音页面回归待做**——直连的真 Key 验证用户已在本机通过（2026-10-24，失败一次是 API 地址填错），见 §4.7.2。改动前先读本文件，改动后跑第 4.4 节验收。
 > 给 Claude Code：先读第 2.2 节（表情链路）和第 6 节（对接/守则）；开始改代码前先执行 `/handoff-check`。
 
 ## 1. 项目结构
@@ -176,7 +176,7 @@
 - **另一 Agent 负责**：`site/`、`submission/demo/`、`README.md`、`submission/one-pager/` 的文案与功能展示（以及品牌改名）。Claude Code 不要改这些文件，避免网页文案与实现两边同时变。
 - **共同底线**：不改 `manifest.json` 权限，不加新权限，不破坏 server / direct 两条链路，不改变 9 情绪链路和原有已确认的开关行为。
 
-**当前状态（2026-10-25）**：品牌名、`limitEnabled` 固定开启、popup 文案、网页/README/一页介绍/截图已完成；到点关视频不可关闭，沉默开始 1–10 分钟可调，催满次数 3–60 可调。`nudge.test.ts` 50 项、服务端共 304 项测试与 `typecheck` / `build` 通过。接完代码后仍需真实抖音页面回归。
+**当前状态（2026-10-25）**：品牌名、`limitEnabled` 固定开启、popup 文案、网页/README/一页介绍/截图已完成；到点关视频不可关闭，沉默开始 1–10 分钟可调，催满次数 3–60 可调。`nudge.test.ts` 50 项、服务端共 305 项测试与 `typecheck` / `build` 通过。接完代码后仍需真实抖音页面回归。
 
 功能契约：
 
@@ -396,7 +396,7 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 改完代码至少确认：
 
-- `npm.cmd test` 全部通过（当前 304 个，以实际输出为准）
+- `npm.cmd test` 全部通过（当前 305 个，以实际输出为准）
 - `npm.cmd run typecheck` 退出码 0
 - `npm.cmd run build` 退出码 0，且 `rm -rf dist && npm.cmd run build` 干净构建后 `node dist/server/src/index.js` 能起、`/health` 正常、启动日志里**没有** `failed to load lexicon`（emit 路径或数据路径改错时只会静默降级，见 §4.6）
 - 全部扩展 JS 的 `node --check` 退出码 0（§4.2）
@@ -451,6 +451,10 @@ node extension/tools/pack-extension.mjs
 4. ZIP 条目名一律正斜杠。Windows 上 `path.join()` 产出反斜杠，严格读取器会把 `popup\popup.js` 当成一个文件名。
 5. 发布前必须确认解压后**不含** `extension.pem`、`server/`、`.env*`。`extension.pem` 在仓库根目录，永远不要从仓库根执行打包或部署类命令。
 6. 版本号改 `manifest.json` 的 `version`，ZIP 文件名自动跟随。
+7. **每次功能改动都要提一个版本号（2026-10-25 定）**，规则是「一次功能改动，一次 bump」：
+   - 提 `manifest.json` 的 `version` 时，**必须同步改 `site/app.js` 的 `DOWNLOAD_URL`**。两处都改完再跑 `node extension/tools/pack-extension.mjs --out site/download`，并删掉 `site/download/` 里的旧 ZIP——留下两个版本并存时，`pack-site.mjs` 只按「app.js 指向的那个在不在」判断，旧包会静静躺在目录里被打进站点。
+   - `server/test/pack-site.test.ts` 有一条 `keeps DOWNLOAD_URL on the manifest version` 守着。它补的正是打包器的盲区：打包器拿 `app.js` 比对**磁盘上的 ZIP**，两边一致就放行，`manifest.json` 漂了它不管。已验证：只改 manifest → 恰好 1 项红；恢复后 305 全绿。
+   - **用户能看见的只有版本号**：暂不上架商店、没有自动更新（§7.10），已装的用户不会自己升级。改了功能却没 bump，用户没法知道自己手上的是不是新的。
 
 ### 4.6 共享规则文件（`extension/shared/*.js`）与服务端构建布局
 
@@ -624,6 +628,8 @@ claude.cmd
 ## 8. 变更记录（压缩）
 
 - 2026-10-25 聊天面板滚动条配色（§2.2.3）：用户反馈滚动条和聊天框色调不搭。**根因**：`.msgs` / `.hlist` 只写了 `scrollbar-width:thin`，没写颜色，于是浏览器画的是**系统默认浅灰滑块**；而面板底色是 `#17131f`，那条灰条看着像浏览器的东西漏进了悬浮层。**为什么页面样式管不到**：面板整个在 `attachShadow` 里，宿主页的滚动条样式进不去，只能自己声明。**改法**：两个容器合并成一条规则，滑块用半透明紫 `rgba(183,156,255,.45)`（与标题图标在用的 `#b79cff` / `#b58cff` 同一族），轨道透明——这样滑块会透出下方滚过的气泡，而不是在面板上切一条实色竖线。标准属性 `scrollbar-width`/`scrollbar-color` 与 `::-webkit-scrollbar-*` **两套都留着**：前者覆盖 Firefox 和 Chrome 121+，后者兜住本扩展同样支持的旧 Chromium，少写哪一套就有一部分人回到灰色滑块。顺带加 `overscroll-behavior:contain`，滚到底不再带着背后页面一起动。**验证**（headless Edge + 真扩展 + 20 条真消息把日志撑到溢出）：`getComputedStyle` 的 `scrollbar-color` 解析为 `rgba(183, 156, 255, 0.45) rgba(0, 0, 0, 0)`，shadow root 里四条 `::-webkit-scrollbar-*` 全部生效，滚动条列 12 倍放大截图确认是紫色圆角细条。304 个测试通过，`typecheck` / `build` / 全部 `node --check` / `direct-check.mjs` 25 项全绿。
+
+- 2026-10-25 版本号规则（§4.5 第 7 条）：`manifest.json` 提到 `0.1.1`，`site/app.js` 的 `DOWNLOAD_URL` 同步。新增 `pack-site.test.ts` 的 `keeps DOWNLOAD_URL on the manifest version`——**它补的是打包器的盲区**：`pack-site.mjs` 拿 `app.js` 比对磁盘上的 ZIP，两边一致就放行，`manifest.json` 漂了它不管；而 ZIP 被 gitignore，光看 diff 看不出这个字段该动。红验证：只改 manifest → 恰好 1 项红；恢复后 305 全绿。顺带发现 `rm` 在 `server/` 下用了相对路径，旧 v0.1.0 ZIP 没删掉——两个版本并存时站点可能把旧包打进去，已改为绝对路径复核。
 
 - 2026-10-25 催促两个实测问题（§2.1.11）：用户实测报了两条。**① 暂停视频时静默时间照走**：`nudge.tick()` 排在视频检查之前，静默窗口是纯墙钟累加，于是暂停走开十分钟回来，猫已经对着空页面催了半天。改法：`tracker.tick()` 先 `pickVideo()` 算出真实的 `playing`（正好和停留环、每日额度用的是同一个判断），`nudge.setPlaying()` 交给状态机；状态机新增第四个信号 `watching`，为假时把这一段时长**加到静默起点上**（冻结，不是清零），并 `settle(false, 0)` 结束正在进行的催促。顺带补了 `nudge.markPresent()`：页面隐藏时 `tick()` 不跑会让 `lastSeenAt` 变旧，回前台若不通知，整段隐藏时间会被当成暂停、把静默窗口推到未来，**经常切标签页的用户反而永远催不出来**。真浏览器验证（headless Edge + 假模型 + 真扩展，等待设 1 分钟）：暂停 150 秒 **0 条**催促，恢复后 **15 秒**内开口（是冻结不是清零，否则要再等 60 秒），3 条台词各不相同且无时长词。**② 催促台词里还留着「五分钟」**：等待已改成 1–10 分钟可调，那句固定数字对绝大多数用户是错的。而且旧守卫 `/\d|\b秒\b|\b分钟\b/` **从来没生效过**——`\b` 是单词边界，中日韩字符不属于 `\w`，`\b分钟\b` 在中文里永远匹配不到，所以那句带着「五分钟」一路通过了所有测试。改法：删掉那条台词，池子从 8 条扩到 20 条（必须大于默认上限 10，否则同一轮内必然重复），守卫改成不带 `\b` 的 `/\d|秒|分钟|小时|毫秒/`，另加两条：池子容积 > `nudgeLimitCount`、走 `pickNudgeLine` 读一遍确认没有固定时长。红验证两次：把「五分钟」塞回去 → 恰好 2 项红；去掉暂停门控 → 恰好 4 项红。304 个测试通过（`nudge.test.ts` 50 项），`typecheck` / `build` / 全部 `node --check` / `direct-check.mjs` 全绿。
 

@@ -133,7 +133,7 @@
   // Built by `node extension/tools/pack-extension.mjs --out site/download`. The
   // name mirrors the packer's output, and the ZIP itself is gitignored: it is a
   // build artefact, so it must exist in the deployed folder rather than the repo.
-  var DOWNLOAD_URL = 'download/shangtou-miaomiao-v0.1.0.zip';
+  var DOWNLOAD_URL = 'download/shangtou-miaomiao-v0.1.1.zip';
 
   /**
    * Ask the static host whether the package is actually there before offering

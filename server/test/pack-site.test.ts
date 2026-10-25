@@ -94,6 +94,22 @@ describe('site staging', () => {
     expect(files, 'staged file for ' + url).toContain(url);
   });
 
+  it('keeps DOWNLOAD_URL on the manifest version', () => {
+    // Every functional change bumps the manifest version, so this literal has
+    // to move with it. `tools/pack-site.mjs` also refuses on a mismatch, but
+    // only when someone runs the packer — and the ZIP itself is gitignored, so
+    // a version bump that forgets app.js would otherwise pass review, pass
+    // tests, and only fail at deploy time. This makes it fail in `npm test`.
+    //
+    // The rule is "one functional change, one bump" precisely so a user can
+    // tell which build they have: the shipped ZIP has no auto-update (§7.10),
+    // so the version string is the only signal that they need to reinstall.
+    const manifest = JSON.parse(
+      readFileSync(join(REPO, 'extension', 'manifest.json'), 'utf8')
+    ) as { version: string };
+    expect(downloadUrl()).toBe(`download/shangtou-miaomiao-v${manifest.version}.zip`);
+  });
+
   it('ships every emotion icon the pages reference', () => {
     // The demo swaps faces by path; a missing PNG is a broken image, not an
     // error, so assert the directory came over whole.

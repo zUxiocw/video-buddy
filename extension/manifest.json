@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "喵喵陪你刷",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "刷抖音时，猫娘「喵喵陪你刷」会在你停下来看某条视频时主动搭话，还能陪你聊。",
   "minimum_chrome_version": "116",
   "permissions": ["storage", "activeTab"],
