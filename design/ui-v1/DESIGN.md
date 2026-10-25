@@ -4,7 +4,7 @@
 - 日期：`2026-10-24`
 - 状态：**用户已确认效果，冻结为 v1**
 - 来源：`D:\code\video-buddy\site`
-- 归档：`design/ui-v1/` + `design/shangtou-meowmeow-ui-v1.zip`
+- 归档：`design/ui-v1/`（压缩包不进仓库，本地保留）
 - 边界：这是独立静态 UI，不改 `extension/`、`server/` 或现有插件运行时。
 
 ## 1. 产品定位

@@ -40,11 +40,12 @@
 | 提交项 | 位置 |
 |---|---|
 | README | 本文件 |
-| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy) · [`submission/shangtou-meowmeow-repo.zip`](submission/shangtou-meowmeow-repo.zip) |
+| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy)（源码即本仓库） |
 | Demo | [`submission/demo/index.html`](submission/demo/index.html) · [`demo.html`](submission/demo/demo.html) · [`demo.zip`](submission/shangtou-meowmeow-demo.zip) |
 | 一页作品介绍 | [`submission/one-pager/one-pager.html`](submission/one-pager/one-pager.html) · [PDF](submission/one-pager/one-pager.pdf) · [PNG](submission/one-pager/one-pager.png) |
 | 提交索引 | [`submission/README.md`](submission/README.md) |
-| 提交总包 | [`submission/shangtou-meowmeow-submission.zip`](submission/shangtou-meowmeow-submission.zip) |
+
+作品曾经打过 `repo.zip` / `submission.zip` 快照包，现在不再进仓库：它们只是把仓库本身重新压一遍，留着会让人不知道源码以哪份为准。需要时用提交索引里的命令重新生成。
 
 ### 3 分钟验收
 
@@ -178,9 +179,7 @@ flowchart LR
 ├─ submission/               作品提交包
 │  ├─ demo/                  可独立打开的 Demo
 │  ├─ one-pager/             一页作品介绍 HTML/PDF/PNG
-│  ├─ shangtou-meowmeow-repo.zip       干净源码包
 │  ├─ shangtou-meowmeow-demo.zip       Demo 单包
-│  ├─ shangtou-meowmeow-submission.zip 提交总包
 │  └─ README.md              提交索引
 ├─ docs/screenshots/         README 截图
 └─ design/                   历史设计冻结版（ui-v1/v2/v3）
@@ -214,7 +213,26 @@ node extension/tools/e2e.mjs
 
 `e2e.mjs` 需要本机服务运行；真实抖音页面的限时 / 键盘回归仍建议手动过一遍。
 
-当前自动化：**304 项通过 / 22 个文件**（`nudge.test.ts` 50 项），`typecheck` / `build` 通过；扩展直连 25 项、部署检查 11/11。
+当前自动化：**305 项通过 / 22 个文件**（`nudge.test.ts` 50 项），`typecheck` / `build` 通过；扩展直连 25 项、部署检查 11/11。
+
+## 从源码跑起来
+
+```powershell
+cd server
+npm install
+cp .env.example .env.local     # 填 DEEPSEEK_API_KEY，或直接把 PROVIDER 留成 mock
+npm run dev                    # http://127.0.0.1:8787/health
+```
+
+然后 `chrome://extensions` → 打开开发者模式 → 「加载已解压的扩展程序」→ 选 `extension/`。想打包分发包用 `node extension/tools/pack-extension.mjs`。
+
+装完想验证直连链路能不能通，不用真 Key：
+
+```powershell
+node extension/tools/direct-check.mjs    # 25 项，本地假模型，不花 token
+```
+
+改动之前先读 `CLAUDE.md`——里面记着这个项目所有「看起来可以简化、实际简化就坏」的地方（为什么搓不成一个定时器、为什么共享规则文件是 IIFE、为什么请求体空字段要整个省掉）。它不是风格指南，是踩过的坑。
 
 ## 状态
 
@@ -226,4 +244,8 @@ node extension/tools/e2e.mjs
 
 ## 素材与许可
 
-仓库目前未附开源许可证。角色图、9 张情绪图仅用于本项目展示；对外分发或商用前请确认素材授权。第三方依赖遵循各自许可证。
+代码以 [MIT](LICENSE) 授权，可自由使用、修改和分发，保留版权声明即可。
+
+**角色美术不在 MIT 范围内**：`extension/assets/emotions/` 的 9 张情绪立绘、工具栏图标和网页上的同一套图（`site/assets/`）属于项目美术素材，仅授权用于运行和展示本项目。要拿它们做别的用途，请先确认授权。
+
+第三方依赖遵循各自许可证。`server/data/` 的热点与俚语词库来自公开来源，会随时间变化，不保证准确。

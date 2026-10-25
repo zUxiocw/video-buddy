@@ -5,7 +5,7 @@
 - 状态：**已移除未接通的性格调教，并重写九种情绪台词，等待用户验收**
 - 替代：`design/ui-v1`（v1 的“浏览器直连模型 API”流程与现有 Fastify 架构冲突）
 - 来源：`site/`
-- 归档：`design/ui-v2/` + `design/shangtou-meowmeow-ui-v2.zip`
+- 归档：`design/ui-v2/`（压缩包不进仓库，本地保留）
 - 边界：独立静态 UI，不改 `extension/`、`server/` 或现有测试。
 
 ## 1. 这次修复了什么

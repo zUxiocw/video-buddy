@@ -8,7 +8,7 @@
 - 限时演示：手机框只做聊天/拖拽/情绪；到点关标签页改用桌面浏览器窗口示意，明确不会实际关页
 - 本地服务：原 Fastify + APP_TOKEN 模式保留为开发者选项
 - 目录：`design/ui-v3/`
-- 压缩包：`design/shangtou-meowmeow-ui-v3.zip`
+- 压缩包：不再进仓库（本地保留 `design/shangtou-meowmeow-ui-v3.zip`）
 - 校验：`design/shangtou-meowmeow-ui-v3.sha256`
 - 设计说明：`design/ui-v3/DESIGN.md`
 - 交接单：`design/ui-v3/HANDOFF.md`
@@ -17,13 +17,13 @@
 
 - 状态：保留作对比；公开叙事是“扩展 + 本机 Fastify + APP_TOKEN”，已被 BYOK 取代
 - 目录：`design/ui-v2/`
-- 压缩包：`design/shangtou-meowmeow-ui-v2.zip`
+- 压缩包：不再进仓库（本地保留 `design/shangtou-meowmeow-ui-v2.zip`）
 
 ## ui-v1（2026-10-24，已废弃直连 API 方案）
 
 - 状态：保留作对比；其“浏览器直连模型 Key”流程不再采用
 - 目录：`design/ui-v1/`
-- 压缩包：`design/shangtou-meowmeow-ui-v1.zip`
+- 压缩包：不再进仓库（本地保留 `design/shangtou-meowmeow-ui-v1.zip`）
 
 ## 约定
 

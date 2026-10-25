@@ -11,10 +11,8 @@
 |---|---|
 | README | 本文件；项目主页见 [`../README.md`](../README.md) |
 | Demo | [`demo/index.html`](demo/index.html) · [`demo/demo.html`](demo/demo.html) · [`shangtou-meowmeow-demo.zip`](shangtou-meowmeow-demo.zip) |
-| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy) · [`shangtou-meowmeow-repo.zip`](shangtou-meowmeow-repo.zip) |
+| 仓库 | [github.com/zUxiocw/video-buddy](https://github.com/zUxiocw/video-buddy)（源码即仓库） |
 | 一页介绍 | [`one-pager/one-pager.html`](one-pager/one-pager.html) · [PDF](one-pager/one-pager.pdf) · [PNG](one-pager/one-pager.png) |
-
-提交总包：[`shangtou-meowmeow-submission.zip`](shangtou-meowmeow-submission.zip)
 
 ## 3 分钟验收
 
@@ -76,7 +74,6 @@ Demo 回复是本地写死的，不调用模型，不需要 Key。到点关页�
 - 网页：`site/`（静态 HTML/CSS/JS）
 - 截图：`docs/screenshots/`
 - 一页介绍：`submission/one-pager/`
-- 本地源码包：`shangtou-meowmeow-repo.zip`
 
 ```bash
 git clone https://github.com/zUxiocw/video-buddy.git
@@ -132,8 +129,6 @@ submission/
 ├─ demo/                            独立静态 Demo
 ├─ one-pager/                       HTML / PDF / PNG
 ├─ shangtou-meowmeow-demo.zip       Demo 单包
-├─ shangtou-meowmeow-repo.zip       源码仓库包
-├─ shangtou-meowmeow-submission.zip 提交总包
 └─ ...
 ```
 

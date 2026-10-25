@@ -4,7 +4,7 @@
 - 日期：`2026-10-24`
 - 状态：**BYOK 网页与桌面浏览器限时演示已改完，等待验收；Claude Code 的 BYOK 实现仍在进行中**
 - 来源：`site/`
-- 归档：`design/ui-v3/` + `design/shangtou-meowmeow-ui-v3.zip`
+- 归档：`design/ui-v3/`（压缩包不进仓库，本地保留）
 - 边界：独立静态 UI，不改 `extension/`、`server/` 或现有测试。
 
 ## 1. 为什么从 v2 升到 v3
